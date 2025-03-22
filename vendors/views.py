@@ -6,6 +6,8 @@ from .serializers import VendorSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from admin_panel.models import *
 
@@ -77,6 +79,32 @@ class ForgotPasswordAPIView(APIView):
 
         except Vendor.DoesNotExist:
             return Response({"error": "Vendor with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+# VENDOR LOGOUT
+class LogoutAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        print('logout is working')
+        try:
+            refresh_token = request.data.get("refresh")
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return Response({"message": "Successfully logged out!"}, status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
 
 
 
