@@ -114,6 +114,8 @@ DATABASES = {
         },
     }
 }
+AUTH_USER_MODEL = 'admin_panel.User'
+
 
 
 # Password validation
