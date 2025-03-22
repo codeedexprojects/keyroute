@@ -8,6 +8,8 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from .models import *
+from django.core.mail import send_mail
 
 from admin_panel.models import *
 
@@ -57,28 +59,6 @@ class LoginAPIView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-# VENDOR FORGOT PASSWORD
-class ForgotPasswordAPIView(APIView):
-    def post(self, request):
-        email = request.data.get('email')
-        new_password = request.data.get('new_password')
-        confirm_password = request.data.get('confirm_password')
-
-        if not email or not new_password or not confirm_password:
-            return Response({"error": "Email, new password, and confirm password are required."}, status=status.HTTP_400_BAD_REQUEST)
-
-        if new_password != confirm_password:
-            return Response({"error": "Passwords do not match."}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            vendor = Vendor.objects.get(email_address=email)
-            user = vendor.user   
-            user.set_password(new_password)
-            user.save()
-            return Response({"message": "Password updated successfully!"}, status=status.HTTP_200_OK)
-
-        except Vendor.DoesNotExist:
-            return Response({"error": "Vendor with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
 
 
 
@@ -102,11 +82,82 @@ class LogoutAPIView(APIView):
 
 
 
+# OTP CREATION
+class SendOtpAPIView(APIView):
+    def post(self, request):
+        email = request.data.get('email')
+        print(email,'email')
+
+        if not email:
+            return Response({"error": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            vendor = Vendor.objects.get(email_address=email)
+
+            otp_instance, _ = OTP.objects.get_or_create(user=vendor.user)
+            otp = otp_instance.generate_otp()
+
+            subject = "Your OTP for Password Reset"
+            message = f"Your OTP code is {otp}. It is valid for 5 minutes."
+            from_email = "praveen.codeedex@gmail.com"   
+            recipient_list = [email]
+
+            send_mail(subject, message, from_email, recipient_list)
+
+            return Response({"message": "OTP sent successfully! Please check your email."}, status=status.HTTP_200_OK)
+
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
 
 
+# OTP VERIFCATION
+class VerifyOtpAPIView(APIView):
+    def post(self, request):
+        email = request.data.get('email')
+        otp = request.data.get('otp')
+
+        if not email or not otp:
+            return Response({"error": "Email and OTP are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            vendor = Vendor.objects.get(email_address=email)
+            otp_instance = OTP.objects.get(user=vendor.user)
+
+            if otp_instance.otp_code != otp:
+                return Response({"error": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
+
+            if not otp_instance.is_valid():
+                return Response({"error": "OTP has expired."}, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response({"message": "OTP verified! You can now reset your password."}, status=status.HTTP_200_OK)
+
+        except (Vendor.DoesNotExist, OTP.DoesNotExist):
+            return Response({"error": "Invalid email or OTP."}, status=status.HTTP_404_NOT_FOUND)
 
 
+# RESET PASSWORD
+class ResetPasswordAPIView(APIView):
+    def post(self, request):
 
+        email = request.data.get('email')
+        new_password = request.data.get('new_password')
+        confirm_password = request.data.get('confirm_password')
 
+        if not all([email, new_password, confirm_password]):
+            return Response({"error": "All fields are required."}, status=status.HTTP_400_BAD_REQUEST)
 
+        if new_password != confirm_password:
+            return Response({"error": "Passwords do not match."}, status=status.HTTP_400_BAD_REQUEST)
 
+        try:
+            vendor = Vendor.objects.get(email_address=email)
+            user = vendor.user
+            user.set_password(new_password)
+            user.save()
+
+            OTP.objects.filter(user=user).delete()
+
+            return Response({"message": "Password updated successfully!"}, status=status.HTTP_200_OK)
+
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
