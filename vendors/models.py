@@ -20,3 +20,7 @@ class OTP(models.Model):
 
     def is_valid(self):
         return timezone.now() - self.created_at < timezone.timedelta(minutes=5)
+    
+
+
+
