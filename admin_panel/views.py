@@ -48,3 +48,23 @@ class VendorListAPIView(APIView):
         vendors = Vendor.objects.all()
         serializer = VendorSerializer(vendors, many=True)
         return Response({"vendors": serializer.data}, status=status.HTTP_200_OK)
+
+
+
+class VendorDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request, vendor_id):
+        # Check if the user is an admin
+        if not request.user.is_staff:
+            return Response({"error": "You do not have permission to view this."}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            vendor = Vendor.objects.get(pk=vendor_id)
+            serializer = VendorSerializer(vendor)
+            return Response({"vendor": serializer.data}, status=status.HTTP_200_OK)
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
