@@ -4,3 +4,5 @@ from .models import *
 
 
 admin.site.register(OTP)
+admin.site.register(Bus)
+admin.site.register(BusImage)
