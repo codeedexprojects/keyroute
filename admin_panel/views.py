@@ -10,6 +10,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from admin_panel.models import User
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from .serializers import *
 
 # Create your views here.
 
@@ -99,6 +100,17 @@ class UserCountAPIView(APIView):
 
 
 
+# RECENT USERS
+class RecentlyJoinedUsersAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
+    def get(self, request):
+        if not request.user.is_staff:
+            return Response({"error": "You do not have permission to view this."}, status=status.HTTP_403_FORBIDDEN)
+        
+        recent_users = User.objects.filter(role=User.USER).order_by('-date_joined')[:5]
+        serializer = UserSerializer(recent_users, many=True)
+        return Response({"recent_users": serializer.data}, status=status.HTTP_200_OK)
 
 
