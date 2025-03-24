@@ -10,6 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from .models import *
 from django.core.mail import send_mail
+from .serializers import *
 
 from admin_panel.models import *
 
@@ -161,3 +162,88 @@ class ResetPasswordAPIView(APIView):
 
         except Vendor.DoesNotExist:
             return Response({"error": "Vendor with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+
+
+# BUS CREATION AND LIST 
+class BusAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        try:
+            vendor = Vendor.objects.filter(user=request.user).first()
+            if not vendor:
+                return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
+
+            buses = Bus.objects.filter(vendor=vendor)
+            serializer = BusSerializer(buses, many=True)
+            return Response({"buses": serializer.data}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def post(self, request):
+        try:
+            vendor = Vendor.objects.filter(user=request.user).first()
+            if not vendor:
+                return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = BusSerializer(data=request.data, context={'vendor': vendor})
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"message": "Bus created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# BUS EDIT  AND DELETE
+class BusEditAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def put(self, request, bus_id):
+        try:
+            vendor = Vendor.objects.filter(user=request.user).first()
+            if not vendor:
+                return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
+
+            try:
+                bus = Bus.objects.get(id=bus_id, vendor=vendor)
+            except Bus.DoesNotExist:
+                return Response({"error": "Bus not found or unauthorized access."}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = BusSerializer(bus, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"message": "Bus updated successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+    
+    def delete(self, request, bus_id):
+        try:
+            vendor = Vendor.objects.filter(user=request.user).first()
+            if not vendor:
+                return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
+
+            try:
+                bus = Bus.objects.get(id=bus_id, vendor=vendor)
+                bus.delete()
+                return Response({"message": "Bus deleted successfully!"}, status=status.HTTP_200_OK)
+            except Bus.DoesNotExist:
+                return Response({"error": "Bus not found or unauthorized access."}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
