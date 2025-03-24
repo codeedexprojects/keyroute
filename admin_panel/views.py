@@ -56,7 +56,6 @@ class VendorDetailAPIView(APIView):
     authentication_classes = [JWTAuthentication]
 
     def get(self, request, vendor_id):
-        # Check if the user is an admin
         if not request.user.is_staff:
             return Response({"error": "You do not have permission to view this."}, status=status.HTTP_403_FORBIDDEN)
 
@@ -66,5 +65,21 @@ class VendorDetailAPIView(APIView):
             return Response({"vendor": serializer.data}, status=status.HTTP_200_OK)
         except Vendor.DoesNotExist:
             return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+# TOTTEL VENDORS COUNT
+class VendorCountAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        if not request.user.is_staff:
+            return Response({"error": "You do not have permission to view this."}, status=status.HTTP_403_FORBIDDEN)
+
+        vendor_count = Vendor.objects.count()
+        return Response({"total_vendors": vendor_count}, status=status.HTTP_200_OK)
+    
+
+
 
 
