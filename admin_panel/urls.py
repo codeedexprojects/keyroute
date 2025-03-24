@@ -10,6 +10,11 @@ urlpatterns = [
 
     # COUNT
     path('api/admin/vendor/count/', VendorCountAPIView.as_view(), name='vendor-count'),
+    path('api/admin/user/count/', UserCountAPIView.as_view(), name='user-count'),
+    
+
 
 
 ]
+
+

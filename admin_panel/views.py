@@ -81,5 +81,24 @@ class VendorCountAPIView(APIView):
     
 
 
+class UserCountAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        if not request.user.is_staff:
+            return Response({"error": "You do not have permission to view this."}, status=status.HTTP_403_FORBIDDEN)
+
+        user_count = User.objects.filter(role=User.USER).count()
+
+        data = {
+            "user_count": user_count,
+        }
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
+
+
 
 
