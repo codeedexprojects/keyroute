@@ -17,7 +17,9 @@ urlpatterns = [
 
 
     # PACKAGE 
-    path('api/vendor/package-category/', PackageCategoryCreateAPIView.as_view(), name='bus_details'),
+    path('api/vendor/package-category/', PackageCategoryAPIView.as_view(), name='bus_details'),
+    path('api/vendor/package-category/<int:pk>/', PackageCategoryAPIView.as_view(), name='package-category-update-delete'),
+
 
    
 
