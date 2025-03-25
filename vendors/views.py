@@ -312,6 +312,73 @@ class PackageCategoryAPIView(APIView):
 
 
 
+class PackageSubCategoryAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]  
+
+    def get_vendor(self, request):
+        return Vendor.objects.filter(user=request.user).first()
+
+    def get_object(self, pk):
+        try:
+            return PackageSubCategory.objects.get(pk=pk)
+        except PackageSubCategory.DoesNotExist:
+            return None
+
+    def post(self, request):
+        try:
+            vendor = Vendor.objects.get(user=request.user)
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data.copy()
+        
+        try:
+            category = PackageCategory.objects.get(id=data["category"], vendor=vendor)
+        except PackageCategory.DoesNotExist:
+            return Response({"error": "Invalid category for this vendor."}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = PackageSubCategorySerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Package SubCategory created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+    def get(self, request, pk=None):
+        if pk:
+            subcategory = self.get_object(pk)
+            if not subcategory:
+                return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = PackageSubCategorySerializer(subcategory)
+            return Response({"subcategory": serializer.data}, status=status.HTTP_200_OK)
+
+        subcategories = PackageSubCategory.objects.all()
+        serializer = PackageSubCategorySerializer(subcategories, many=True)
+        return Response({"subcategories": serializer.data}, status=status.HTTP_200_OK)
+
+    def put(self, request, pk):
+        subcategory = self.get_object(pk)
+        if not subcategory:
+            return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PackageSubCategorySerializer(subcategory, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "SubCategory updated successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        subcategory = self.get_object(pk)
+        if not subcategory:
+            return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        subcategory.delete()
+        return Response({"message": "SubCategory deleted successfully!"}, status=status.HTTP_200_OK)
+
 
 
 
