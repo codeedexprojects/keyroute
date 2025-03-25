@@ -6,3 +6,6 @@ from .models import *
 admin.site.register(OTP)
 admin.site.register(Bus)
 admin.site.register(BusImage)
+admin.site.register(PackageCategory)
+admin.site.register(PackageSubCategory)
+admin.site.register(Package)
