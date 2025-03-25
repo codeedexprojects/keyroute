@@ -114,7 +114,7 @@ class PackageCategorySerializer(serializers.ModelSerializer):
 class PackageSubCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = PackageSubCategory
-        fields = ['id', 'vendor', 'category', 'name', 'image']
+        fields = ['id',  'category', 'name', 'image']
 
     def validate_name(self, value):
         if not value.strip():
