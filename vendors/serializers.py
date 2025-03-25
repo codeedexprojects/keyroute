@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from admin_panel.models import Vendor, User
 from .models import *
+from django.core.exceptions import ValidationError
 
 class VendorSerializer(serializers.ModelSerializer):
 
@@ -93,5 +94,61 @@ class BusSerializer(serializers.ModelSerializer):
 
         return bus
     
+
+
+
+
+
+class PackageCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageCategory
+        fields = ['id', 'vendor', 'name', 'image']
+
+    def validate_name(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Category name cannot be empty.")
+        return value
+
+
+
+class PackageSubCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageSubCategory
+        fields = ['id', 'vendor', 'category', 'name', 'image']
+
+    def validate_name(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("SubCategory name cannot be empty.")
+        return value
+
+
+def validate_days_nights(days, nights):
+    if days < 0 or nights < 0:
+        raise ValidationError("Days and nights must be non-negative numbers.")
+
+def validate_places(places):
+    if not places.strip():
+        raise ValidationError("Places field cannot be empty.")
+
+def validate_buses(bus_ids):
+    for bus_id in bus_ids:
+        if not Bus.objects.filter(id=bus_id).exists():
+            raise ValidationError(f"Bus with ID {bus_id} does not exist.")
+
+
+
+class PackageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Package
+        fields = ['id', 'vendor', 'sub_category', 'places', 'days', 'nights', 'ac_available', 'guide_included', 'buses', 'header_image', 'created_at', 'updated_at']
+
+    def validate(self, data):
+        validate_days_nights(data.get('days', 0), data.get('nights', 0))
+        validate_places(data.get('places', ''))
+        validate_buses(data.get('buses', []).values_list('id', flat=True))
+        return data
+
+
+
 
 
