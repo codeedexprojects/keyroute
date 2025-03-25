@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 
 # Create your models here.
+from django.contrib.auth.models import AbstractUser
+from django.db import models
 
 class User(AbstractUser):
     ADMIN = 'admin'
@@ -14,10 +16,19 @@ class User(AbstractUser):
         (USER, 'User'),
     ]
 
+    username = None  # Remove default username field
+    email = models.EmailField(unique=True, blank=True, null=True)  # Optional email
+    phone_number = models.CharField(max_length=15, unique=True)  # Primary login field
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=USER)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_google_user = models.BooleanField(default=False)  # Identifies Google signups
+
+    USERNAME_FIELD = 'phone_number'  # Login using phone number
+    REQUIRED_FIELDS = []  # No required fields other than phone_number
 
     def __str__(self):
-        return f'{self.username} ({self.get_role_display()})'
+        return f'{self.phone_number} ({self.get_role_display()})'
+
     
 
 
