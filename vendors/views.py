@@ -11,6 +11,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from .models import *
 from django.core.mail import send_mail
 from .serializers import *
+from rest_framework.parsers import MultiPartParser, FormParser
 
 from admin_panel.models import *
 
@@ -244,6 +245,51 @@ class BusEditAPIView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+# PACKAGE CATEGORY CREATED AND LISTED
+class PackageCategoryCreateAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        try:
+            vendor = Vendor.objects.get(user=request.user) 
+
+
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data.copy()
+        data["vendor"] = vendor.user_id
+
+        serializer = PackageCategorySerializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Package Category created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def get(self, request):
+        try:
+            vendor = Vendor.objects.get(user=request.user)
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
+
+        categories = PackageCategory.objects.filter(vendor=vendor)
+        serializer = PackageCategorySerializer(categories, many=True)
+
+        return Response({"message": "Package categories fetched successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
 
 
 

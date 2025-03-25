@@ -15,6 +15,10 @@ urlpatterns = [
     path('api/vendor/bus/', BusAPIView.as_view(), name='bus_details'),
     path('api/vendor/bus/edit/<int:bus_id>/', BusEditAPIView.as_view(), name='bus_edit'),
 
+
+    # PACKAGE 
+    path('api/vendor/package-category/', PackageCategoryCreateAPIView.as_view(), name='bus_details'),
+
    
 
 ]
