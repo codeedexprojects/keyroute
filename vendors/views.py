@@ -383,5 +383,82 @@ class PackageSubCategoryAPIView(APIView):
 
 
 
+class PackageAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser,JSONParser]
+
+    def get(self, request, package_id=None):
+        try:
+            vendor = Vendor.objects.get(user=request.user)
+
+            if package_id:
+                package = Package.objects.get(id=package_id, vendor=vendor)
+                serializer = PackageSerializer(package)
+                return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+
+            packages = Package.objects.filter(vendor=vendor)
+            serializer = PackageSerializer(packages, many=True)
+            return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Package.DoesNotExist:
+            return Response({"error": "Package not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+    def post(self, request):
+        try:
+            vendor = Vendor.objects.get(user=request.user)
+            data = request.data.copy()
+            data["vendor"] = vendor.user_id   
+
+            serializer = PackageSerializer(data=data)
+            if serializer.is_valid():
+                package = serializer.save()
+
+                
+                if "buses" in data:
+                    package.buses.set(data["buses"])  
+
+                return Response({"message": "Package created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+
+    def put(self, request, package_id):
+        try:
+            vendor = Vendor.objects.get(user=request.user)
+            package = Package.objects.get(id=package_id, vendor=vendor)
+
+            serializer = PackageSerializer(package, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"message": "Package updated successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Package.DoesNotExist:
+            return Response({"error": "Package not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, package_id):
+        try:
+            vendor = Vendor.objects.get(user=request.user)
+            package = Package.objects.get(id=package_id, vendor=vendor)
+            package.delete()
+            return Response({"message": "Package deleted successfully!"}, status=status.HTTP_204_NO_CONTENT)
+
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Package.DoesNotExist:
+            return Response({"error": "Package not found"}, status=status.HTTP_404_NOT_FOUND)
 
 

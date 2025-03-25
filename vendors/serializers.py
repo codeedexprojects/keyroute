@@ -57,6 +57,7 @@ class BusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bus
         fields = [
+            # 'id',
             'bus_name', 'bus_number', 'bus_type', 'capacity', 'vehicle_description',
             'vehicle_rc_number', 'travels_logo', 'rc_certificate', 'license',
             'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance', 'bus_view_images'
@@ -130,14 +131,12 @@ def validate_places(places):
     if not places.strip():
         raise ValidationError("Places field cannot be empty.")
 
-def validate_buses(bus_ids):
-    for bus_id in bus_ids:
-        if not Bus.objects.filter(id=bus_id).exists():
-            raise ValidationError(f"Bus with ID {bus_id} does not exist.")
+
 
 
 
 class PackageSerializer(serializers.ModelSerializer):
+    buses = serializers.PrimaryKeyRelatedField(queryset=Bus.objects.all(), many=True)
     class Meta:
         model = Package
         fields = ['id', 'vendor', 'sub_category', 'places', 'days', 'nights', 'ac_available', 'guide_included', 'buses', 'header_image', 'created_at', 'updated_at']
@@ -145,9 +144,16 @@ class PackageSerializer(serializers.ModelSerializer):
     def validate(self, data):
         validate_days_nights(data.get('days', 0), data.get('nights', 0))
         validate_places(data.get('places', ''))
-        validate_buses(data.get('buses', []).values_list('id', flat=True))
         return data
+    
+    def validate_buses(self, value):
+        bus_ids = [bus.id for bus in value]  
+        existing_bus_ids = set(Bus.objects.filter(id__in=bus_ids).values_list('id', flat=True))
 
+        missing_ids = set(bus_ids) - existing_bus_ids
+        if missing_ids:
+            raise serializers.ValidationError(f"Invalid bus IDs: {list(missing_ids)}")
+        return value
 
 
 
