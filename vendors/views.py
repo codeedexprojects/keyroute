@@ -451,12 +451,14 @@ class PackageAPIView(APIView):
 
 
 
-    def put(self, request, package_id):
+   
+
+    def patch(self, request, package_id):
         try:
             vendor = Vendor.objects.get(user=request.user)
             package = Package.objects.get(id=package_id, vendor=vendor)
 
-            serializer = PackageSerializer(package, data=request.data, partial=True)
+            serializer = PackageSerializer(package, data=request.data, partial=True)   
             if serializer.is_valid():
                 serializer.save()
                 return Response({"message": "Package updated successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
