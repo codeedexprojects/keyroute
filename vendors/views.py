@@ -208,6 +208,25 @@ class BusEditAPIView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
+
+
+    def get(self, request, bus_id):
+        """Retrieve a single bus by ID if it belongs to the authenticated vendor."""
+        try:
+            vendor = Vendor.objects.filter(user=request.user).first()
+            if not vendor:
+                return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
+
+            try:
+                bus = Bus.objects.get(id=bus_id, vendor=vendor)
+                serializer = BusSerializer(bus)
+                return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+            except Bus.DoesNotExist:
+                return Response({"error": "Bus not found or unauthorized access."}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
     def put(self, request, bus_id):
         try:
             vendor = Vendor.objects.filter(user=request.user).first()

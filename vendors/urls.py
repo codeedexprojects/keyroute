@@ -13,7 +13,7 @@ urlpatterns = [
 
     # BUS REGISTRATION
     path('api/vendor/bus/', BusAPIView.as_view(), name='bus_details'),
-    path('api/vendor/bus/edit/<int:bus_id>/', BusEditAPIView.as_view(), name='bus_edit'),
+    path('api/vendor/bus/<int:bus_id>/', BusEditAPIView.as_view(), name='bus_edit'),
 
 
     # PACKAGE CATEGORY
