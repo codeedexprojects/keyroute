@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.validators import FileExtensionValidator
 
 # Create your models here.
 
@@ -49,3 +50,46 @@ class BusImage(models.Model):
 
     def __str__(self):
         return f"Image for {self.bus.bus_name}"
+
+
+
+
+
+class PackageCategory(models.Model):
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE)
+    name = models.CharField(max_length=100, unique=True)
+    image = models.ImageField(upload_to='package_categories/', null=True, blank=True)
+
+    def __str__(self):
+        return self.name
+
+
+
+class PackageSubCategory(models.Model):
+    category = models.ForeignKey(PackageCategory, on_delete=models.CASCADE, related_name="subcategories")
+    name = models.CharField(max_length=100, unique=True)
+    image = models.ImageField(upload_to='package_subcategories/', null=True, blank=True)
+
+    def __str__(self):
+        return self.name
+
+
+class Package(models.Model):
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE)
+    sub_category = models.ForeignKey(PackageSubCategory, on_delete=models.CASCADE, related_name="packages")
+    header_image = models.ImageField(
+        upload_to='packages/header/',
+        validators=[FileExtensionValidator(['jpg', 'png'])]
+    )
+    places = models.CharField(max_length=255)
+    days = models.PositiveIntegerField(default=0)
+    nights = models.PositiveIntegerField(default=0)
+    ac_available = models.BooleanField(default=True, verbose_name="AC Available")
+    guide_included = models.BooleanField(default=False, verbose_name="Includes Guide")
+    buses = models.ManyToManyField(Bus)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.sub_category.name} - {self.places}"
+
