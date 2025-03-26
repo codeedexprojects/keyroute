@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from admin_panel.models import Vendor, User
 from .models import *
+from django.core.exceptions import ValidationError
 
 class VendorSerializer(serializers.ModelSerializer):
 
@@ -56,6 +57,7 @@ class BusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bus
         fields = [
+            'id',
             'bus_name', 'bus_number', 'bus_type', 'capacity', 'vehicle_description',
             'vehicle_rc_number', 'travels_logo', 'rc_certificate', 'license',
             'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance', 'bus_view_images'
@@ -93,5 +95,94 @@ class BusSerializer(serializers.ModelSerializer):
 
         return bus
     
+
+
+
+
+
+class PackageCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageCategory
+        fields = ['id', 'vendor', 'name', 'image']
+
+    def validate_name(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Category name cannot be empty.")
+        return value
+
+
+
+class PackageSubCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageSubCategory
+        fields = ['id',  'category', 'name', 'image']
+
+    def validate_name(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("SubCategory name cannot be empty.")
+        return value
+
+
+def validate_days_nights(days, nights):
+    if days < 0 or nights < 0:
+        raise ValidationError("Days and nights must be non-negative numbers.")
+
+def validate_places(places):
+    if not places.strip():
+        raise ValidationError("Places field cannot be empty.")
+
+
+
+
+
+# class PackageSerializer(serializers.ModelSerializer):
+#     buses = serializers.PrimaryKeyRelatedField(queryset=Bus.objects.all(), many=True)
+#     class Meta:
+#         model = Package
+#         fields = ['id', 'vendor', 'sub_category', 'places', 'days', 'nights', 'ac_available', 'guide_included', 'buses', 'header_image', 'created_at', 'updated_at']
+
+#     def validate(self, data):
+#         validate_days_nights(data.get('days', 0), data.get('nights', 0))
+#         validate_places(data.get('places', ''))
+#         return data
+    
+#     def validate_buses(self, value):
+#         bus_ids = [bus.id for bus in value]  
+#         existing_bus_ids = set(Bus.objects.filter(id__in=bus_ids).values_list('id', flat=True))
+
+#         missing_ids = set(bus_ids) - existing_bus_ids
+#         if missing_ids:
+#             raise serializers.ValidationError(f"Invalid bus IDs: {list(missing_ids)}")
+#         return value
+
+class PackageSerializer(serializers.ModelSerializer):
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)  # Assuming `Vendor` has a `name` field
+    sub_category_name = serializers.CharField(source='sub_category.name', read_only=True)  
+    buses = serializers.PrimaryKeyRelatedField(queryset=Bus.objects.all(), many=True)
+
+    class Meta:
+        model = Package
+        fields = [
+            'id', 'vendor', 'vendor_name', 'sub_category', 'sub_category_name', 
+            'places', 'days', 'nights', 'ac_available', 'guide_included', 
+            'buses', 'header_image', 'created_at', 'updated_at'
+        ]
+
+    def validate(self, data):
+        validate_days_nights(data.get('days', 0), data.get('nights', 0))
+        validate_places(data.get('places', ''))
+        return data
+
+    def validate_buses(self, value):
+        bus_ids = [bus.id for bus in value]  
+        existing_bus_ids = set(Bus.objects.filter(id__in=bus_ids).values_list('id', flat=True))
+
+        missing_ids = set(bus_ids) - existing_bus_ids
+        if missing_ids:
+            raise serializers.ValidationError(f"Invalid bus IDs: {list(missing_ids)}")
+        return value
+
+
+
 
 

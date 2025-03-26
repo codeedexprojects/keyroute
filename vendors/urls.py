@@ -13,7 +13,21 @@ urlpatterns = [
 
     # BUS REGISTRATION
     path('api/vendor/bus/', BusAPIView.as_view(), name='bus_details'),
-    path('api/vendor/bus/edit/<int:bus_id>/', BusEditAPIView.as_view(), name='bus_edit'),
+    path('api/vendor/bus/<int:bus_id>/', BusEditAPIView.as_view(), name='bus_edit'),
+
+
+    # PACKAGE CATEGORY
+    path('api/vendor/package-category/', PackageCategoryAPIView.as_view(), name='bus_details'),
+    path('api/vendor/package-category/<int:pk>/', PackageCategoryAPIView.as_view(), name='package-category-update-delete'),
+
+    # SUBCATEGORY
+    path('api/vendor/package-subcategory/', PackageSubCategoryAPIView.as_view(), name='package-subcategory-list-create'),
+    path('api/vendor/package-subcategory/<int:pk>/', PackageSubCategoryAPIView.as_view(), name='package-subcategory-detail'),
+
+    # PACKAGE 
+    path('api/vendor/package/', PackageAPIView.as_view(), name='package-create-list'),
+    path('api/vendor/package/<int:package_id>/', PackageAPIView.as_view(), name='package-detail'),
+
 
    
 
