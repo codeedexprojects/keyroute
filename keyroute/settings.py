@@ -106,9 +106,10 @@ WSGI_APPLICATION = 'keyroute.wsgi.application'
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=150),  
     'REFRESH_TOKEN_LIFETIME': timedelta(days=150), 
-    'ROTATE_REFRESH_TOKENS': True,
+    'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
-    'AUTH_HEADER_TYPES': ('Bearer',),  
+    'AUTH_HEADER_TYPES': ('Bearer',), 
+    'ALGORITHM': 'HS256',
 }
 CORS_ALLOW_ALL_ORIGINS = True  
 CORS_ALLOW_CREDENTIALS = True
