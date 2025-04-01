@@ -14,7 +14,7 @@ class UserSignupSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['phone_number', 'email', 'password', 'confirm_password']
+        fields = ['name', 'phone_number', 'email', 'password', 'confirm_password']
 
     def validate(self, data):
         # Ensure passwords match
@@ -25,13 +25,20 @@ class UserSignupSerializer(serializers.ModelSerializer):
         if User.objects.filter(phone_number=data['phone_number']).exists():
             raise serializers.ValidationError({"phone_number": "This phone number is already registered."})
 
+        # Ensure email is unique if provided
+        if data.get('email'):
+            if User.objects.filter(email=data['email']).exists():
+                raise serializers.ValidationError({"email": "This email is already in use."})
+
         return data
 
     def create(self, validated_data):
         validated_data.pop('confirm_password')  # Remove confirm_password before creating user
+        
         user = User(
+            name=validated_data.get('name', ''),  # Set name, default to empty string if not provided
             phone_number=validated_data['phone_number'],
-            email=validated_data.get('email', '')  # Email is optional
+            email=validated_data.get('email', None),  # Use None if email is not provided
         )
         user.set_password(validated_data['password'])  # Hash password
         user.save()
@@ -139,3 +146,26 @@ class ReviewSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = self.context['request'].user  # Get the logged-in user
         return Review.objects.create(user=user, **validated_data)
+    
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['name', 'email', 'phone_number']
+        extra_kwargs = {
+            'phone_number': {'read_only': True},  # Phone number shouldn't be updated
+            'email': {'required': False},  # Email is optional
+        }
+
+    def validate_email(self, value):
+        """Ensure email is unique if provided"""
+        if value and User.objects.filter(email=value).exclude(id=self.instance.id).exists():
+            raise serializers.ValidationError("This email is already in use.")
+        return value
+
+    def update(self, instance, validated_data):
+        """Update user profile"""
+        instance.name = validated_data.get('name', instance.name)
+        instance.email = validated_data.get('email', instance.email)
+        instance.save()
+        return instance

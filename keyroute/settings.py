@@ -20,6 +20,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 import os
 from dotenv import load_dotenv
 
+import pymysql
+pymysql.install_as_MySQLdb()
+
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -120,16 +124,38 @@ CORS_ALLOW_CREDENTIALS = True
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'keyroute_db',
-        'USER': 'keyroute',
-        'PASSWORD': 'admin123',  
-        'HOST': 'localhost',
-        'PORT': '3306',
+        'NAME': 'railway',
+        'USER': 'root',
+        'PASSWORD': 'zJZkGNzMHKDGFuTgQUHLyPgwHtZyeJKK',
+        'HOST': 'trolley.proxy.rlwy.net',  # Use PUBLIC URL host
+        'PORT': '26829',  # Use PUBLIC URL port
         'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
-        },
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        }
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'blcoaxxyahnj2tp5obnr',
+#         'USER': 'uwckckcsrawd1sj1',
+#         'PASSWORD': 'bd0TL2456Pam0Ap879Gm',
+#         'HOST': 'blcoaxxyahnj2tp5obnr-mysql.services.clever-cloud.com',
+#         'PORT': '3306',
+#         'OPTIONS': {
+#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+#         }
+#     }
+# }
+# DATABASES['default']['CONN_MAX_AGE'] = 600  # Keep connections alive for 10 minutes
+# DATABASES['default']['OPTIONS'] = {
+#     'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+#     'connect_timeout': 20,  # Increase timeout
+#     'charset': 'utf8mb4',  # Use efficient encoding
+# }
+
+
 AUTH_USER_MODEL = 'admin_panel.User'
 
 
