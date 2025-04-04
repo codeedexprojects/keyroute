@@ -11,6 +11,9 @@ from django.contrib.auth import authenticate
 from admin_panel.models import User
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from .serializers import *
+from vendors.models import *
+from vendors.serializers import *
+
 
 # Create your views here.
 
@@ -112,5 +115,30 @@ class RecentlyJoinedUsersAPIView(APIView):
         recent_users = User.objects.filter(role=User.USER).order_by('-date_joined')[:5]
         serializer = UserSerializer(recent_users, many=True)
         return Response({"recent_users": serializer.data}, status=status.HTTP_200_OK)
+
+
+
+
+class AdminBusListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        if request.user.role != User.ADMIN:
+            return Response(
+                {"error": "Unauthorized access. Only admins can view this data."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        buses = Bus.objects.all()
+        serializer = BusSerializer(buses, many=True)
+
+        return Response({
+            "message": "List of all buses",
+            "buses": serializer.data
+        }, status=status.HTTP_200_OK)
+
+
+
 
 

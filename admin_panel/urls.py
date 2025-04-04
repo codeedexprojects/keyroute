@@ -15,9 +15,12 @@ urlpatterns = [
     # RECENT USERS
     path('api/admin/recent-user/', RecentlyJoinedUsersAPIView.as_view(), name='recent-users'),
 
+    # BUSLIST
+    path('api/admin/tottel-buses/', AdminBusListAPIView.as_view(), name='admin-bus-list'),
 
 
 
-]
+
+] 
 
 
