@@ -4,53 +4,6 @@ from admin_panel.models import Vendor, User
 from .models import *
 from django.core.exceptions import ValidationError
 
-# class VendorSerializer(serializers.ModelSerializer):
-
-#     username = serializers.CharField(write_only=True)
-#     password = serializers.CharField(write_only=True)
-
-#     class Meta:
-#         model = Vendor
-#         fields = [
-#             'username', 'password', 'full_name', 'email_address', 'phone_no', 
-#             'travels_name', 'location', 'landmark', 'address', 
-#             'city', 'state', 'pincode'
-#         ]
-
-#     def validate_username(self, value):
-#         if not value or len(value) < 5:
-#             raise serializers.ValidationError('Username must be at least 5 characters long.')
-#         if User.objects.filter(username=value).exists():
-#             raise serializers.ValidationError('Username already exists.')
-#         return value
-
-#     def validate_email_address(self, value):
-#         if not value or len(value) < 5:
-#             raise serializers.ValidationError('Email address must be at least 5 characters long.')
-#         if Vendor.objects.filter(email_address=value).exists():
-#             raise serializers.ValidationError('Email address already exists.')
-#         return value
-
-#     def validate_password(self, value):
-#         if not value or len(value) < 5:
-#             raise serializers.ValidationError('Password must be at least 5 characters long.')
-#         return value
-
-    
-    
-#     def create(self, validated_data):
-#         user = User.objects.create(
-#             username=validated_data['username'],
-#             role=User.VENDOR,
-#             password=make_password(validated_data['password'])
-#         )
-#         validated_data.pop('username', None)
-#         validated_data.pop('password', None)
-#         validated_data['user'] = user
-
-#         vendor = Vendor.objects.create(**validated_data)   
-#         return vendor
-
 
 class VendorSerializer(serializers.ModelSerializer):
     mobile = serializers.CharField(write_only=True)
@@ -72,31 +25,40 @@ class VendorSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Mobile number already registered.')
         return value
 
+   
+
     def validate_email(self, value):
-        if value and User.objects.filter(email=value).exists():
-            raise serializers.ValidationError('Email address already registered.')
+        if value:
+            if User.objects.filter(email=value).exists():
+                raise serializers.ValidationError('Email address already registered.')
+            if Vendor.objects.filter(email_address=value).exists():  # Check in Vendor too
+                raise serializers.ValidationError('Email address already registered with another vendor.')
         return value
+
 
     def validate_password(self, value):
         if not value or len(value) < 6:
             raise serializers.ValidationError('Password must be at least 6 characters long.')
         return value
 
+    
     def create(self, validated_data):
         mobile = validated_data.pop('mobile')
-        email = validated_data.pop('email', None)
+        email = validated_data.pop('email', None)   
         password = validated_data.pop('password')
 
         user = User.objects.create_user(
             mobile=mobile,
-            email=email,
+            email=email if email else None,  
             password=password,
             role=User.VENDOR
         )
 
         validated_data['user'] = user
+        validated_data['email_address'] = email if email else None   
         vendor = Vendor.objects.create(**validated_data)
         return vendor
+
 
 
 
