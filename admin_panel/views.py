@@ -149,3 +149,23 @@ class AdminBusListAPIView(APIView):
 
 
 
+
+
+class AllUsersAPIView(APIView):
+    def get(self, request, user_id=None):
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id, role=User.USER)
+                serializer = UserSerializer(user)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except User.DoesNotExist:
+                return Response({"error": "User not found or not a normal user."}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            users = User.objects.filter(role=User.USER)
+            serializer = UserSerializer(users, many=True)
+            return Response({
+                "total_users": users.count(),
+                "users": serializer.data
+            }, status=status.HTTP_200_OK)
+
+
