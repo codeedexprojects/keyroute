@@ -63,7 +63,9 @@ class Vendor(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True)
     full_name = models.CharField(max_length=255)
     email_address = models.EmailField(unique=True)
-    phone_no = models.CharField(max_length=15)
+    # phone_no = models.CharField(max_length=15)
+    phone_no = models.CharField(max_length=15, blank=True, null=True)
+
     travels_name = models.CharField(max_length=255)
     location = models.CharField(max_length=255)
     landmark = models.CharField(max_length=255)

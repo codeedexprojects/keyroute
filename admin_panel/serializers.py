@@ -18,3 +18,10 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'role', 'date_joined']
 
 
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'mobile', 'role']
+
