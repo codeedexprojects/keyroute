@@ -13,7 +13,7 @@ class VendorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Vendor
         fields = [
-            'mobile', 'email', 'password', 'full_name', 'phone_no', 
+            'mobile', 'email', 'password', 'full_name',  
             'travels_name', 'location', 'landmark', 'address', 
             'city', 'state', 'pincode'
         ]
