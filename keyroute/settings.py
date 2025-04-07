@@ -63,20 +63,6 @@ INSTALLED_APPS = [
 
 ]
 
-EMAIL_BACKEND =  "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587 
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = "praveen.codeedex@gmail.com "
-EMAIL_HOST_PASSWORD = "fbmq ueku gkav mygc"
-
-# EMAIL_BACKEND = os.getenv("EMAIL_BACKEND")
-# EMAIL_HOST = os.getenv("EMAIL_HOST")
-# EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))   
-# EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS") == "True"
-# EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
-# EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
-
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -115,14 +101,14 @@ TEMPLATES = [
 WSGI_APPLICATION = 'keyroute.wsgi.application'
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=150),  
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=150), 
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=150),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=150),
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
-    'AUTH_HEADER_TYPES': ('Bearer',), 
+    'AUTH_HEADER_TYPES': ('Bearer',),
     'ALGORITHM': 'HS256',
 }
-CORS_ALLOW_ALL_ORIGINS = True  
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 # Database
@@ -131,11 +117,11 @@ CORS_ALLOW_CREDENTIALS = True
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'railway',
-        'USER': 'root',
-        'PASSWORD': 'zJZkGNzMHKDGFuTgQUHLyPgwHtZyeJKK',
-        'HOST': 'trolley.proxy.rlwy.net',  # Use PUBLIC URL host
-        'PORT': '26829',  # Use PUBLIC URL port
+        'NAME': 'keyroute$db',
+        'USER': 'keyroute',
+        'PASSWORD': 'admin@123',
+        'HOST': 'keyroute.mysql.pythonanywhere-services.com',
+        'PORT': '3306',
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
         }
