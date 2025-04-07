@@ -70,6 +70,8 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "praveen.codeedex@gmail.com "
 EMAIL_HOST_PASSWORD = "fbmq ueku gkav mygc"
 
+
+
 # EMAIL_BACKEND = os.getenv("EMAIL_BACKEND")
 # EMAIL_HOST = os.getenv("EMAIL_HOST")
 # EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))   
