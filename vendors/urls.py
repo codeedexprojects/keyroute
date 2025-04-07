@@ -26,7 +26,10 @@ urlpatterns = [
 
     # PACKAGE 
     path('api/vendor/package/', PackageAPIView.as_view(), name='package-create-list'),
-    path('api/vendor/package/<int:package_id>/', PackageAPIView.as_view(), name='package-detail'),
+    path('api/vendor/package/<int:package_id>/', PackageAPIView.as_view(), name='package-detail'), 
+
+    # PROFILE
+    path('api/vendor/profile/', VendorProfileAPIView.as_view(), name='vendor-profile'),
 
 
    
