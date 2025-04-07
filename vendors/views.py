@@ -495,3 +495,40 @@ class PackageAPIView(APIView):
             return Response({"error": "Package not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
+
+
+
+
+class VendorProfileAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            vendor = Vendor.objects.get(user=request.user)
+            serializer = VendorSerializer(vendor)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+    def patch(self, request):
+        try:
+            vendor = Vendor.objects.get(user=request.user)
+            serializer = VendorSerializer(vendor, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"message": "Vendor profile updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+
+
+
+
+
+
