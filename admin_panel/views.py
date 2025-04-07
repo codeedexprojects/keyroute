@@ -13,32 +13,39 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from .serializers import *
 from vendors.models import *
 from vendors.serializers import *
+from django.db.models import Q
 
 
 # Create your views here.
 
 
+
+
 class AdminLoginAPIView(APIView):
     def post(self, request):
-        username = request.data.get('username')
+        identifier = request.data.get('email_or_phone')   
         password = request.data.get('password')
 
-        if not username or not password:
-            return Response({"error": "Username and password are required."}, status=status.HTTP_400_BAD_REQUEST)
+        if not identifier or not password:
+            return Response({"error": "Email/Phone and password are required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = authenticate(username=username, password=password)
+        try:
+            user = User.objects.get(Q(email=identifier) | Q(mobile=identifier))
+        except User.DoesNotExist:
+            return Response({"error": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
 
-        if user is not None and user.role == User.ADMIN:
-            refresh = RefreshToken.for_user(user)
-            return Response({
-                "message": "Admin login successful!",
-                "refresh": str(refresh),
-                "access": str(refresh.access_token)
-            }, status=status.HTTP_200_OK)
-        else:
-            return Response({"error": "Invalid credentials or not an admin."}, status=status.HTTP_401_UNAUTHORIZED)
+        if not user.check_password(password):
+            return Response({"error": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
 
+        if user.role != User.ADMIN:
+            return Response({"error": "Unauthorized access. Only admins can log in."}, status=status.HTTP_403_FORBIDDEN)
 
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            "message": "Admin login successful!",
+            "refresh": str(refresh),
+            "access": str(refresh.access_token)
+        }, status=status.HTTP_200_OK)
 
 # ALL VENDORS LIST
 class VendorListAPIView(APIView):
@@ -140,5 +147,25 @@ class AdminBusListAPIView(APIView):
 
 
 
+
+
+
+
+class AllUsersAPIView(APIView):
+    def get(self, request, user_id=None):
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id, role=User.USER)
+                serializer = UserSerializer(user)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except User.DoesNotExist:
+                return Response({"error": "User not found or not a normal user."}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            users = User.objects.filter(role=User.USER)
+            serializer = UserSerializer(users, many=True)
+            return Response({
+                "total_users": users.count(),
+                "users": serializer.data
+            }, status=status.HTTP_200_OK)
 
 
