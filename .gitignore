@@ -1,7 +1,9 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *.so
+
 
 # Django migrations
 */migrations/
@@ -16,6 +18,7 @@ __pycache__/
 *.log
 
 # Compiled Python files
+.pyc
 *.pyc
 *.pyo
 *.pyd
