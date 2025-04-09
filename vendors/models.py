@@ -23,6 +23,13 @@ class OTP(models.Model):
         return timezone.now() - self.created_at < timezone.timedelta(minutes=5)
     
 
+class Amenity(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+
+
 
 
 class Bus(models.Model):
@@ -39,6 +46,7 @@ class Bus(models.Model):
     contract_carriage_permit = models.FileField(upload_to='permits/')
     passenger_insurance = models.FileField(upload_to='insurance/', null=True, blank=True)
     vehicle_insurance = models.FileField(upload_to='insurance/')
+    amenities = models.ManyToManyField(Amenity, related_name='buses', blank=True)
 
     def __str__(self):
         return self.bus_name
