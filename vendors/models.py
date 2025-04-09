@@ -92,4 +92,3 @@ class Package(models.Model):
 
     def __str__(self):
         return f"{self.sub_category.name} - {self.places}"
-
