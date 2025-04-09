@@ -31,7 +31,7 @@ class VendorSerializer(serializers.ModelSerializer):
         if value:
             if User.objects.filter(email=value).exists():
                 raise serializers.ValidationError('Email address already registered.')
-            if Vendor.objects.filter(email_address=value).exists():  # Check in Vendor too
+            if Vendor.objects.filter(email_address=value).exists():  
                 raise serializers.ValidationError('Email address already registered with another vendor.')
         return value
 
@@ -150,28 +150,10 @@ def validate_places(places):
 
 
 
-# class PackageSerializer(serializers.ModelSerializer):
-#     buses = serializers.PrimaryKeyRelatedField(queryset=Bus.objects.all(), many=True)
-#     class Meta:
-#         model = Package
-#         fields = ['id', 'vendor', 'sub_category', 'places', 'days', 'nights', 'ac_available', 'guide_included', 'buses', 'header_image', 'created_at', 'updated_at']
 
-#     def validate(self, data):
-#         validate_days_nights(data.get('days', 0), data.get('nights', 0))
-#         validate_places(data.get('places', ''))
-#         return data
-    
-#     def validate_buses(self, value):
-#         bus_ids = [bus.id for bus in value]  
-#         existing_bus_ids = set(Bus.objects.filter(id__in=bus_ids).values_list('id', flat=True))
-
-#         missing_ids = set(bus_ids) - existing_bus_ids
-#         if missing_ids:
-#             raise serializers.ValidationError(f"Invalid bus IDs: {list(missing_ids)}")
-#         return value
 
 class PackageSerializer(serializers.ModelSerializer):
-    vendor_name = serializers.CharField(source='vendor.name', read_only=True)  # Assuming `Vendor` has a `name` field
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)  
     sub_category_name = serializers.CharField(source='sub_category.name', read_only=True)  
     buses = serializers.PrimaryKeyRelatedField(queryset=Bus.objects.all(), many=True)
 

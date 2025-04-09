@@ -31,6 +31,9 @@ urlpatterns = [
     # PROFILE
     path('api/vendor/profile/', VendorProfileAPIView.as_view(), name='vendor-profile'),
 
+    # CHANGE PASSWORD
+    path('api/vendor/change-password/', ChangePasswordAPIView.as_view(), name='vendor-profile'),
+
 
    
 
