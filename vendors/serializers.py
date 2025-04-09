@@ -2,6 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from admin_panel.models import Vendor, User
 from .models import *
+from django.db import transaction
 from django.core.exceptions import ValidationError
 
 
@@ -75,7 +76,7 @@ class BusSerializer(serializers.ModelSerializer):
             'id',
             'bus_name', 'bus_number', 'bus_type', 'capacity', 'vehicle_description',
             'vehicle_rc_number', 'travels_logo', 'rc_certificate', 'license',
-            'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance', 'bus_view_images','amenities'
+            'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance', 'bus_view_images','amenities','base_price', 'price_per_km' 
         ]
 
     bus_view_images = serializers.ListField(
@@ -187,6 +188,136 @@ class PackageSerializer(serializers.ModelSerializer):
         if missing_ids:
             raise serializers.ValidationError(f"Invalid bus IDs: {list(missing_ids)}")
         return value
+
+
+
+
+
+
+
+
+
+
+
+class PlaceImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlaceImage
+        fields = ['image']
+
+class StayImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StayImage
+        fields = ['image']
+
+class MealImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MealImage
+        fields = ['image']
+
+class ActivityImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActivityImage
+        fields = ['image']
+
+class PlaceSerializer(serializers.ModelSerializer):
+    images = PlaceImageSerializer(many=True, write_only=True)
+
+    class Meta:
+        model = Place
+        fields = ['name', 'description', 'images']
+
+class StaySerializer(serializers.ModelSerializer):
+    images = StayImageSerializer(many=True, write_only=True)
+
+    class Meta:
+        model = Stay
+        fields = ['hotel_name', 'description', 'images']
+
+class MealSerializer(serializers.ModelSerializer):
+    images = MealImageSerializer(many=True, write_only=True)
+
+    class Meta:
+        model = Meal
+        fields = ['type', 'description', 'images']
+
+class ActivitySerializer(serializers.ModelSerializer):
+    images = ActivityImageSerializer(many=True, write_only=True)
+
+    class Meta:
+        model = Activity
+        fields = ['name', 'description', 'images']
+
+class DayPlanSerializer(serializers.ModelSerializer):
+    places = PlaceSerializer(many=True)
+    stay = StaySerializer()
+    meals = MealSerializer(many=True)
+    activities = ActivitySerializer(many=True)
+
+    class Meta:
+        model = DayPlan
+        fields = ['day_number', 'places', 'stay', 'meals', 'activities']
+
+class PackageSerializer(serializers.ModelSerializer):
+    day_plans = DayPlanSerializer(many=True, write_only=True)
+
+    class Meta:
+        model = Package
+        fields = [
+            'sub_category', 'header_image', 'places', 'days', 'nights',
+            'ac_available', 'guide_included', 'buses', 
+            'day_plans'
+        ]
+
+    def validate_days(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Days must be greater than 0.")
+        return value
+
+    def validate_nights(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Nights cannot be negative.")
+        return value
+
+    @transaction.atomic
+    def create(self, validated_data):
+        vendor = self.context['vendor']
+        day_plans_data = validated_data.pop('day_plans')
+        package = Package.objects.create(vendor=vendor, **validated_data)
+
+        for day_data in day_plans_data:
+            places_data = day_data.pop('places')
+            stay_data = day_data.pop('stay')
+            meals_data = day_data.pop('meals')
+            activities_data = day_data.pop('activities')
+
+            day_plan = DayPlan.objects.create(package=package, **day_data)
+
+            for place in places_data:
+                images = place.pop('images')
+                place_instance = Place.objects.create(day_plan=day_plan, **place)
+                for image in images:
+                    PlaceImage.objects.create(place=place_instance, image=image['image'])
+
+            stay_images = stay_data.pop('images')
+            stay_instance = Stay.objects.create(day_plan=day_plan, **stay_data)
+            for image in stay_images:
+                StayImage.objects.create(stay=stay_instance, image=image['image'])
+
+            for meal in meals_data:
+                images = meal.pop('images')
+                meal_instance = Meal.objects.create(day_plan=day_plan, **meal)
+                for image in images:
+                    MealImage.objects.create(meal=meal_instance, image=image['image'])
+
+            for activity in activities_data:
+                images = activity.pop('images')
+                activity_instance = Activity.objects.create(day_plan=day_plan, **activity)
+                for image in images:
+                    ActivityImage.objects.create(activity=activity_instance, image=image['image'])
+
+        return package
+
+
 
 
 
