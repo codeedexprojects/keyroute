@@ -12,6 +12,7 @@ urlpatterns = [
 
 
     # BUS REGISTRATION
+    path('api/vendor/amenities/', AmenityCreateAPIView.as_view(), name='create-amenity'),
     path('api/vendor/bus/', BusAPIView.as_view(), name='bus_details'),
     path('api/vendor/bus/<int:bus_id>/', BusEditAPIView.as_view(), name='bus_edit'),
 

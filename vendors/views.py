@@ -280,6 +280,22 @@ class BusEditAPIView(APIView):
 
 
 
+
+class AmenityCreateAPIView(APIView):
+
+    def get(self, request):
+        amenities = Amenity.objects.all()
+        serializer = AmenitySerializer(amenities, many=True)
+        return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        serializer = AmenitySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Amenity created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 # PACKAGE CATEGORY CREATED AND LISTED
 class PackageCategoryAPIView(APIView):
     authentication_classes = [JWTAuthentication]

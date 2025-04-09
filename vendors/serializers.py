@@ -75,12 +75,17 @@ class BusSerializer(serializers.ModelSerializer):
             'id',
             'bus_name', 'bus_number', 'bus_type', 'capacity', 'vehicle_description',
             'vehicle_rc_number', 'travels_logo', 'rc_certificate', 'license',
-            'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance', 'bus_view_images'
+            'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance', 'bus_view_images','amenities'
         ]
 
     bus_view_images = serializers.ListField(
         child=serializers.ImageField(),
         write_only=True
+    )
+    amenities = serializers.PrimaryKeyRelatedField(
+        queryset=Amenity.objects.all(),
+        many=True,
+        required=False
     )
 
     def validate_bus_number(self, value):
@@ -98,9 +103,11 @@ class BusSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("RC number must be alphanumeric.")
         return value
 
+   
+    
     def create(self, validated_data):
         bus_images = validated_data.pop('bus_view_images', [])
-
+        amenities = validated_data.pop('amenities', [])
         vendor = self.context['vendor']
 
         bus = Bus.objects.create(vendor=vendor, **validated_data)
@@ -108,11 +115,13 @@ class BusSerializer(serializers.ModelSerializer):
         for image in bus_images:
             BusImage.objects.create(bus=bus, bus_view_image=image)
 
+        bus.amenities.set(amenities)
         return bus
-    
 
-
-
+class AmenitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Amenity
+        fields = ['id', 'name']
 
 
 class PackageCategorySerializer(serializers.ModelSerializer):
