@@ -48,6 +48,9 @@ class Bus(models.Model):
     vehicle_insurance = models.FileField(upload_to='insurance/')
     amenities = models.ManyToManyField(Amenity, related_name='buses', blank=True)
 
+    base_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    price_per_km = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
     def __str__(self):
         return self.bus_name
 
@@ -100,3 +103,57 @@ class Package(models.Model):
 
     def __str__(self):
         return f"{self.sub_category.name} - {self.places}"
+
+
+
+
+class DayPlan(models.Model):
+    package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='day_plans')
+    day_number = models.PositiveIntegerField()
+    description = models.TextField(blank=True, null=True)
+
+
+class Place(models.Model):
+    day_plan = models.ForeignKey(DayPlan, on_delete=models.CASCADE, related_name='places')
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+
+
+class PlaceImage(models.Model):
+    place = models.ForeignKey(Place, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='packages/places/')
+
+
+
+class Stay(models.Model):
+    day_plan = models.OneToOneField(DayPlan, on_delete=models.CASCADE, related_name='stay')
+    hotel_name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+
+
+class StayImage(models.Model):
+    stay = models.ForeignKey(Stay, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='packages/stays/')
+
+
+
+class Meal(models.Model):
+    day_plan = models.ForeignKey(DayPlan, on_delete=models.CASCADE, related_name='meals')
+    type = models.CharField(max_length=50, choices=[('breakfast', 'Breakfast'), ('lunch', 'Lunch'), ('dinner', 'Dinner')])
+    description = models.TextField(blank=True, null=True)
+
+
+
+class MealImage(models.Model):
+    meal = models.ForeignKey(Meal, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='packages/meals/')
+
+
+class Activity(models.Model):
+    day_plan = models.ForeignKey(DayPlan, on_delete=models.CASCADE, related_name='activities')
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+
+class ActivityImage(models.Model):
+    activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='packages/activities/')
