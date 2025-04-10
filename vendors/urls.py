@@ -12,6 +12,7 @@ urlpatterns = [
 
 
     # BUS REGISTRATION
+    path('api/vendor/amenities/', AmenityCreateAPIView.as_view(), name='create-amenity'),
     path('api/vendor/bus/', BusAPIView.as_view(), name='bus_details'),
     path('api/vendor/bus/<int:bus_id>/', BusEditAPIView.as_view(), name='bus_edit'),
 
@@ -26,7 +27,13 @@ urlpatterns = [
 
     # PACKAGE 
     path('api/vendor/package/', PackageAPIView.as_view(), name='package-create-list'),
-    path('api/vendor/package/<int:package_id>/', PackageAPIView.as_view(), name='package-detail'),
+    path('api/vendor/package/<int:package_id>/', PackageAPIView.as_view(), name='package-detail'), 
+
+    # PROFILE
+    path('api/vendor/profile/', VendorProfileAPIView.as_view(), name='vendor-profile'),
+
+    # CHANGE PASSWORD
+    path('api/vendor/change-password/', ChangePasswordAPIView.as_view(), name='vendor-profile'),
 
 
    
