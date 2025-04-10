@@ -591,6 +591,10 @@ class PackageAPIView(APIView):
 
 
 
+
+
+
+
 class VendorProfileAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
