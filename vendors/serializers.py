@@ -7,16 +7,17 @@ from django.core.exceptions import ValidationError
 
 
 class VendorSerializer(serializers.ModelSerializer):
-    mobile = serializers.CharField(write_only=True)
-    email = serializers.EmailField(write_only=True, required=False)
+
+    mobile = serializers.CharField(source='user.mobile', read_only=True)
+    # email = serializers.EmailField(required=False) 
     password = serializers.CharField(write_only=True)
 
     class Meta:
         model = Vendor
         fields = [
-            'mobile', 'email', 'password', 'full_name',  
+            'mobile', 'email_address', 'password', 'full_name',  
             'travels_name', 'location', 'landmark', 'address', 
-            'city', 'state', 'pincode'
+            'city', 'state', 'pincode','district'
         ]
 
     def validate_mobile(self, value):
@@ -25,6 +26,7 @@ class VendorSerializer(serializers.ModelSerializer):
         if User.objects.filter(mobile=value).exists():
             raise serializers.ValidationError('Mobile number already registered.')
         return value
+    
 
    
 
