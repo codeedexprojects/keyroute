@@ -9,7 +9,6 @@ from django.core.exceptions import ValidationError
 class VendorSerializer(serializers.ModelSerializer):
 
     mobile = serializers.CharField(source='user.mobile', read_only=True)
-    # email = serializers.EmailField(required=False) 
     password = serializers.CharField(write_only=True)
 
     class Meta:
@@ -50,6 +49,8 @@ class VendorSerializer(serializers.ModelSerializer):
         email = validated_data.pop('email', None)   
         password = validated_data.pop('password')
 
+        
+
         user = User.objects.create_user(
             mobile=mobile,
             email=email if email else None,  
@@ -61,7 +62,6 @@ class VendorSerializer(serializers.ModelSerializer):
         validated_data['email_address'] = email if email else None   
         vendor = Vendor.objects.create(**validated_data)
         return vendor
-
 
 
 
@@ -269,6 +269,7 @@ class PackageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Package
         fields = [
+            'id',
             'sub_category', 'header_image', 'places', 'days', 'nights',
             'ac_available', 'guide_included', 'buses', 
             'day_plans','day_plans_read'
