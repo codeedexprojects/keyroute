@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from admin_panel.models import Vendor
-from admin_panel.serializers import VendorSerializer
+from admin_panel.serializers import VendorSerializer1
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
@@ -57,7 +57,7 @@ class VendorListAPIView(APIView):
             return Response({"error": "You do not have permission to view this."}, status=status.HTTP_403_FORBIDDEN)
 
         vendors = Vendor.objects.all()
-        serializer = VendorSerializer(vendors, many=True)
+        serializer = VendorSerializer1(vendors, many=True)
         return Response({"vendors": serializer.data}, status=status.HTTP_200_OK)
 
 
@@ -168,4 +168,120 @@ class AllUsersAPIView(APIView):
                 "users": serializer.data
             }, status=status.HTTP_200_OK)
 
+
+
+# VENDOR CREATING AND LISTING
+class AdminCreateVendorAPIView(APIView):
+    def post(self, request):
+        serializer = AdminVendorSerializer(data=request.data)
+        if serializer.is_valid():
+            vendor = serializer.save()
+            return Response({
+                "message": "Vendor created successfully by admin",
+                "data": AdminVendorSerializer(vendor).data
+            }, status=status.HTTP_201_CREATED)
+        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+    def get(self, request):
+        vendors = Vendor.objects.all()
+        serializer = VendorFullSerializer(vendors, many=True)
+        return Response({
+            "message": "List of all vendors",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+
+
+# VENDOR DETAILS
+class AdminVendorDetailAPIView(APIView):
+    def get(self, request, vendor_id):
+        try:
+            vendor = Vendor.objects.get(pk=vendor_id)
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = VendorFullSerializer(vendor)
+        return Response({
+            "message": "Vendor details retrieved successfully",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+
+
+# ADMIN BUS LISTING
+class AdminVendorBusListAPIView(APIView):
+    def get(self, request, vendor_id):
+        try:
+            vendor = Vendor.objects.get(pk=vendor_id)
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        buses = vendor.bus_set.all()
+        serializer = BusSerializer(buses, many=True)
+        return Response({
+            "message": "Bus list retrieved successfully",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+
+
+
+
+# ADMIN BUS DETAILS
+class AdminBusDetailAPIView(APIView):
+    def get(self, request, bus_id):
+        try:
+            bus = Bus.objects.get(pk=bus_id)
+        except Bus.DoesNotExist:
+            return Response({"error": "Bus not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = BusDetailSerializer(bus)
+        return Response({
+            "message": "Bus details retrieved successfully",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+    
+
+
+
+
+# VENDOR PACKAGE LISTING
+class AdminVendorPackageListAPIView(APIView):
+    def get(self, request, vendor_id):
+        try:
+            vendor = Vendor.objects.get(user=vendor_id)
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        packages = vendor.package_set.all()
+        serializer = AdminPackageListSerializer(packages, many=True)
+        return Response({
+            "message": "Package list retrieved successfully",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+
+# VENDOR PACKAGE DETAILS
+class AdminPackageDetailAPIView(APIView):
+    def get(self, request, package_id):
+        try:
+            package = Package.objects.get(pk=package_id)
+        except Package.DoesNotExist:
+            return Response({"error": "Package not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = AdminPackageDetailSerializer(package)
+        return Response({
+            "message": "Package details retrieved successfully",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+    
+
+
+
+class PackageCategoryListAPIView(APIView):
+    def get(self, request):
+        categories = PackageCategory.objects.all()
+        serializer = PackageCategoryListSerializer(categories, many=True)
+        return Response({
+            "message": "Package categories listed successfully",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
 

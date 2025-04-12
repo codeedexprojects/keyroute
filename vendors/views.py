@@ -13,7 +13,10 @@ from django.core.mail import send_mail
 from .serializers import *
 from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
 from django.db.models import Q
-
+import json
+from collections import defaultdict
+import re
+from django.shortcuts import get_object_or_404
 
 from admin_panel.models import *
 
@@ -280,6 +283,22 @@ class BusEditAPIView(APIView):
 
 
 
+
+class AmenityCreateAPIView(APIView):
+
+    def get(self, request):
+        amenities = Amenity.objects.all()
+        serializer = AmenitySerializer(amenities, many=True)
+        return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        serializer = AmenitySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Amenity created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 # PACKAGE CATEGORY CREATED AND LISTED
 class PackageCategoryAPIView(APIView):
     authentication_classes = [JWTAuthentication]
@@ -414,85 +433,162 @@ class PackageSubCategoryAPIView(APIView):
 
 
 
+
+
+
+
+
+# PACKAGE CRUD
 class PackageAPIView(APIView):
+    parser_classes = [MultiPartParser, JSONParser]  
     authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser,JSONParser]
-
-    def get(self, request, package_id=None):
-        try:
-            vendor = Vendor.objects.get(user=request.user)
-
-            if package_id:
-                package = Package.objects.get(id=package_id, vendor=vendor)
-                serializer = PackageSerializer(package)
-                return Response({"data": serializer.data}, status=status.HTTP_200_OK)
-
-            packages = Package.objects.filter(vendor=vendor)
-            serializer = PackageSerializer(packages, many=True)
-            return Response({"data": serializer.data}, status=status.HTTP_200_OK)
-
-        except Vendor.DoesNotExist:
-            return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
-        except Package.DoesNotExist:
-            return Response({"error": "Package not found"}, status=status.HTTP_404_NOT_FOUND)
-
+    permission_classes = [IsAuthenticated] 
 
     def post(self, request):
-        try:
-            vendor = Vendor.objects.get(user=request.user)
-            data = request.data.copy()
-            data["vendor"] = vendor.user_id   
+        data = request.data.dict()   
+        files = request.FILES   
 
-            serializer = PackageSerializer(data=data)
+
+        day_plans = data.get('day_plans')
+        if day_plans and isinstance(day_plans, str):
+            try:
+                data['day_plans'] = json.loads(day_plans)
+            except json.JSONDecodeError:
+                return Response({"error": "Invalid JSON format for day_plans"}, status=400)
+
+        
+        print(files,'files')
+
+        image_fields = defaultdict(list)
+
+        for key, file in files.items():
+            key_parts = key.split('_')
+            if len(key_parts) >= 4:
+                model_type = key_parts[0]       
+                index = int(key_parts[1])       
+                image_index = int(key_parts[3]) 
+                image_fields[(model_type, index)].append({"image": file})
+
+        for day_plan in data['day_plans']:
+            for model_type in ['places', 'meals', 'activities']:
+                if model_type in day_plan:
+                    for idx, item in enumerate(day_plan[model_type]):
+                        item['images'] = image_fields.get((model_type, idx), [])
+
+            if 'stay' in day_plan:
+                day_plan['stay']['images'] = image_fields.get(('stay', 0), [])
+
+        buses_raw = request.data.getlist('buses')
+
+        if len(buses_raw) == 1:
+            try:
+                buses_list = json.loads(buses_raw[0])
+                if isinstance(buses_list, list):
+                    data['buses'] = [int(b) for b in buses_list]
+                else:
+                    data['buses'] = [int(buses_raw[0])]
+            except (ValueError, json.JSONDecodeError):
+                data['buses'] = [int(buses_raw[0])]
+        else:
+            data['buses'] = [int(b) for b in buses_raw]
+
+
+
+        try:
+            vendor = Vendor.objects.filter(user=request.user).first()
+            if not vendor:
+                return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+            print('started')
+
+            serializer = PackageSerializer(data=data, context={"vendor": vendor})
+            print('second')
             if serializer.is_valid():
                 package = serializer.save()
+                return Response({
+                    "message": "Package created successfully.",
+                    "data": PackageSerializer(package).data
+                }, status=status.HTTP_201_CREATED)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-                
-                if "buses" in data:
-                    package.buses.set(data["buses"])  
-
-                return Response({"message": "Package created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
-
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        except Vendor.DoesNotExist:
-            return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
-
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 
 
 
 
-   
+    def get(self, request, package_id=None):
+        vendor = Vendor.objects.filter(user=request.user).first()
+        if not vendor:
+            return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if package_id:
+            package = get_object_or_404(Package, pk=package_id, vendor=vendor)
+            serializer = PackageReadSerializer(package)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        packages = Package.objects.filter(vendor=vendor).prefetch_related(
+            'day_plans__places__images',
+            'day_plans__stay__images',
+            'day_plans__meals__images',
+            'day_plans__activities__images',
+            'buses'
+        )
+        serializer = PackageReadSerializer(packages, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def patch(self, request, package_id):
-        try:
-            vendor = Vendor.objects.get(user=request.user)
-            package = Package.objects.get(id=package_id, vendor=vendor)
+        vendor = Vendor.objects.filter(user=request.user).first()
+        if not vendor:
+            return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
-            serializer = PackageSerializer(package, data=request.data, partial=True)   
-            if serializer.is_valid():
-                serializer.save()
-                return Response({"message": "Package updated successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+        package = get_object_or_404(Package, pk=package_id, vendor=vendor)
 
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        data = request.data.dict()
+        files = request.FILES
 
-        except Vendor.DoesNotExist:
-            return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
-        except Package.DoesNotExist:
-            return Response({"error": "Package not found"}, status=status.HTTP_404_NOT_FOUND)
+        day_plans = data.get('day_plans')
+        if day_plans and isinstance(day_plans, str):
+            try:
+                data['day_plans'] = json.loads(day_plans)
+            except json.JSONDecodeError:
+                return Response({"error": "Invalid JSON format for day_plans"}, status=400)
+
+        buses_raw = request.data.getlist('buses')
+        if buses_raw:
+            if len(buses_raw) == 1:
+                try:
+                    buses_list = json.loads(buses_raw[0])
+                    data['buses'] = [int(b) for b in buses_list] if isinstance(buses_list, list) else [int(buses_raw[0])]
+                except (ValueError, json.JSONDecodeError):
+                    data['buses'] = [int(buses_raw[0])]
+            else:
+                data['buses'] = [int(b) for b in buses_raw]
+
+        serializer = PackageSerializerPUT(package, data=data, context={"vendor": vendor}, partial=True)
+        if serializer.is_valid():
+            updated_package = serializer.save()
+            return Response({
+                "message": "Package updated successfully.",
+                "data": PackageSerializer(updated_package).data
+            }, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, package_id):
-        try:
-            vendor = Vendor.objects.get(user=request.user)
-            package = Package.objects.get(id=package_id, vendor=vendor)
-            package.delete()
-            return Response({"message": "Package deleted successfully!"}, status=status.HTTP_204_NO_CONTENT)
+        vendor = Vendor.objects.filter(user=request.user).first()
+        if not vendor:
+            return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        except Vendor.DoesNotExist:
-            return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
-        except Package.DoesNotExist:
-            return Response({"error": "Package not found"}, status=status.HTTP_404_NOT_FOUND)
+        package = get_object_or_404(Package, pk=package_id, vendor=vendor)
+        package.delete()
+        return Response({"message": "Package deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+
+
+
+
 
 
 
@@ -525,7 +621,29 @@ class VendorProfileAPIView(APIView):
 
 
 
+class ChangePasswordAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
+    def post(self, request):
+        user = request.user
+        current_password = request.data.get("current_password")
+        new_password = request.data.get("new_password")
+        confirm_password = request.data.get("confirm_password")
+
+        if not user.check_password(current_password):
+            return Response({"error": "Current password is incorrect."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if new_password != confirm_password:
+            return Response({"error": "New password and confirm password do not match."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if len(new_password) < 6:
+            return Response({"error": "New password must be at least 6 characters long."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+
+        return Response({"message": "Password updated successfully!"}, status=status.HTTP_200_OK)
 
 
 
