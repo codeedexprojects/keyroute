@@ -8,7 +8,8 @@ from django.core.exceptions import ValidationError
 
 class VendorSerializer(serializers.ModelSerializer):
 
-    mobile = serializers.CharField(source='user.mobile', read_only=True)
+    # mobile = serializers.CharField(source='user.mobile', read_only=True)
+    mobile = serializers.CharField(write_only=True) 
     password = serializers.CharField(write_only=True)
 
     class Meta:
@@ -46,7 +47,8 @@ class VendorSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         mobile = validated_data.pop('mobile')
-        email = validated_data.pop('email', None)   
+        # email = validated_data.pop('email', None) 
+        email = validated_data.get('email_address') or None  
         password = validated_data.pop('password')
 
         
@@ -72,6 +74,7 @@ class VendorSerializer(serializers.ModelSerializer):
 
 
 class BusSerializer(serializers.ModelSerializer):
+    
     class Meta:
         model = Bus
         fields = [
@@ -90,6 +93,8 @@ class BusSerializer(serializers.ModelSerializer):
         many=True,
         required=False
     )
+    def get_amenities(self, obj):
+        return [amenity.name for amenity in obj.amenities.all()]
 
     def validate_bus_number(self, value):
         if Bus.objects.filter(bus_number=value).exists():
