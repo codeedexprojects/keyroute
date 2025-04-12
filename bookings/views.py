@@ -2,172 +2,126 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
-from django.db.models import Sum
-from .models import Booking, Traveler, Payment, CancellationPolicy
-from .serializers import (BookingSerializer, TravelerSerializer, 
-                         PaymentSerializer, CancellationPolicySerializer)
-
-# Create your views here.
+from django.db.models import Sum, Count
+from .models import Booking, Traveler
+from .serializers import (BookingSerializer, TravelerSerializer)
+from vendors.models import Package
+from vendors.serializers import PackageSerializer
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
 class BookingListCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
-        bookings = Booking.objects.all()
+        # Only show bookings for the current user
+        bookings = Booking.objects.filter(user=request.user)
         serializer = BookingSerializer(bookings, many=True)
         return Response(serializer.data)
     
     def post(self, request):
         serializer = BookingSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(user=request.user)
+            booking = serializer.save(user=request.user)
+            # No need to set total_travelers here as it should be 0 initially
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class ListPackage(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request):
+        packages = Package.objects.all()
+        serializer = PackageSerializer(packages, many=True)
+        return Response(serializer.data)
 
 class BookingDetailAPIView(APIView):
-    def get_object(self, pk):
-        return get_object_or_404(Booking, pk=pk)
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self, pk, user):
+        # Only allow access to the user's own bookings
+        return get_object_or_404(Booking, pk=pk, user=user)
     
     def get(self, request, pk):
-        booking = self.get_object(pk)
+        booking = self.get_object(pk, request.user)
         serializer = BookingSerializer(booking)
         return Response(serializer.data)
     
     def put(self, request, pk):
-        booking = self.get_object(pk)
-        serializer = BookingSerializer(booking, data=request.data)
+        booking = self.get_object(pk, request.user)
+        serializer = BookingSerializer(booking, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
+            booking = serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, pk):
-        booking = self.get_object(pk)
+        booking = self.get_object(pk, request.user)
         booking.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class AddTravelerAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    
     def post(self, request, booking_id):
-        booking = get_object_or_404(Booking, pk=booking_id)
+        booking = get_object_or_404(Booking, pk=booking_id, user=request.user)
         serializer = TravelerSerializer(data=request.data)
         
         if serializer.is_valid():
-            serializer.save(booking=booking)
+            traveler = serializer.save(booking=booking)
             
-            # Update booking counts
-            male_count = booking.travelers.filter(gender='M').count()
-            female_count = booking.travelers.filter(gender='F').count()
-            children_count = booking.travelers.filter(age__lt=4).count()
-            
-            booking.total_males = male_count
-            booking.total_females = female_count
-            booking.total_children = children_count
-            booking.total_adults = male_count + female_count - children_count
-            booking.total_travelers = male_count + female_count
+            # Update total_travelers count
+            booking.total_travelers = booking.travelers.count()
             booking.save()
             
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class TravelerListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    
     def get(self, request, booking_id):
-        booking = get_object_or_404(Booking, pk=booking_id)
+        booking = get_object_or_404(Booking, pk=booking_id, user=request.user)
         travelers = booking.travelers.all()
         serializer = TravelerSerializer(travelers, many=True)
         return Response(serializer.data)
 
 class TravelerDetailAPIView(APIView):
-    def get_object(self, pk):
-        return get_object_or_404(Traveler, pk=pk)
+    permission_classes = [IsAuthenticated]
+    
+    def get_object(self, pk, user):
+        traveler = get_object_or_404(Traveler, pk=pk)
+        if traveler.booking.user != user:
+            self.permission_denied(self.request)
+        return traveler
     
     def get(self, request, pk):
-        traveler = self.get_object(pk)
+        traveler = self.get_object(pk, request.user)
         serializer = TravelerSerializer(traveler)
         return Response(serializer.data)
     
     def put(self, request, pk):
-        traveler = self.get_object(pk)
-        serializer = TravelerSerializer(traveler, data=request.data)
+        traveler = self.get_object(pk, request.user)
+        serializer = TravelerSerializer(traveler, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            
-            # Update booking counts
-            booking = traveler.booking
-            male_count = booking.travelers.filter(gender='M').count()
-            female_count = booking.travelers.filter(gender='F').count()
-            children_count = booking.travelers.filter(age__lt=4).count()
-            
-            booking.total_males = male_count
-            booking.total_females = female_count
-            booking.total_children = children_count
-            booking.total_adults = male_count + female_count - children_count
-            booking.total_travelers = male_count + female_count
-            booking.save()
-            
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, pk):
-        traveler = self.get_object(pk)
+        traveler = self.get_object(pk, request.user)
         booking = traveler.booking
         traveler.delete()
         
-        # Update booking counts after deletion
-        male_count = booking.travelers.filter(gender='M').count()
-        female_count = booking.travelers.filter(gender='F').count()
-        children_count = booking.travelers.filter(age__lt=4).count()
-        
-        booking.total_males = male_count
-        booking.total_females = female_count
-        booking.total_children = children_count
-        booking.total_adults = male_count + female_count - children_count
-        booking.total_travelers = male_count + female_count
+        booking.total_travelers = booking.travelers.count()
         booking.save()
         
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-class MakePaymentAPIView(APIView):
-    def post(self, request, booking_id):
-        booking = get_object_or_404(Booking, pk=booking_id)
-        payment_type = request.data.get('payment_type')
-        amount = request.data.get('amount')
-        
-        if not amount:
-            return Response({"error": "Amount is required"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Create payment record
-        payment = Payment.objects.create(
-            booking=booking,
-            amount=amount,
-            payment_type=payment_type,
-            transaction_id=request.data.get('transaction_id')
-        )
-        
-        # Update booking payment status
-        total_paid = booking.payments.aggregate(total=Sum('amount'))['total'] or 0
-        
-        if total_paid >= booking.total_amount:
-            booking.payment_status = 'paid'
-        elif total_paid > 0:
-            booking.payment_status = 'partial'
-        
-        booking.save()
-        
-        return Response(PaymentSerializer(payment).data, status=status.HTTP_201_CREATED)
-
-class PaymentListAPIView(APIView):
-    def get(self, request, booking_id):
-        booking = get_object_or_404(Booking, pk=booking_id)
-        payments = booking.payments.all()
-        serializer = PaymentSerializer(payments, many=True)
-        return Response(serializer.data)
-
-class CancellationPolicyListAPIView(APIView):
-    def get(self, request):
-        policies = CancellationPolicy.objects.all()
-        serializer = CancellationPolicySerializer(policies, many=True)
-        return Response(serializer.data)
-
-class CancellationPolicyDetailAPIView(APIView):
-    def get(self, request, package_id):
-        policy = get_object_or_404(CancellationPolicy, package_id=package_id)
-        serializer = CancellationPolicySerializer(policy)
+    
+class BookingDetailsByStatus(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, status):
+        user = request.user
+        bookings = Booking.objects.filter(payment_status=status,user=user)
+        serializer = BookingSerializer(bookings, many=True)
         return Response(serializer.data)
