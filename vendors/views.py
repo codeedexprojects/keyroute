@@ -25,6 +25,7 @@ from admin_panel.models import *
 # VENDOR REGISTRATION
 class VendorSignupAPIView(APIView):
     def post(self, request):
+        print(request.data,'data')
         serializer = VendorSerializer(data=request.data)
         if serializer.is_valid():
             vendor = serializer.save()
