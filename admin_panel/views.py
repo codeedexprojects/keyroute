@@ -272,3 +272,16 @@ class AdminPackageDetailAPIView(APIView):
             "message": "Package details retrieved successfully",
             "data": serializer.data
         }, status=status.HTTP_200_OK)
+    
+
+
+
+class PackageCategoryListAPIView(APIView):
+    def get(self, request):
+        categories = PackageCategory.objects.all()
+        serializer = PackageCategoryListSerializer(categories, many=True)
+        return Response({
+            "message": "Package categories listed successfully",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+
