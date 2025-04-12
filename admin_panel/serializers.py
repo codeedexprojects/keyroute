@@ -260,3 +260,16 @@ class AdminPackageDetailSerializer(serializers.ModelSerializer):
         ]
 
 # -------------------------------- END---------------
+
+
+
+
+
+
+
+
+
+class PackageCategoryListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageCategory
+        fields = ['id', 'name', 'image']
