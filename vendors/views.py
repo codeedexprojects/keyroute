@@ -263,6 +263,28 @@ class BusEditAPIView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
+        
+    def patch(self, request, bus_id):
+        try:
+            vendor = Vendor.objects.filter(user=request.user).first()
+            if not vendor:
+                return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
+
+            try:
+                bus = Bus.objects.get(id=bus_id, vendor=vendor)
+            except Bus.DoesNotExist:
+                return Response({"error": "Bus not found or unauthorized access."}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = BusSerializer(bus, data=request.data, partial=True, context={'vendor': vendor})
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"message": "Bus updated successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
     
     def delete(self, request, bus_id):
