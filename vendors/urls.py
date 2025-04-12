@@ -31,7 +31,4 @@ urlpatterns = [
     # PROFILE
     path('api/vendor/profile/', VendorProfileAPIView.as_view(), name='vendor-profile'),
 
-
-   
-
 ]
