@@ -35,10 +35,14 @@ urlpatterns = [
 
     path('api/admin/bus/<int:bus_id>/', AdminBusDetailAPIView.as_view()),
 
-
+    # PACKAGE LISTING AND SINGLE DETAILS
     path('api/admin/vendor/<int:vendor_id>/packages/', AdminVendorPackageListAPIView.as_view()),
     path('api/admin/vendor/package/<int:package_id>/', AdminPackageDetailAPIView.as_view()),
-    
+
+
+    # CATEGORY
+    path('api/admin/categories/', PackageCategoryListAPIView.as_view()),
+
 
 
 
