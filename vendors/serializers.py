@@ -2,20 +2,21 @@ from rest_framework import serializers
 from django.contrib.auth.hashers import make_password
 from admin_panel.models import Vendor, User
 from .models import *
+from django.db import transaction
 from django.core.exceptions import ValidationError
 
 
 class VendorSerializer(serializers.ModelSerializer):
-    mobile = serializers.CharField(write_only=True)
-    email = serializers.EmailField(write_only=True, required=False)
+
+    mobile = serializers.CharField(source='user.mobile', read_only=True)
     password = serializers.CharField(write_only=True)
 
     class Meta:
         model = Vendor
         fields = [
-            'mobile', 'email', 'password', 'full_name',  
+            'mobile', 'email_address', 'password', 'full_name',  
             'travels_name', 'location', 'landmark', 'address', 
-            'city', 'state', 'pincode'
+            'city', 'state', 'pincode','district'
         ]
 
     def validate_mobile(self, value):
@@ -24,6 +25,7 @@ class VendorSerializer(serializers.ModelSerializer):
         if User.objects.filter(mobile=value).exists():
             raise serializers.ValidationError('Mobile number already registered.')
         return value
+    
 
    
 
@@ -31,7 +33,7 @@ class VendorSerializer(serializers.ModelSerializer):
         if value:
             if User.objects.filter(email=value).exists():
                 raise serializers.ValidationError('Email address already registered.')
-            if Vendor.objects.filter(email_address=value).exists():  # Check in Vendor too
+            if Vendor.objects.filter(email_address=value).exists():  
                 raise serializers.ValidationError('Email address already registered with another vendor.')
         return value
 
@@ -46,6 +48,8 @@ class VendorSerializer(serializers.ModelSerializer):
         mobile = validated_data.pop('mobile')
         email = validated_data.pop('email', None)   
         password = validated_data.pop('password')
+
+        
 
         user = User.objects.create_user(
             mobile=mobile,
@@ -67,7 +71,6 @@ class VendorSerializer(serializers.ModelSerializer):
 
 
 
-
 class BusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bus
@@ -75,12 +78,17 @@ class BusSerializer(serializers.ModelSerializer):
             'id',
             'bus_name', 'bus_number', 'bus_type', 'capacity', 'vehicle_description',
             'vehicle_rc_number', 'travels_logo', 'rc_certificate', 'license',
-            'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance', 'bus_view_images'
+            'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance', 'bus_view_images','amenities','base_price', 'price_per_km' 
         ]
 
     bus_view_images = serializers.ListField(
         child=serializers.ImageField(),
         write_only=True
+    )
+    amenities = serializers.PrimaryKeyRelatedField(
+        queryset=Amenity.objects.all(),
+        many=True,
+        required=False
     )
 
     def validate_bus_number(self, value):
@@ -98,9 +106,11 @@ class BusSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("RC number must be alphanumeric.")
         return value
 
+   
+    
     def create(self, validated_data):
         bus_images = validated_data.pop('bus_view_images', [])
-
+        amenities = validated_data.pop('amenities', [])
         vendor = self.context['vendor']
 
         bus = Bus.objects.create(vendor=vendor, **validated_data)
@@ -108,11 +118,13 @@ class BusSerializer(serializers.ModelSerializer):
         for image in bus_images:
             BusImage.objects.create(bus=bus, bus_view_image=image)
 
+        bus.amenities.set(amenities)
         return bus
-    
 
-
-
+class AmenitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Amenity
+        fields = ['id', 'name']
 
 
 class PackageCategorySerializer(serializers.ModelSerializer):
@@ -150,28 +162,10 @@ def validate_places(places):
 
 
 
-# class PackageSerializer(serializers.ModelSerializer):
-#     buses = serializers.PrimaryKeyRelatedField(queryset=Bus.objects.all(), many=True)
-#     class Meta:
-#         model = Package
-#         fields = ['id', 'vendor', 'sub_category', 'places', 'days', 'nights', 'ac_available', 'guide_included', 'buses', 'header_image', 'created_at', 'updated_at']
 
-#     def validate(self, data):
-#         validate_days_nights(data.get('days', 0), data.get('nights', 0))
-#         validate_places(data.get('places', ''))
-#         return data
-    
-#     def validate_buses(self, value):
-#         bus_ids = [bus.id for bus in value]  
-#         existing_bus_ids = set(Bus.objects.filter(id__in=bus_ids).values_list('id', flat=True))
-
-#         missing_ids = set(bus_ids) - existing_bus_ids
-#         if missing_ids:
-#             raise serializers.ValidationError(f"Invalid bus IDs: {list(missing_ids)}")
-#         return value
 
 class PackageSerializer(serializers.ModelSerializer):
-    vendor_name = serializers.CharField(source='vendor.name', read_only=True)  # Assuming `Vendor` has a `name` field
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)  
     sub_category_name = serializers.CharField(source='sub_category.name', read_only=True)  
     buses = serializers.PrimaryKeyRelatedField(queryset=Bus.objects.all(), many=True)
 
@@ -201,3 +195,282 @@ class PackageSerializer(serializers.ModelSerializer):
 
 
 
+
+
+
+
+
+
+class PlaceImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlaceImage
+        fields = ['image']
+
+class StayImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StayImage
+        fields = ['image']
+
+class MealImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MealImage
+        fields = ['image']
+
+class ActivityImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActivityImage
+        fields = ['image']
+
+class PlaceSerializer(serializers.ModelSerializer):
+    images = PlaceImageSerializer(many=True, write_only=True)
+
+    class Meta:
+        model = Place
+        fields = ['name', 'description', 'images']
+
+class StaySerializer(serializers.ModelSerializer):
+    images = StayImageSerializer(many=True, write_only=True)
+
+    class Meta:
+        model = Stay
+        fields = ['hotel_name', 'description', 'images']
+
+class MealSerializer(serializers.ModelSerializer):
+    images = MealImageSerializer(many=True, write_only=True)
+
+    class Meta:
+        model = Meal
+        fields = ['type', 'description', 'images']
+
+class ActivitySerializer(serializers.ModelSerializer):
+    images = ActivityImageSerializer(many=True, write_only=True)
+
+    class Meta:
+        model = Activity
+        fields = ['name', 'description', 'images']
+
+class DayPlanSerializer(serializers.ModelSerializer):
+    places = PlaceSerializer(many=True)
+    stay = StaySerializer()
+    meals = MealSerializer(many=True)
+    activities = ActivitySerializer(many=True)
+
+    class Meta:
+        model = DayPlan
+        fields = ['day_number', 'places', 'stay', 'meals', 'activities','description']
+
+class PackageSerializer(serializers.ModelSerializer):
+    day_plans = DayPlanSerializer(many=True, write_only=True)
+    buses = serializers.PrimaryKeyRelatedField(queryset=Bus.objects.all(), many=True)
+
+    day_plans_read = DayPlanSerializer(source='dayplan_set', many=True, read_only=True)
+    
+
+    class Meta:
+        model = Package
+        fields = [
+            'id',
+            'sub_category', 'header_image', 'places', 'days', 'nights',
+            'ac_available', 'guide_included', 'buses', 
+            'day_plans','day_plans_read'
+        ]
+
+    def validate_days(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Days must be greater than 0.")
+        return value
+
+    def validate_nights(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Nights cannot be negative.")
+        return value
+
+    @transaction.atomic
+    def create(self, validated_data):
+        print('helllo')
+        vendor = self.context['vendor']
+        day_plans_data = validated_data.pop('day_plans')
+        buses_data = validated_data.pop('buses') 
+        print(buses_data,'bjuuuu')
+        package = Package.objects.create(vendor=vendor, **validated_data)
+        package.buses.set(buses_data)
+
+        for day_data in day_plans_data:
+            places_data = day_data.pop('places')
+            stay_data = day_data.pop('stay')
+            meals_data = day_data.pop('meals')
+            activities_data = day_data.pop('activities')
+
+            day_plan = DayPlan.objects.create(package=package, **day_data)
+
+            for place in places_data:
+                images = place.pop('images')
+                place_instance = Place.objects.create(day_plan=day_plan, **place)
+                for image in images:
+                    PlaceImage.objects.create(place=place_instance, image=image['image'])
+
+            stay_images = stay_data.pop('images')
+            stay_instance = Stay.objects.create(day_plan=day_plan, **stay_data)
+            for image in stay_images:
+                StayImage.objects.create(stay=stay_instance, image=image['image'])
+
+            for meal in meals_data:
+                images = meal.pop('images')
+                meal_instance = Meal.objects.create(day_plan=day_plan, **meal)
+                for image in images:
+                    MealImage.objects.create(meal=meal_instance, image=image['image'])
+
+            for activity in activities_data:
+                images = activity.pop('images')
+                activity_instance = Activity.objects.create(day_plan=day_plan, **activity)
+                for image in images:
+                    ActivityImage.objects.create(activity=activity_instance, image=image['image'])
+
+        return package
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ------------------------------------------- PACKAGE EDITING SECTION----------
+class PlaceImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlaceImage
+        fields = ['id', 'image']
+
+class PlaceSerializer(serializers.ModelSerializer):
+    images = PlaceImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Place
+        fields = ['id', 'name', 'description', 'images']
+
+
+class StayImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StayImage
+        fields = ['id', 'image']
+
+class StaySerializer(serializers.ModelSerializer):
+    images = StayImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Stay
+        fields = ['id', 'hotel_name', 'description', 'images']
+
+
+class MealImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MealImage
+        fields = ['id', 'image']
+
+class MealSerializer(serializers.ModelSerializer):
+    images = MealImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Meal
+        fields = ['id', 'type', 'description', 'images']
+
+
+class ActivityImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActivityImage
+        fields = ['id', 'image']
+
+class ActivitySerializer(serializers.ModelSerializer):
+    images = ActivityImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Activity
+        fields = ['id', 'name', 'description', 'images']
+
+
+class DayPlanSerializer(serializers.ModelSerializer):
+    places = PlaceSerializer(many=True, read_only=True)
+    stay = StaySerializer(read_only=True)
+    meals = MealSerializer(many=True, read_only=True)
+    activities = ActivitySerializer(many=True, read_only=True)
+
+    class Meta:
+        model = DayPlan
+        fields = ['id', 'day_number', 'description', 'places', 'stay', 'meals', 'activities']
+
+
+class BusSerializer2(serializers.ModelSerializer):
+    amenities = AmenitySerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Bus
+        fields = [
+            'id',
+            'vendor',
+            'bus_name',
+            'bus_number',
+            'bus_type',
+            'capacity',
+            'vehicle_description',
+            'vehicle_rc_number',
+            'travels_logo',
+            'rc_certificate',
+            'license',
+            'contract_carriage_permit',
+            'passenger_insurance',
+            'vehicle_insurance',
+            'base_price',
+            'price_per_km',
+            'amenities'
+        ]
+
+
+
+class PackageReadSerializer(serializers.ModelSerializer):
+    day_plans = DayPlanSerializer(many=True, read_only=True)
+    buses = BusSerializer2(many=True, read_only=True)
+
+    class Meta:
+        model = Package
+        fields = [
+            'id', 'sub_category', 'header_image', 'places', 'days', 'nights',
+            'ac_available', 'guide_included', 'buses', 'day_plans',
+            'created_at', 'updated_at'
+        ]
+
+
+class PackageSerializerPUT(serializers.ModelSerializer):
+    day_plans = DayPlanSerializer(many=True, required=False)
+    buses = serializers.PrimaryKeyRelatedField(many=True, queryset=Bus.objects.all(), required=False)
+
+    class Meta:
+        model = Package
+        fields = '__all__'
+
+    def update(self, instance, validated_data):
+        day_plans_data = validated_data.pop('day_plans', None)
+        buses_data = validated_data.pop('buses', None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        if buses_data is not None:
+            instance.buses.set(buses_data)
+
+        if day_plans_data is not None:
+            instance.day_plans.all().delete()  
+            for plan_data in day_plans_data:
+                DayPlan.objects.create(package=instance, **plan_data)
+
+        return instance
+# -----------------------------------------
