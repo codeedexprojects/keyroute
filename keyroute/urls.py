@@ -24,6 +24,7 @@ urlpatterns = [
     path('', include('vendors.urls')),
     path('', include('admin_panel.urls')),
     path('api/users/', include('users.urls')),
+    path('api/bus/review/', include('reviews.urls')),
     path('', include('bookings.urls')),
 ]
 if settings.DEBUG:
