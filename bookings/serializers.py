@@ -1,53 +1,40 @@
 from rest_framework import serializers
-from .models import Booking, Traveler, Payment, CancellationPolicy
+from .models import Booking, Traveler
+from vendors.models import Package
 
 class TravelerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Traveler
-        fields = ['id', 'first_name', 'last_name', 'age', 'gender', 'place', 
-                 'dob', 'id_proof', 'email', 'phone', 'city', 'is_primary']
-
-class PaymentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Payment
-        fields = ['id', 'amount', 'payment_type', 'payment_date', 'transaction_id']
-
-class CancellationPolicySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CancellationPolicy
-        fields = ['id', 'description', 'is_advance_refundable']
+        fields = ['id', 'first_name', 'last_name', 'gender', 'place', 
+                 'dob', 'id_proof', 'email', 'phone', 'city']
+        extra_kwargs = {
+            'id': {'read_only': True},
+            'booking': {'read_only': True}
+        }
 
 class BookingSerializer(serializers.ModelSerializer):
-    travelers = TravelerSerializer(many=True, required=False)
-    payments = PaymentSerializer(many=True, read_only=True)
+    travelers = TravelerSerializer(many=True, required=False, read_only=True)
+    package_details = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = Booking
-        fields = ['id', 'package', 'start_date', 'total_adults', 
-                 'total_children', 'total_males', 'total_females', 'total_rooms',
+        fields = ['id', 'package', 'package_details', 'start_date',
                  'total_travelers', 'total_amount', 'advance_amount', 'payment_status',
-                 'is_completed', 'created_at', 'updated_at', 'travelers', 'payments']
+                 'is_completed', 'created_at', 'travelers']
+        read_only_fields = ['id', 'created_at', 'total_travelers']
+    
+    def get_package_details(self, obj):
+        from vendors.serializers import PackageSerializer
+        return PackageSerializer(obj.package).data
     
     def create(self, validated_data):
-        travelers_data = validated_data.pop('travelers', [])
+        # The user will be added by the view
         booking = Booking.objects.create(**validated_data)
-        
-        for traveler_data in travelers_data:
-            Traveler.objects.create(booking=booking, **traveler_data)
-        
         return booking
     
     def update(self, instance, validated_data):
-        travelers_data = validated_data.pop('travelers', [])
         # Update booking fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
-        
-        # Handle travelers update if needed
-        if travelers_data:
-            instance.travelers.all().delete()  # Remove existing travelers
-            for traveler_data in travelers_data:
-                Traveler.objects.create(booking=instance, **traveler_data)
-        
         return instance
