@@ -4,6 +4,7 @@ from admin_panel.models import Vendor, User
 from .models import *
 from django.db import transaction
 from django.core.exceptions import ValidationError
+import re
 
 
 class VendorSerializer(serializers.ModelSerializer):
@@ -479,3 +480,48 @@ class PackageSerializerPUT(serializers.ModelSerializer):
 
         return instance
 # -----------------------------------------
+
+
+
+
+
+
+class VendorBankDetailSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = VendorBankDetail
+        fields = '__all__'
+        read_only_fields = ['vendor']
+
+    def validate_account_number(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("Account number must contain only digits.")
+        if len(value) < 9 or len(value) > 18:
+            raise serializers.ValidationError("Account number should be between 9 to 18 digits.")
+        return value
+
+    def validate_ifsc_code(self, value):
+        if not re.match(r'^[A-Z]{4}0[A-Z0-9]{6}$', value):
+            raise serializers.ValidationError("Enter a valid IFSC code (e.g., SBIN0001234).")
+        return value
+
+    def validate_payout_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Payout amount must be greater than zero.")
+        return value
+
+    def validate_payout_mode(self, value):
+        allowed_modes = ['BANK_TRANSFER', 'UPI', 'WALLET']
+        if value.upper() not in allowed_modes:
+            raise serializers.ValidationError(f"Payout mode must be one of {allowed_modes}.")
+        return value.upper()
+
+    def validate_phone_number(self, value):
+        if value and not re.match(r'^[6-9]\d{9}$', value):
+            raise serializers.ValidationError("Enter a valid 10-digit Indian phone number.")
+        return value
+
+    def validate_email_id(self, value):
+        if value and not re.match(r'^\S+@\S+\.\S+$', value):
+            raise serializers.ValidationError("Enter a valid email address.")
+        return value
