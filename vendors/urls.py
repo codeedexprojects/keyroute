@@ -35,6 +35,9 @@ urlpatterns = [
     # CHANGE PASSWORD
     path('api/vendor/change-password/', ChangePasswordAPIView.as_view(), name='vendor-profile'),
 
+    # BANK DETAILS
+    path('api/vendor/bank-details/', VendorBankDetailView.as_view(), name='vendor-bank-details'),
+
 
    
 

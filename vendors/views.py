@@ -673,3 +673,43 @@ class ChangePasswordAPIView(APIView):
 
 
 
+
+
+class VendorBankDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def post(self, request):
+        vendor = get_object_or_404(Vendor, user=request.user)
+        serializer = VendorBankDetailSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(vendor=vendor)
+            return Response({"message": "Bank details created successfully", "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def get(self, request):
+        try:
+            bank_detail = VendorBankDetail.objects.get(vendor=request.user.vendor)
+            serializer = VendorBankDetailSerializer(bank_detail)
+            return Response({
+                "message": "Bank details fetched successfully",
+                "data": serializer.data
+            }, status=status.HTTP_200_OK)
+        except VendorBankDetail.DoesNotExist:
+            return Response({
+                "message": "Bank details not found"
+            }, status=status.HTTP_404_NOT_FOUND)
+
+    def patch(self, request):
+        vendor = get_object_or_404(Vendor, user=request.user)
+        try:
+            bank_detail = vendor.bank_detail   
+        except VendorBankDetail.DoesNotExist:
+            return Response({"error": "Bank details not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = VendorBankDetailSerializer(bank_detail, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Bank details updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
