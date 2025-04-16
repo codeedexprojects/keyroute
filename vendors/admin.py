@@ -22,3 +22,7 @@ admin.site.register(Meal)
 admin.site.register(MealImage)
 admin.site.register(Activity)
 admin.site.register(ActivityImage)
+
+admin.site.register(BusFeature)
+
+

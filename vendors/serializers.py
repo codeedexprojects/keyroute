@@ -4,11 +4,13 @@ from admin_panel.models import Vendor, User
 from .models import *
 from django.db import transaction
 from django.core.exceptions import ValidationError
+import re
 
 
 class VendorSerializer(serializers.ModelSerializer):
 
-    mobile = serializers.CharField(source='user.mobile', read_only=True)
+    # mobile = serializers.CharField(source='user.mobile', read_only=True)
+    mobile = serializers.CharField(write_only=True) 
     password = serializers.CharField(write_only=True)
 
     class Meta:
@@ -46,7 +48,8 @@ class VendorSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         mobile = validated_data.pop('mobile')
-        email = validated_data.pop('email', None)   
+        # email = validated_data.pop('email', None) 
+        email = validated_data.get('email_address') or None  
         password = validated_data.pop('password')
 
         
@@ -72,11 +75,17 @@ class VendorSerializer(serializers.ModelSerializer):
 
 
 class BusSerializer(serializers.ModelSerializer):
+
+    features = serializers.PrimaryKeyRelatedField(
+        queryset=BusFeature.objects.all(), many=True, required=False
+    )
+    
     class Meta:
         model = Bus
         fields = [
             'id',
-            'bus_name', 'bus_number', 'bus_type', 'capacity', 'vehicle_description',
+            'features',
+            'bus_name', 'bus_number',  'capacity', 'vehicle_description',
             'vehicle_rc_number', 'travels_logo', 'rc_certificate', 'license',
             'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance', 'bus_view_images','amenities','base_price', 'price_per_km' 
         ]
@@ -90,6 +99,8 @@ class BusSerializer(serializers.ModelSerializer):
         many=True,
         required=False
     )
+    def get_amenities(self, obj):
+        return [amenity.name for amenity in obj.amenities.all()]
 
     def validate_bus_number(self, value):
         if Bus.objects.filter(bus_number=value).exists():
@@ -111,6 +122,7 @@ class BusSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         bus_images = validated_data.pop('bus_view_images', [])
         amenities = validated_data.pop('amenities', [])
+        features = validated_data.pop('features', [])
         vendor = self.context['vendor']
 
         bus = Bus.objects.create(vendor=vendor, **validated_data)
@@ -119,6 +131,7 @@ class BusSerializer(serializers.ModelSerializer):
             BusImage.objects.create(bus=bus, bus_view_image=image)
 
         bus.amenities.set(amenities)
+        bus.features.set(features) 
         return bus
 
 class AmenitySerializer(serializers.ModelSerializer):
@@ -474,3 +487,69 @@ class PackageSerializerPUT(serializers.ModelSerializer):
 
         return instance
 # -----------------------------------------
+
+
+
+
+
+
+class VendorBankDetailSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = VendorBankDetail
+        fields = '__all__'
+        read_only_fields = ['vendor']
+
+    def validate_account_number(self, value):
+        if not value.isdigit():
+            raise serializers.ValidationError("Account number must contain only digits.")
+        if len(value) < 9 or len(value) > 18:
+            raise serializers.ValidationError("Account number should be between 9 to 18 digits.")
+        return value
+
+    def validate_ifsc_code(self, value):
+        if not re.match(r'^[A-Z]{4}0[A-Z0-9]{6}$', value):
+            raise serializers.ValidationError("Enter a valid IFSC code (e.g., SBIN0001234).")
+        return value
+
+    def validate_payout_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Payout amount must be greater than zero.")
+        return value
+
+    def validate_payout_mode(self, value):
+        allowed_modes = ['BANK_TRANSFER', 'UPI', 'WALLET']
+        if value.upper() not in allowed_modes:
+            raise serializers.ValidationError(f"Payout mode must be one of {allowed_modes}.")
+        return value.upper()
+
+    def validate_phone_number(self, value):
+        if value and not re.match(r'^[6-9]\d{9}$', value):
+            raise serializers.ValidationError("Enter a valid 10-digit Indian phone number.")
+        return value
+
+    def validate_email_id(self, value):
+        if value and not re.match(r'^\S+@\S+\.\S+$', value):
+            raise serializers.ValidationError("Enter a valid email address.")
+        return value
+    
+
+
+
+
+class BusFeatureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusFeature
+        fields = ['id', 'name']
+
+
+
+
+
+
+
+
+
+
+
+
