@@ -10,24 +10,6 @@ class VendorSerializer1(serializers.ModelSerializer):
         fields = '__all__'
 
 
-
-
-
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'email', 'role', 'date_joined']
-
-
-
-
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['id', 'email', 'mobile', 'role']
-
-
-
 class AdminVendorSerializer(serializers.ModelSerializer):
     mobile = serializers.CharField(write_only=True)  # Admin needs to input mobile
     password = serializers.CharField(write_only=True)
