@@ -713,3 +713,22 @@ class VendorBankDetailView(APIView):
             return Response({"message": "Bank details updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+
+
+class BusFeatureCreateAPIView(APIView):
+    def post(self, request):
+        serializer = BusFeatureSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+    def get(self, request):
+        features = BusFeature.objects.all()
+        serializer = BusFeatureSerializer(features, many=True) 
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+         
