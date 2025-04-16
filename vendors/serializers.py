@@ -75,12 +75,17 @@ class VendorSerializer(serializers.ModelSerializer):
 
 
 class BusSerializer(serializers.ModelSerializer):
+
+    features = serializers.PrimaryKeyRelatedField(
+        queryset=BusFeature.objects.all(), many=True, required=False
+    )
     
     class Meta:
         model = Bus
         fields = [
             'id',
-            'bus_name', 'bus_number', 'bus_type', 'capacity', 'vehicle_description',
+            'features',
+            'bus_name', 'bus_number',  'capacity', 'vehicle_description',
             'vehicle_rc_number', 'travels_logo', 'rc_certificate', 'license',
             'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance', 'bus_view_images','amenities','base_price', 'price_per_km' 
         ]
@@ -117,6 +122,7 @@ class BusSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         bus_images = validated_data.pop('bus_view_images', [])
         amenities = validated_data.pop('amenities', [])
+        features = validated_data.pop('features', [])
         vendor = self.context['vendor']
 
         bus = Bus.objects.create(vendor=vendor, **validated_data)
@@ -125,6 +131,7 @@ class BusSerializer(serializers.ModelSerializer):
             BusImage.objects.create(bus=bus, bus_view_image=image)
 
         bus.amenities.set(amenities)
+        bus.features.set(features) 
         return bus
 
 class AmenitySerializer(serializers.ModelSerializer):
@@ -525,3 +532,24 @@ class VendorBankDetailSerializer(serializers.ModelSerializer):
         if value and not re.match(r'^\S+@\S+\.\S+$', value):
             raise serializers.ValidationError("Enter a valid email address.")
         return value
+    
+
+
+
+
+class BusFeatureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusFeature
+        fields = ['id', 'name']
+
+
+
+
+
+
+
+
+
+
+
+
