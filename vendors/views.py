@@ -25,6 +25,7 @@ from admin_panel.models import *
 # VENDOR REGISTRATION
 class VendorSignupAPIView(APIView):
     def post(self, request):
+        print(request.data,'data')
         serializer = VendorSerializer(data=request.data)
         if serializer.is_valid():
             vendor = serializer.save()
@@ -262,6 +263,28 @@ class BusEditAPIView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
+        
+    def patch(self, request, bus_id):
+        try:
+            vendor = Vendor.objects.filter(user=request.user).first()
+            if not vendor:
+                return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
+
+            try:
+                bus = Bus.objects.get(id=bus_id, vendor=vendor)
+            except Bus.DoesNotExist:
+                return Response({"error": "Bus not found or unauthorized access."}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = BusSerializer(bus, data=request.data, partial=True, context={'vendor': vendor})
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"message": "Bus updated successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
     
     def delete(self, request, bus_id):
@@ -650,3 +673,62 @@ class ChangePasswordAPIView(APIView):
 
 
 
+
+
+class VendorBankDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def post(self, request):
+        vendor = get_object_or_404(Vendor, user=request.user)
+        serializer = VendorBankDetailSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(vendor=vendor)
+            return Response({"message": "Bank details created successfully", "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def get(self, request):
+        try:
+            bank_detail = VendorBankDetail.objects.get(vendor=request.user.vendor)
+            serializer = VendorBankDetailSerializer(bank_detail)
+            return Response({
+                "message": "Bank details fetched successfully",
+                "data": serializer.data
+            }, status=status.HTTP_200_OK)
+        except VendorBankDetail.DoesNotExist:
+            return Response({
+                "message": "Bank details not found"
+            }, status=status.HTTP_404_NOT_FOUND)
+
+    def patch(self, request):
+        vendor = get_object_or_404(Vendor, user=request.user)
+        try:
+            bank_detail = vendor.bank_detail   
+        except VendorBankDetail.DoesNotExist:
+            return Response({"error": "Bank details not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = VendorBankDetailSerializer(bank_detail, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Bank details updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+class BusFeatureCreateAPIView(APIView):
+    def post(self, request):
+        serializer = BusFeatureSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+    def get(self, request):
+        features = BusFeature.objects.all()
+        serializer = BusFeatureSerializer(features, many=True) 
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+         

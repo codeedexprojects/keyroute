@@ -11,6 +11,9 @@ urlpatterns = [
     path('api/vendor/reset-password/', ResetPasswordAPIView.as_view(), name='reset_password'),
 
 
+    # BUS FEATURE
+    path('api/busfeatures/create/', BusFeatureCreateAPIView.as_view(), name='busfeature-create'),
+    
     # BUS REGISTRATION
     path('api/vendor/amenities/', AmenityCreateAPIView.as_view(), name='create-amenity'),
     path('api/vendor/bus/', BusAPIView.as_view(), name='bus_details'),
@@ -34,6 +37,11 @@ urlpatterns = [
 
     # CHANGE PASSWORD
     path('api/vendor/change-password/', ChangePasswordAPIView.as_view(), name='vendor-profile'),
+
+    # BANK DETAILS
+    path('api/vendor/bank-details/', VendorBankDetailView.as_view(), name='vendor-bank-details'),
+
+
 
 
    
