@@ -316,6 +316,30 @@ class FooterSectionSerializer(serializers.ModelSerializer):
         fields = ['title', 'description', 'image']
 
 
+# --------------------------------------------------------
+
+
+
+class ExperienceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Experience
+        fields = ['image', 'description',]
+
+
+class SightSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Sight
+        fields = ['title', 'description', 'season_description','image']
+
+
+
+class SightListSerializer(serializers.ModelSerializer):
+    experiences = ExperienceSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Sight
+        fields = ['id', 'title', 'description', 'season_description', 'experiences','image']
 
 
 

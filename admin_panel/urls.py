@@ -46,8 +46,17 @@ urlpatterns = [
     # NORMAL USER CREATING
     path('api/admin/create-user/', AdminCreateUserView.as_view(), name='admin-create-user'),
 
+    #Advertisement
+    path('api/admin/sections/create/', AllSectionsCreateView.as_view(), name='create-sections'),
 
-    path('api/admin/sections/create/', AllSectionsCreateView.as_view(), name='create-sections')
+    # EXPLORE
+    path('api/admin/explore/create/', ExploreSectionCreateView.as_view(), name='create-explore-section'),
+
+    # EXPLORE LISTING
+    path('explore/list/', ExploreSectionListView.as_view(), name='explore-list'),
+
+
+
 
 
 
