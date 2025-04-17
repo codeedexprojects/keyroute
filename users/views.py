@@ -6,11 +6,14 @@ from django.contrib.auth import login
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import generics, permissions
 from admin_panel.utils import send_otp, verify_otp
-from .serializers import ResetPasswordSerializer, ReviewSerializer, SendOTPSerializer, UserLoginSerializer, UserProfileSerializer, UserSignupSerializer
+from .serializers import ResetPasswordSerializer, ReviewSerializer, SendOTPSerializer, UserLoginSerializer, UserProfileSerializer, UserSignupSerializer,FavouriteSerializer
 from google.auth.transport import requests
 from google.oauth2 import id_token
 from django.conf import settings
 from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
+from vendors.models import Bus
+from .models import Favourite
 
 User = get_user_model()
 
@@ -197,3 +200,34 @@ class UserProfileUpdateView(generics.RetrieveUpdateAPIView):
     def get_object(self):
         """Return the authenticated user"""
         return self.request.user
+    
+class FavouriteAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        bus_id = request.data.get('bus_id')
+        if not bus_id:
+            return Response({'error': 'bus_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        bus = get_object_or_404(Bus, id=bus_id)
+
+        favourite, created = Favourite.objects.get_or_create(user=request.user, bus=bus)
+        if not created:
+            return Response({'message': 'Already added to favourites'}, status=status.HTTP_200_OK)
+
+        serializer = FavouriteSerializer(favourite)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def delete(self, request):
+        bus_id = request.data.get('bus_id')
+        if not bus_id:
+            return Response({'error': 'bus_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        bus = get_object_or_404(Bus, id=bus_id)
+        favourite = Favourite.objects.filter(user=request.user, bus=bus).first()
+
+        if not favourite:
+            return Response({'message': 'This bus is not in your favourites'}, status=status.HTTP_404_NOT_FOUND)
+
+        favourite.delete()
+        return Response({'message': 'Removed from favourites'}, status=status.HTTP_204_NO_CONTENT)
