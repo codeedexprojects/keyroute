@@ -1,10 +1,10 @@
 from rest_framework import serializers
-from .models import BusBooking, PackageBooking, Traveler
+from .models import BusBooking, PackageBooking, Travelers
 from vendors.models import Package, Bus
 
 class TravelerSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Traveler
+        model = Travelers
         fields = ['id', 'first_name', 'last_name', 'gender', 'place', 
                  'dob', 'id_proof', 'email', 'mobile', 'city']
         extra_kwargs = {
@@ -35,6 +35,9 @@ class BusBookingSerializer(BaseBookingSerializer):
             'bus', 'bus_details', 'one_way', 'from_location', 'to_location', 
             'travelers'
         ]
+        extra_kwargs = {
+            'user': {'write_only': True, 'required': False}
+        }
     
     def get_bus_details(self, obj):
         from vendors.serializers import BusSerializer
@@ -73,7 +76,7 @@ class TravelerCreateSerializer(serializers.ModelSerializer):
     booking_id = serializers.IntegerField(write_only=True)
     
     class Meta:
-        model = Traveler
+        model = Travelers
         fields = ['id', 'first_name', 'last_name', 'gender', 'place', 
                  'dob', 'id_proof', 'email', 'mobile', 'city',
                  'booking_type', 'booking_id']
@@ -101,7 +104,7 @@ class TravelerCreateSerializer(serializers.ModelSerializer):
         return data
     
     def create(self, validated_data):
-        traveler = Traveler.objects.create(**validated_data)
+        traveler = Travelers.objects.create(**validated_data)
         
         # Update the total_travelers count for package bookings
         if hasattr(traveler, 'package_booking') and traveler.package_booking:

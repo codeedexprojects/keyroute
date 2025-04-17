@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from vendors.models import Bus
 
 
 # Create your models here.
@@ -14,3 +15,10 @@ class Review(models.Model):
 
     def __str__(self):
         return f'Review by {self.user.mobile} - {self.rating} Stars'
+
+class Favourite(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    bus = models.ForeignKey(Bus, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('user', 'bus')
