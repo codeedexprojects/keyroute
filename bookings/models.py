@@ -47,7 +47,7 @@ class PackageBooking(BaseBooking):
     def __str__(self):
         return f"Package Booking #{self.id} - {self.package.places} ({self.start_date})"
 
-class Traveler(models.Model):
+class Travelers(models.Model):
     """Model for individual travelers associated with a booking"""
     GENDER_CHOICES = (
         ('M', 'Male'),

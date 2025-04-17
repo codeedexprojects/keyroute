@@ -36,10 +36,6 @@ class BusFeature(models.Model):
     def __str__(self):
         return self.name
 
-
-
-
-
 class Bus(models.Model):
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE)
     bus_name = models.CharField(max_length=255)
@@ -54,7 +50,7 @@ class Bus(models.Model):
     passenger_insurance = models.FileField(upload_to='insurance/', null=True, blank=True)
     vehicle_insurance = models.FileField(upload_to='insurance/')
     amenities = models.ManyToManyField(Amenity, related_name='buses', blank=True)
-
+    is_favourited = models.BooleanField(default=False)
     base_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     price_per_km = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     features = models.ManyToManyField(BusFeature, related_name='buses', blank=True)
