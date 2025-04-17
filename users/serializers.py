@@ -2,6 +2,7 @@ import requests
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
+from .models import Favourite
 
 from users.models import Review
 
@@ -139,7 +140,7 @@ class ReviewSerializer(serializers.ModelSerializer):
         fields = ['rating', 'comment']
 
     def create(self, validated_data):
-        user = self.context['request'].user  # Get the logged-in user
+        user = self.context['request'].user
         return Review.objects.create(user=user, **validated_data)
     
 
@@ -148,8 +149,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = User
         fields = ['name', 'email', 'mobile']
         extra_kwargs = {
-            'mobile': {'read_only': True},  # Mobile number shouldn't be updated
-            'email': {'required': False},  # Email is optional
+            'mobile': {'read_only': True},
+            'email': {'required': False},
         }
 
     def validate_email(self, value):
@@ -164,3 +165,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
         instance.email = validated_data.get('email', instance.email)
         instance.save()
         return instance
+
+class FavouriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Favourite
+        fields = ['user', 'bus']
+
+    def create(self, validated_data):
+        user = validated_data.get('user')
+        bus = validated_data.get('bus')
+
+        favourite, created = Favourite.objects.get_or_create(user=user, bus=bus)
+        return favourite

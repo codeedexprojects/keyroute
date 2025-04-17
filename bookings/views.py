@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.db.models import Sum, Count
-from .models import PackageBooking, BusBooking, Traveler
+from .models import PackageBooking, BusBooking, Travelers
 from .serializers import (
     PackageBookingSerializer, BusBookingSerializer, 
     TravelerSerializer, TravelerCreateSerializer
@@ -11,6 +11,8 @@ from .serializers import (
 from vendors.models import Package, Bus
 from vendors.serializers import PackageSerializer, BusSerializer
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from admin_panel.models import Vendor
+from users.models import Favourite
 
 class PackageListAPIView(APIView):
     permission_classes = [AllowAny]
@@ -25,6 +27,17 @@ class BusListAPIView(APIView):
     
     def get(self, request):
         buses = Bus.objects.all()
+        
+        if request.user.is_authenticated:
+            # Get the user's favorite buses
+            favorite_bus_ids = Favourite.objects.filter(
+                user=request.user
+            ).values_list('bus_id', flat=True)
+            
+            # Update is_favourited field for each bus before serialization
+            for bus in buses:
+                bus.is_favourited = bus.id in favorite_bus_ids
+        
         serializer = BusSerializer(buses, many=True)
         return Response(serializer.data)
 
@@ -51,7 +64,7 @@ class PackageBookingListCreateAPIView(APIView):
                 "dob": request.data.get('dob', None),
                 "id_proof": request.data.get('id_proof', None),
                 "email": request.user.email,
-                "mobile": request.data.get('mobile', ''),
+                "mobile": str(request.user),
                 "city": request.data.get('city', ''),
                 "booking_type": "package",
                 "booking_id": booking.id
@@ -107,7 +120,7 @@ class BusBookingListCreateAPIView(APIView):
             
             # Create a traveler entry for the user who's making the booking
             traveler_data = {
-                "first_name": request.user.get_full_name() or request.user.username,
+                "first_name": request.user.name or request.user.username,
                 "last_name": '',
                 "gender": request.data.get('gender', ''),
                 "place": request.data.get('place', ''),
@@ -191,7 +204,7 @@ class TravelerDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get_object(self, pk, user):
-        traveler = get_object_or_404(Traveler, pk=pk)
+        traveler = get_object_or_404(Travelers, pk=pk)
         
         # Check permissions - user must own the booking associated with this traveler
         if (traveler.bus_booking and traveler.bus_booking.user != user) or \
@@ -246,3 +259,53 @@ class BookingsByStatusAPIView(APIView):
             )
             
         return Response(serializer.data)
+    
+class VendorBusBookingAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            vendor = Vendor.objects.get(user=request.user)
+            bus_bookings = BusBooking.objects.filter(bus__vendor=vendor).order_by('-created_at')
+            serializer = BusBookingSerializer(bus_bookings, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Vendor.DoesNotExist:
+            return Response({"detail": "Unauthorized: Only vendors can access this data."}, status=status.HTTP_403_FORBIDDEN)
+        
+class VendorPackageBookingAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            vendor = Vendor.objects.get(user=request.user)
+            package_bookings = PackageBooking.objects.filter(package__vendor=vendor).order_by('-created_at')
+            serializer = PackageBooking(package_bookings, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Vendor.DoesNotExist:
+            return Response({"detail": "Unauthorized: Only vendors can access this data."}, status=status.HTTP_403_FORBIDDEN)
+        
+
+class VendorBusBookingByStatusAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, booking_status):
+        try:
+            vendor = Vendor.objects.get(user=request.user)
+            bus_bookings = BusBooking.objects.filter(bus__vendor=vendor, payment_status=booking_status).order_by('-created_at')
+            serializer = BusBookingSerializer(bus_bookings, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Vendor.DoesNotExist:
+            return Response({"detail": "Unauthorized: Only vendors can access this data."}, status=status.HTTP_403_FORBIDDEN)
+
+        
+class VendorPackageBookingByStatusAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, booking_status):
+        try:
+            vendor = Vendor.objects.get(user=request.user)
+            package_bookings = PackageBooking.objects.filter(package__vendor=vendor, payment_status=booking_status).order_by('-created_at')
+            serializer = PackageBookingSerializer(package_bookings, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Vendor.DoesNotExist:
+            return Response({"detail": "Unauthorized: Only vendors can access this data."}, status=status.HTTP_403_FORBIDDEN)
