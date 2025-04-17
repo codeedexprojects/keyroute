@@ -42,6 +42,7 @@ urlpatterns = [
     # BANK DETAILS
     path('api/vendor/bank-details/', VendorBankDetailView.as_view(), name='vendor-bank-details'),
 
+
     #Booking
     path('api/vendor/bus/bookings/',VendorBusBookingAPI.as_view(),name="vendor-bus-booking-list"),
     path('api/vendor/package/bookings/',VendorPackageBookingAPI.as_view(),name="vendor-package-booking-list"),
