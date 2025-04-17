@@ -81,6 +81,47 @@ class Vendor(models.Model):
 
 
 
+class Advertisement(models.Model):
+    title = models.CharField(max_length=255)
+    description = models.TextField(null=True, blank=True)
+    image = models.ImageField(upload_to="advertisements/")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Advertisement - {self.title}"
+
+
+class LimitedDeal(models.Model):
+    title = models.CharField(max_length=255)
+    description = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Limited Deal - {self.title}"
+
+
+class LimitedDealImage(models.Model):
+    deal = models.ForeignKey(LimitedDeal, on_delete=models.CASCADE, related_name="images")
+    image = models.ImageField(upload_to="limited_deals/")
+
+    def __str__(self):
+        return f"Image for {self.deal.title}"
+
+
+class FooterSection(models.Model):
+    title = models.CharField(max_length=255)
+    description = models.TextField(null=True, blank=True)
+    image = models.ImageField(upload_to="footer_sections/")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Footer Section - {self.title}"
+
+
+
+
+
+
 
 
 
