@@ -435,7 +435,6 @@ class BusSerializer2(serializers.ModelSerializer):
             'vendor',
             'bus_name',
             'bus_number',
-            'bus_type',
             'capacity',
             'vehicle_description',
             'vehicle_rc_number',
