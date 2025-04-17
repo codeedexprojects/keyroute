@@ -679,6 +679,12 @@ class VendorBankDetailView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
+    def post(self, request):
+        vendor = get_object_or_404(Vendor, user=request.user)
+        serializer = VendorBankDetailSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(vendor=vendor)
+            return Response({"message": "Bank details created successfully", "data": serializer.data}, status=status.HTTP_201_CREATED)
     
 
     def post(self, request):

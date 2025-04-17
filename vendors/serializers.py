@@ -83,9 +83,12 @@ class BusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bus
         fields = [
+            'id','is_favourited',
+            'features',
             'id',
             'features',
             'minimum_fare',
+
             'bus_name', 'bus_number',  'capacity', 'vehicle_description',
             'vehicle_rc_number', 'travels_logo', 'rc_certificate', 'license',
             'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance', 'bus_view_images','amenities','base_price', 'price_per_km' 
@@ -510,6 +513,7 @@ class VendorBankDetailSerializer(serializers.ModelSerializer):
 
     def validate_ifsc_code(self, value):
         if not re.match(r'^[A-Z]{4}0[A-Z0-9]{6}$', value):
+            raise serializers.ValidationError("Enter a valid IFSC code (e.g., SBIN0001234).")
             raise serializers.ValidationError("Enter a valid IFSC code (e.g., SBIN0001234).")            
         return value
 
