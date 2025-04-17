@@ -121,20 +121,26 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'railway',
+#         'USER': 'root',
+#         'PASSWORD': 'zJZkGNzMHKDGFuTgQUHLyPgwHtZyeJKK',
+#         'HOST': 'trolley.proxy.rlwy.net',  # Use PUBLIC URL host
+#         'PORT': '26829',  # Use PUBLIC URL port
+#         'OPTIONS': {
+#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+#  }
+# }
+# }
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'railway',
-        'USER': 'root',
-        'PASSWORD': 'zJZkGNzMHKDGFuTgQUHLyPgwHtZyeJKK',
-        'HOST': 'trolley.proxy.rlwy.net',  # Use PUBLIC URL host
-        'PORT': '26829',  # Use PUBLIC URL port
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
- }
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
 }
-}
-
 
 
 
