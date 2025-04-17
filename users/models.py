@@ -13,4 +13,4 @@ class Review(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f'Review by {self.user.phone_number} - {self.rating} Stars'
+        return f'Review by {self.user.mobile} - {self.rating} Stars'
