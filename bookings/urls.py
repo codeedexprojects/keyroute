@@ -1,21 +1,31 @@
 from django.urls import path
 from .views import (
-    BookingListCreateAPIView, BookingDetailAPIView,
-    AddTravelerAPIView, TravelerListAPIView, TravelerDetailAPIView,
-    ListPackage,BookingDetailsByStatus
+    PackageListAPIView, BusListAPIView,
+    PackageBookingListCreateAPIView, PackageBookingDetailAPIView,
+    BusBookingListCreateAPIView, BusBookingDetailAPIView,
+    TravelerCreateAPIView, PackageBookingTravelersAPIView, BusBookingTravelersAPIView,
+    TravelerDetailAPIView, BookingsByStatusAPIView
 )
 
 urlpatterns = [
-    # Package endpoints
-    path('api/users/packages/', ListPackage.as_view(), name='package-list'),
+    # Vendor resource endpoints
+    path('packages/', PackageListAPIView.as_view(), name='package-list'),
+    path('buses/', BusListAPIView.as_view(), name='bus-list'),
     
-    # Booking endpoints
-    path('api/users/bookings/', BookingListCreateAPIView.as_view(), name='booking-list-create'),
-    path('api/users/bookings/<int:pk>/', BookingDetailAPIView.as_view(), name='booking-detail'),
-    path('api/users/bookings/status/<str:status>/', BookingDetailsByStatus.as_view()),
+    # Package booking endpoints
+    path('bookings/package/', PackageBookingListCreateAPIView.as_view(), name='package-booking-list-create'),
+    path('bookings/package/<int:pk>/', PackageBookingDetailAPIView.as_view(), name='package-booking-detail'),
+    path('bookings/package/<int:booking_id>/travelers/', PackageBookingTravelersAPIView.as_view(), name='package-booking-travelers'),
     
-    # Traveler endpoints
-    path('api/users/bookings/<int:booking_id>/travelers/', TravelerListAPIView.as_view(), name='traveler-list'),
-    path('api/users/bookings/<int:booking_id>/travelers/add/', AddTravelerAPIView.as_view(), name='add-traveler'),
-    path('api/users/travelers/<int:pk>/', TravelerDetailAPIView.as_view(), name='traveler-detail')
+    # Bus ing endpoints
+    path('bookings/bus/', BusBookingListCreateAPIView.as_view(), name='bus-booking-list-create'),
+    path('bookings/bus/<int:pk>/', BusBookingDetailAPIView.as_view(), name='bus-booking-detail'),
+    path('bookings/bus/<int:booking_id>/travelers/', BusBookingTravelersAPIView.as_view(), name='bus-booking-travelers'),
+    
+    # Bookstatus endpoints
+    path('bookings/<str:booking_type>/status/<str:status>/', BookingsByStatusAPIView.as_view(), name='bookings-by-status'),
+    
+    # Trav endpoints
+    path('travelers/create/', TravelerCreateAPIView.as_view(), name='traveler-create'),
+    path('travelers/<int:pk>/', TravelerDetailAPIView.as_view(), name='traveler-detail'),
 ]
