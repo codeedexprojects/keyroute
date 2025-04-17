@@ -36,6 +36,12 @@ class BusFeature(models.Model):
     def __str__(self):
         return self.name
 
+
+
+
+    def __str__(self):
+        return self.name
+
 class Bus(models.Model):
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE)
     bus_name = models.CharField(max_length=255)
@@ -54,6 +60,10 @@ class Bus(models.Model):
     base_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     price_per_km = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     features = models.ManyToManyField(BusFeature, related_name='buses', blank=True)
+
+    minimum_fare = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    
 
     def __str__(self):
         return self.bus_name
@@ -104,6 +114,7 @@ class Package(models.Model):
     buses = models.ManyToManyField(Bus)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
 
     def __str__(self):
         return f"{self.sub_category.name} - {self.places}"
