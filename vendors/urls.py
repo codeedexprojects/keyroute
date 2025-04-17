@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import *
+from bookings.views import VendorBusBookingAPI,VendorPackageBookingAPI,VendorBusBookingByStatusAPI,VendorPackageBookingByStatusAPI
 
 urlpatterns = [
    path('api/vendor/signup/', VendorSignupAPIView.as_view(), name='vendor-signup'),
@@ -42,8 +43,9 @@ urlpatterns = [
     path('api/vendor/bank-details/', VendorBankDetailView.as_view(), name='vendor-bank-details'),
 
 
-
-
-   
-
+    #Booking
+    path('api/vendor/bus/bookings/',VendorBusBookingAPI.as_view(),name="vendor-bus-booking-list"),
+    path('api/vendor/package/bookings/',VendorPackageBookingAPI.as_view(),name="vendor-package-booking-list"),
+    path('api/vendor/bus/bookings/<str:booking_status>/',VendorBusBookingByStatusAPI.as_view(),name="vendor-bus-booking-status"),
+    path('api/vendor/package/bookings/<str:booking_status>/',VendorPackageBookingByStatusAPI.as_view(),name="vendor-package-booking-status"),
 ]

@@ -43,10 +43,6 @@ urlpatterns = [
     # CATEGORY
     path('api/admin/categories/', PackageCategoryListAPIView.as_view()),
 
-
-
-
-
 ] 
 
 
