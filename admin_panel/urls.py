@@ -43,6 +43,13 @@ urlpatterns = [
     # CATEGORY
     path('api/admin/categories/', PackageCategoryListAPIView.as_view()),
 
+    # NORMAL USER CREATING
+    path('api/admin/create-user/', AdminCreateUserView.as_view(), name='admin-create-user'),
+
+
+
+
+
 ] 
 
 

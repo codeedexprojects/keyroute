@@ -32,7 +32,7 @@ class UserManager(BaseUserManager):
 
 class User(AbstractBaseUser, PermissionsMixin):
     ADMIN = 'admin'
-    VENDOR = 'vendor'
+    VENDOR = 'vendor'   
     USER = 'user'
 
     ROLE_CHOICES = [
