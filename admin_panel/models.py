@@ -42,6 +42,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     ]
 
     email = models.EmailField(unique=True, null=True, blank=True)
+    name = models.CharField(max_length=150)
     mobile = models.CharField(max_length=15, unique=True, null=True, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=USER)
     is_google_user = models.BooleanField(default=False)
