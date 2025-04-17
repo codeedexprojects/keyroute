@@ -679,12 +679,28 @@ class VendorBankDetailView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
+    
+
     def post(self, request):
         vendor = get_object_or_404(Vendor, user=request.user)
+
+        if VendorBankDetail.objects.filter(vendor=vendor).exists():
+            return Response(
+                {"message": "Bank details already exist for this vendor."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         serializer = VendorBankDetailSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(vendor=vendor)
-            return Response({"message": "Bank details created successfully", "data": serializer.data}, status=status.HTTP_201_CREATED)
+            return Response(
+                {
+                    "message": "Bank details created successfully.",
+                    "data": serializer.data
+                },
+                status=status.HTTP_201_CREATED
+            )
+        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def get(self, request):

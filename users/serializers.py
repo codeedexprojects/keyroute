@@ -10,20 +10,19 @@ User = get_user_model()
 class UserSignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True, min_length=8)
-    email = serializers.EmailField(required=False, allow_blank=True)  # Optional email
 
     class Meta:
         model = User
-        fields = ['name', 'phone_number', 'email', 'password', 'confirm_password']
+        fields = ['name', 'mobile', 'email', 'password', 'confirm_password']
 
     def validate(self, data):
         # Ensure passwords match
         if data['password'] != data['confirm_password']:
             raise serializers.ValidationError({"confirm_password": "Passwords do not match."})
 
-        # Check if phone number already exists
-        if User.objects.filter(phone_number=data['phone_number']).exists():
-            raise serializers.ValidationError({"phone_number": "This phone number is already registered."})
+        # Check if mobile number already exists
+        if User.objects.filter(mobile=data['mobile']).exists():
+            raise serializers.ValidationError({"mobile": "This mobile number is already registered."})
 
         # Ensure email is unique if provided
         if data.get('email'):
@@ -36,32 +35,30 @@ class UserSignupSerializer(serializers.ModelSerializer):
         validated_data.pop('confirm_password')  # Remove confirm_password before creating user
         
         user = User(
-            name=validated_data.get('name', ''),  # Set name, default to empty string if not provided
-            phone_number=validated_data['phone_number'],
-            email=validated_data.get('email', None),  # Use None if email is not provided
+            name=validated_data.get('name', ''),
+            mobile=validated_data['mobile'],
+            email=validated_data.get('email', ''),
         )
         user.set_password(validated_data['password'])  # Hash password
         user.save()
         return user
 
 
-
-
 class UserLoginSerializer(serializers.Serializer):
-    phone_number = serializers.CharField()
+    mobile = serializers.CharField()
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        phone_number = data.get("phone_number")
+        mobile = data.get("mobile")
         password = data.get("password")
 
-        if not phone_number or not password:
-            raise serializers.ValidationError("Phone number and password are required.")
+        if not mobile or not password:
+            raise serializers.ValidationError("Mobile number and password are required.")
 
-        user = authenticate(phone_number=phone_number, password=password)
+        user = authenticate(mobile=mobile, password=password)
 
         if not user:
-            raise serializers.ValidationError("Invalid phone number or password.")
+            raise serializers.ValidationError("Invalid mobile number or password.")
 
         if not user.is_active:
             raise serializers.ValidationError("User account is not active.")
@@ -70,25 +67,23 @@ class UserLoginSerializer(serializers.Serializer):
         return data
 
 
-
-
 class SendOTPSerializer(serializers.Serializer):
-    phone_number = serializers.CharField()
+    mobile = serializers.CharField()
 
-    def validate_phone_number(self, value):
-        """Check if phone number exists in the system"""
-        if not User.objects.filter(phone_number=value).exists():
-            raise serializers.ValidationError("User with this phone number does not exist.")
+    def validate_mobile(self, value):
+        """Check if mobile number exists in the system"""
+        if not User.objects.filter(mobile=value).exists():
+            raise serializers.ValidationError("User with this mobile number does not exist.")
         return value
 
     def send_otp(self):
         """Send OTP using external service"""
-        phone_number = self.validated_data['phone_number']
+        mobile = self.validated_data['mobile']
         otp_api_key = "15b274f8-8600-11ef-8b17-0200cd936042"  # Your API key
 
         # Sample request to external OTP service (Modify as per provider)
         response = requests.post(
-            "https://2factor.in/API/V1/{}/SMS/{}/AUTOGEN".format(otp_api_key, phone_number)
+            "https://2factor.in/API/V1/{}/SMS/{}/AUTOGEN".format(otp_api_key, mobile)
         )
         print(response.json())
 
@@ -98,14 +93,14 @@ class SendOTPSerializer(serializers.Serializer):
             raise serializers.ValidationError("Failed to send OTP. Try again later.")
         
 class ResetPasswordSerializer(serializers.Serializer):
-    phone_number = serializers.CharField()
+    mobile = serializers.CharField()
     otp = serializers.CharField()
     new_password = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True, min_length=8)
 
     def validate(self, data):
         """Ensure OTP is valid and passwords match"""
-        phone_number = data.get("phone_number")
+        mobile = data.get("mobile")
         otp = data.get("otp")
         new_password = data.get("new_password")
         confirm_password = data.get("confirm_password")
@@ -116,7 +111,7 @@ class ResetPasswordSerializer(serializers.Serializer):
         # Verify OTP using external API
         otp_api_key = "15b274f8-8600-11ef-8b17-0200cd936042"
         response = requests.post(
-            f"https://2factor.in/API/V1/{otp_api_key}/SMS/VERIFY3/{phone_number}/{otp}"
+            f"https://2factor.in/API/V1/{otp_api_key}/SMS/VERIFY3/{mobile}/{otp}"
         )
 
         if response.status_code != 200:
@@ -126,16 +121,16 @@ class ResetPasswordSerializer(serializers.Serializer):
 
     def save(self):
         """Reset the user's password"""
-        phone_number = self.validated_data['phone_number']
+        mobile = self.validated_data['mobile']
         new_password = self.validated_data['new_password']
 
         try:
-            user = User.objects.get(phone_number=phone_number)
+            user = User.objects.get(mobile=mobile)
             user.set_password(new_password)
             user.save()
             return {"message": "Password reset successful."}
         except User.DoesNotExist:
-            raise serializers.ValidationError({"phone_number": "User not found."})
+            raise serializers.ValidationError({"mobile": "User not found."})
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -151,9 +146,9 @@ class ReviewSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['name', 'email', 'phone_number']
+        fields = ['name', 'email', 'mobile']
         extra_kwargs = {
-            'phone_number': {'read_only': True},  # Phone number shouldn't be updated
+            'mobile': {'read_only': True},  # Mobile number shouldn't be updated
             'email': {'required': False},  # Email is optional
         }
 

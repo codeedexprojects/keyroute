@@ -5,7 +5,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth import login
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import generics, permissions
-from admin_panel.serializers import UserSerializer
 from admin_panel.utils import send_otp, verify_otp
 from .serializers import ResetPasswordSerializer, ReviewSerializer, SendOTPSerializer, UserLoginSerializer, UserProfileSerializer, UserSignupSerializer
 from google.auth.transport import requests
@@ -25,9 +24,12 @@ class NormalUserSignupView(APIView):
             return Response({"error": "Mobile number already registered"}, status=status.HTTP_400_BAD_REQUEST)
 
         response = send_otp(mobile)
-        print(response)
+        
         if response.get("Status") == "Success":
-            return Response({"message": "OTP sent to your mobile"}, status=status.HTTP_200_OK)
+            return Response({
+                "message": "OTP sent to your mobile",
+                "session_id": response.get("Details")  # Store session ID for verification
+            }, status=status.HTTP_200_OK)
         
         return Response({"error": "Failed to send OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -36,14 +38,46 @@ class VerifySignupOTPView(APIView):
     def post(self, request):
         mobile = request.data.get("mobile")
         otp = request.data.get("otp")
+        name = request.data.get("name", "")
+        email = request.data.get("email", "")
+        password = request.data.get("password")
+        confirm_password = request.data.get("confirm_password")
 
         if not mobile or not otp:
             return Response({"error": "Mobile number and OTP are required"}, status=status.HTTP_400_BAD_REQUEST)
 
         response = verify_otp(mobile, otp)
+        
         if response.get("Status") == "Success":
-            user, created = User.objects.get_or_create(mobile=mobile)
-            return Response({"message": "Signup successful", "new_user": created}, status=status.HTTP_201_CREATED)
+            # Create user data dictionary for serializer
+            user_data = {
+                "mobile": mobile,
+                "name": name,
+                "email": email if email else None,
+                "password": password,
+                "confirm_password": confirm_password
+            }
+            
+            serializer = UserSignupSerializer(data=user_data)
+            if serializer.is_valid():
+                user = serializer.save()
+                
+                # Generate tokens for the new user
+                refresh = RefreshToken.for_user(user)
+                
+                return Response({
+                    "message": "Signup successful",
+                    "access_token": str(refresh.access_token),
+                    "refresh_token": str(refresh),
+                    "user": {
+                        "id": user.id,
+                        "mobile": user.mobile,
+                        "email": user.email,
+                        "name": user.name,
+                        "role": user.role,
+                    }
+                }, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -58,8 +92,12 @@ class NormalUserLoginView(APIView):
             return Response({"error": "User does not exist. Please sign up first."}, status=status.HTTP_400_BAD_REQUEST)
 
         response = send_otp(mobile)
+        
         if response.get("Status") == "Success":
-            return Response({"message": "OTP sent to your mobile"}, status=status.HTTP_200_OK)
+            return Response({
+                "message": "OTP sent to your mobile",
+                "session_id": response.get("Details")  # Store session ID for verification
+            }, status=status.HTTP_200_OK)
 
         return Response({"error": "Failed to send OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -73,26 +111,31 @@ class VerifyLoginOTPView(APIView):
             return Response({"error": "Mobile number and OTP are required"}, status=status.HTTP_400_BAD_REQUEST)
 
         response = verify_otp(mobile, otp)
+        
         if response.get("Status") == "Success":
-            user, _ = User.objects.get_or_create(mobile=mobile)
+            try:
+                user = User.objects.get(mobile=mobile)
+            except User.DoesNotExist:
+                return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
 
             login(request, user)
-            return Response({"message": "Login successful",
-                             "access_token": access_token,
-                            "refresh_token": str(refresh),
-                            "user": {
-                                "id": user.id,
-                                "mobile": user.mobile,
-                                "email": user.email,
-                                "role": user.role,
-                              }
-                            }, status=status.HTTP_200_OK)
+            return Response({
+                "message": "Login successful",
+                "access_token": access_token,
+                "refresh_token": str(refresh),
+                "user": {
+                    "id": user.id,
+                    "mobile": user.mobile,
+                    "email": user.email,
+                    "name": user.name,
+                    "role": user.role,
+                }
+            }, status=status.HTTP_200_OK)
 
         return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 class UserLogoutView(APIView):
@@ -133,8 +176,6 @@ class ResetPasswordView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-
-
 class CreateReviewView(APIView):
     permission_classes = [IsAuthenticated]  # User must be logged in
 
@@ -144,6 +185,7 @@ class CreateReviewView(APIView):
             serializer.save()
             return Response({"message": "Review submitted successfully!"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
     
 class UserProfileUpdateView(generics.RetrieveUpdateAPIView):
     """

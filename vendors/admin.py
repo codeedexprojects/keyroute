@@ -24,5 +24,6 @@ admin.site.register(Activity)
 admin.site.register(ActivityImage)
 
 admin.site.register(BusFeature)
+admin.site.register(VendorBankDetail)
 
 

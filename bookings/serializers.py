@@ -1,40 +1,112 @@
 from rest_framework import serializers
-from .models import Booking, Traveler
-from vendors.models import Package
+from .models import BusBooking, PackageBooking, Traveler
+from vendors.models import Package, Bus
 
 class TravelerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Traveler
         fields = ['id', 'first_name', 'last_name', 'gender', 'place', 
-                 'dob', 'id_proof', 'email', 'phone', 'city']
+                 'dob', 'id_proof', 'email', 'mobile', 'city']
         extra_kwargs = {
             'id': {'read_only': True},
-            'booking': {'read_only': True}
+            'bus_booking': {'read_only': True},
+            'package_booking': {'read_only': True}
         }
 
-class BookingSerializer(serializers.ModelSerializer):
+class BaseBookingSerializer(serializers.ModelSerializer):
+    balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    
+    class Meta:
+        abstract = True
+        fields = ['id', 'user', 'start_date', 'total_amount', 'advance_amount', 
+                 'payment_status', 'created_at', 'balance_amount']
+        read_only_fields = ['id', 'created_at', 'balance_amount']
+        extra_kwargs = {
+            'user': {'write_only': True, 'required': False}
+        }
+
+class BusBookingSerializer(BaseBookingSerializer):
+    travelers = TravelerSerializer(many=True, required=False, read_only=True)
+    bus_details = serializers.SerializerMethodField(read_only=True)
+    
+    class Meta:
+        model = BusBooking
+        fields = BaseBookingSerializer.Meta.fields + [
+            'bus', 'bus_details', 'one_way', 'from_location', 'to_location', 
+            'travelers'
+        ]
+    
+    def get_bus_details(self, obj):
+        from vendors.serializers import BusSerializer
+        return BusSerializer(obj.bus).data
+    
+    def create(self, validated_data):
+        booking = BusBooking.objects.create(**validated_data)
+        return booking
+
+class PackageBookingSerializer(BaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
-        model = Booking
-        fields = ['id', 'package', 'package_details', 'start_date',
-                 'total_travelers', 'total_amount', 'advance_amount', 'payment_status',
-                 'is_completed', 'created_at', 'travelers']
-        read_only_fields = ['id', 'created_at', 'total_travelers']
+        model = PackageBooking
+        fields = BaseBookingSerializer.Meta.fields + [
+            'package', 'package_details', 'total_travelers', 
+            'travelers'
+        ]
+        read_only_fields = BaseBookingSerializer.Meta.read_only_fields + ['total_travelers']
+        extra_kwargs = {
+            'user': {'write_only': True, 'required': False}
+        }
     
     def get_package_details(self, obj):
         from vendors.serializers import PackageSerializer
         return PackageSerializer(obj.package).data
     
     def create(self, validated_data):
-        # The user will be added by the view
-        booking = Booking.objects.create(**validated_data)
+        booking = PackageBooking.objects.create(**validated_data)
         return booking
+
+class TravelerCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating a traveler associated with a booking"""
+    booking_type = serializers.ChoiceField(choices=['bus', 'package'], write_only=True)
+    booking_id = serializers.IntegerField(write_only=True)
     
-    def update(self, instance, validated_data):
-        # Update booking fields
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        return instance
+    class Meta:
+        model = Traveler
+        fields = ['id', 'first_name', 'last_name', 'gender', 'place', 
+                 'dob', 'id_proof', 'email', 'mobile', 'city',
+                 'booking_type', 'booking_id']
+        extra_kwargs = {
+            'id': {'read_only': True},
+        }
+    
+    def validate(self, data):
+        booking_type = data.pop('booking_type')
+        booking_id = data.pop('booking_id')
+        
+        if booking_type == 'bus':
+            try:
+                booking = BusBooking.objects.get(id=booking_id)
+                data['bus_booking'] = booking
+            except BusBooking.DoesNotExist:
+                raise serializers.ValidationError(f"Bus booking with id {booking_id} does not exist")
+        else:  # booking_type == 'package'
+            try:
+                booking = PackageBooking.objects.get(id=booking_id)
+                data['package_booking'] = booking
+            except PackageBooking.DoesNotExist:
+                raise serializers.ValidationError(f"Package booking with id {booking_id} does not exist")
+        
+        return data
+    
+    def create(self, validated_data):
+        traveler = Traveler.objects.create(**validated_data)
+        
+        # Update the total_travelers count for package bookings
+        if hasattr(traveler, 'package_booking') and traveler.package_booking:
+            traveler.package_booking.total_travelers = \
+                traveler.package_booking.travelers.count()
+            traveler.package_booking.save()
+            
+        return traveler

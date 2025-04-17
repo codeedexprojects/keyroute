@@ -1,12 +1,12 @@
 from django.db import models
-from vendors.models import Package
+from vendors.models import Package, Bus
 from django.core.validators import FileExtensionValidator, MinValueValidator
 from django.contrib.auth import get_user_model
 from datetime import date
 
 User = get_user_model()
 
-class Booking(models.Model):
+class BaseBooking(models.Model):
     PAYMENT_STATUS_CHOICES = (
         ('pending', 'Pending'),
         ('partial', 'Partially Paid'),
@@ -14,45 +14,98 @@ class Booking(models.Model):
         ('cancelled', 'Cancelled'),
     )
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookings')
-    package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='bookings')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     start_date = models.DateField()
-    total_travelers = models.PositiveIntegerField(default=0)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     advance_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
-    is_completed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     
-    def __str__(self):
-        return f"Booking #{self.id} - {self.package.places} ({self.start_date})"
+    class Meta:
+        abstract = True
+        
+    @property
+    def balance_amount(self):
+        """Calculate remaining balance to be paid"""
+        return self.total_amount - self.advance_amount
+
+class BusBooking(BaseBooking):
+    """Model for bus bookings"""
+    bus = models.ForeignKey(Bus, on_delete=models.CASCADE, related_name='bookings')
+    one_way = models.BooleanField(default=True)
+    from_location = models.CharField(max_length=150)
+    to_location = models.CharField(max_length=150)
     
-    def clean(self):
-        pass
+    def __str__(self):
+        return f"Bus Booking #{self.id} - {self.from_location} to {self.to_location} ({self.start_date})"
+
+class PackageBooking(BaseBooking):
+    """Model for package bookings"""
+    package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='bookings')
+    total_travelers = models.PositiveIntegerField(default=1)
+    
+    def __str__(self):
+        return f"Package Booking #{self.id} - {self.package.places} ({self.start_date})"
 
 class Traveler(models.Model):
+    """Model for individual travelers associated with a booking"""
     GENDER_CHOICES = (
         ('M', 'Male'),
         ('F', 'Female'),
         ('O', 'Other'),
     )
     
-    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='travelers')
+    # Generic foreign key relationship
+    bus_booking = models.ForeignKey(BusBooking, on_delete=models.CASCADE, 
+                                    related_name='travelers', null=True, blank=True)
+    package_booking = models.ForeignKey(PackageBooking, on_delete=models.CASCADE, 
+                                       related_name='travelers', null=True, blank=True)
+    
+    # Personal details
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100, blank=True, null=True)
-    gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    place = models.CharField(max_length=100)
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True, null=True)
     dob = models.DateField(null=True, blank=True)
+    
+    # Contact information
+    email = models.EmailField(blank=True, null=True)
+    mobile = models.CharField(max_length=15, null=True, blank=True)
+    
+    # Location details
+    place = models.CharField(max_length=100, blank=True, null=True)
+    city = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Identity proof
     id_proof = models.FileField(
         upload_to='travelers/id_proofs/', 
         null=True, 
         blank=True,
         validators=[FileExtensionValidator(['pdf', 'jpg', 'jpeg', 'png'])]
     )
-    email = models.EmailField(blank=True, null=True)
-    phone = models.CharField(max_length=15, blank=True, null=True)
-    city = models.CharField(max_length=100, blank=True, null=True)
+    
     created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
-        return f"{self.first_name} - Booking #{self.booking.id}"
+        booking_id = self.bus_booking.id if self.bus_booking else self.package_booking.id
+        booking_type = "Bus" if self.bus_booking else "Package"
+        return f"{self.first_name} {self.last_name or ''} - {booking_type} #{booking_id}"
+    
+    def clean(self):
+        """Ensure traveler is associated with exactly one booking type"""
+        from django.core.exceptions import ValidationError
+        
+        if self.bus_booking and self.package_booking:
+            raise ValidationError("A traveler can't be associated with both bus and package bookings")
+        if not self.bus_booking and not self.package_booking:
+            raise ValidationError("A traveler must be associated with either a bus or package booking")
+    
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    models.Q(bus_booking__isnull=False, package_booking__isnull=True) | 
+                    models.Q(bus_booking__isnull=True, package_booking__isnull=False)
+                ),
+                name="one_booking_type_only"
+            )
+        ]
