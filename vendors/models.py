@@ -58,6 +58,8 @@ class Bus(models.Model):
     base_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     price_per_km = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     features = models.ManyToManyField(BusFeature, related_name='buses', blank=True)
+    minimum_fare = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
     
 
     def __str__(self):
