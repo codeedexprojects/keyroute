@@ -275,3 +275,53 @@ class AdminCreateUserSerializer(serializers.ModelSerializer):
 
 
 
+
+
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'name', 'email', 'mobile', ]
+
+
+# --------------------------------- Advertisement-----------------
+
+class AdvertisementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Advertisement
+        fields = ['title', 'description', 'image']
+
+
+class LimitedDealImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LimitedDealImage
+        fields = ['image']
+
+
+class LimitedDealSerializer(serializers.ModelSerializer):
+    images = serializers.ListField(
+        child=serializers.ImageField(),
+        write_only=True
+    )
+
+    class Meta:
+        model = LimitedDeal
+        fields = ['title', 'description', 'images']
+
+
+class FooterSectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FooterSection
+        fields = ['title', 'description', 'image']
+
+
+
+
+
+
+
+
+
+
+

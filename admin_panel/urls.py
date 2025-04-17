@@ -47,6 +47,10 @@ urlpatterns = [
     path('api/admin/create-user/', AdminCreateUserView.as_view(), name='admin-create-user'),
 
 
+    path('api/admin/sections/create/', AllSectionsCreateView.as_view(), name='create-sections')
+
+
+
 
 
 

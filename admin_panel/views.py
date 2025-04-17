@@ -14,6 +14,8 @@ from .serializers import *
 from vendors.models import *
 from vendors.serializers import *
 from django.db.models import Q
+from rest_framework.parsers import MultiPartParser, FormParser
+
 
 
 # Create your views here.
@@ -304,6 +306,56 @@ class AdminCreateUserView(APIView):
             serializer.save()
             return Response({"message": "User created successfully", "data": serializer.data}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+class AllSectionsCreateView(APIView):
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, *args, **kwargs):
+        ads_data = request.data.getlist('advertisements')
+        deals_data = request.data.getlist('limited_deals')
+        footers_data = request.data.getlist('footer_sections')
+
+        # Extracting and saving Advertisement
+        for ad in ads_data:
+            serializer = AdvertisementSerializer(data=ad)
+            if serializer.is_valid():
+                serializer.save()
+            else:
+                return Response({'error': serializer.errors}, status=400)
+
+        # Extracting and saving Limited Deals
+        for deal in deals_data:
+            images = deal.pop('images', [])
+            deal_serializer = LimitedDealSerializer(data=deal)
+            if deal_serializer.is_valid():
+                limited_deal = deal_serializer.save()
+                for img in images:
+                    LimitedDealImage.objects.create(deal=limited_deal, image=img)
+            else:
+                return Response({'error': deal_serializer.errors}, status=400)
+
+        # Extracting and saving Footer Sections
+        for footer in footers_data:
+            serializer = FooterSectionSerializer(data=footer)
+            if serializer.is_valid():
+                serializer.save()
+            else:
+                return Response({'error': serializer.errors}, status=400)
+
+        return Response({"message": "All data saved successfully!"}, status=201)
+
+
+
+
+
+
+
 
 
 
