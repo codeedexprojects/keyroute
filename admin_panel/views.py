@@ -14,6 +14,8 @@ from .serializers import *
 from vendors.models import *
 from vendors.serializers import *
 from django.db.models import Q
+from rest_framework.parsers import MultiPartParser, FormParser
+
 
 
 # Create your views here.
@@ -152,6 +154,8 @@ class AdminBusListAPIView(APIView):
 
 
 class AllUsersAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
     def get(self, request, user_id=None):
         if user_id:
             try:
@@ -284,4 +288,126 @@ class PackageCategoryListAPIView(APIView):
             "message": "Package categories listed successfully",
             "data": serializer.data
         }, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+class AdminCreateUserView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication] 
+
+    def post(self, request):
+        serializer = AdminCreateUserSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "User created successfully", "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+# ADVERTISMENT CREATION
+class AllSectionsCreateView(APIView):
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, *args, **kwargs):
+        ads_data = request.data.getlist('advertisements')
+        deals_data = request.data.getlist('limited_deals')
+        footers_data = request.data.getlist('footer_sections')
+
+        for ad in ads_data:
+            serializer = AdvertisementSerializer(data=ad)
+            if serializer.is_valid():
+                serializer.save()
+            else:
+                return Response({'error': serializer.errors}, status=400)
+
+        for deal in deals_data:
+            images = deal.pop('images', [])
+            deal_serializer = LimitedDealSerializer(data=deal)
+            if deal_serializer.is_valid():
+                limited_deal = deal_serializer.save()
+                for img in images:
+                    LimitedDealImage.objects.create(deal=limited_deal, image=img)
+            else:
+                return Response({'error': deal_serializer.errors}, status=400)
+
+        for footer in footers_data:
+            serializer = FooterSectionSerializer(data=footer)
+            if serializer.is_valid():
+                serializer.save()
+            else:
+                return Response({'error': serializer.errors}, status=400)
+
+        return Response({"message": "All data saved successfully!"}, status=201)
+
+
+
+
+
+
+
+
+#EXPLROE CREATING
+class ExploreSectionCreateView(APIView):
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request, *args, **kwargs):
+        data = request.data
+
+        sight_data = {
+            'title': data.get('sight[title]'),
+            'description': data.get('sight[description]'),
+            'season_description': data.get('sight[season_description]'),
+            'image': data.get('sight[image]')
+        }
+
+        experience_data = []
+        index = 0
+        while f'experiences[{index}][description]' in data:
+            exp = {
+                'description': data.get(f'experiences[{index}][description]'),
+                'image': data.get(f'experiences[{index}][image]')
+            }
+            experience_data.append(exp)
+            index += 1
+
+        sight_serializer = SightSerializer(data=sight_data)
+        if sight_serializer.is_valid():
+            sight_instance = sight_serializer.save()
+
+            for exp in experience_data:
+                exp_serializer = ExperienceSerializer(data=exp)
+                if exp_serializer.is_valid():
+                    exp_serializer.save(sight=sight_instance)
+                else:
+                    return Response({"error": exp_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response({"message": "Sight and experiences created successfully!"}, status=status.HTTP_201_CREATED)
+
+        return Response({"error": sight_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+#EXPLORE LISTING
+class ExploreSectionListView(APIView):
+    def get(self, request):
+        sights = Sight.objects.all().order_by('-id')
+        serializer = SightListSerializer(sights, many=True)
+        return Response({"message": "Explore section fetched successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
 
