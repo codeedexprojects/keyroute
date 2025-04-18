@@ -13,6 +13,7 @@ from vendors.serializers import PackageSerializer, BusSerializer
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from admin_panel.models import Vendor
 from users.models import Favourite
+from notifications.utils import send_notification
 
 class PackageListAPIView(APIView):
     permission_classes = [AllowAny]
@@ -29,12 +30,10 @@ class BusListAPIView(APIView):
         buses = Bus.objects.all()
         
         if request.user.is_authenticated:
-            # Get the user's favorite buses
             favorite_bus_ids = Favourite.objects.filter(
                 user=request.user
             ).values_list('bus_id', flat=True)
             
-            # Update is_favourited field for each bus before serialization
             for bus in buses:
                 bus.is_favourited = bus.id in favorite_bus_ids
         
@@ -73,6 +72,14 @@ class PackageBookingListCreateAPIView(APIView):
             travelerSerializer = TravelerCreateSerializer(data=traveler_data)
             if travelerSerializer.is_valid():
                 travelerSerializer.save()
+                
+                # Send notification to user about successful booking
+                package_name = booking.package.name if hasattr(booking.package, 'name') else "Tour package"
+                send_notification(
+                    user=request.user,
+                    message=f"Your booking for {package_name} has been successfully created! Booking ID: {booking.id}"
+                )
+                
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             else:
                 # If traveler creation fails, delete the booking
@@ -93,16 +100,20 @@ class PackageBookingDetailAPIView(APIView):
     
     def put(self, request, pk):
         booking = self.get_object(pk, request.user)
+        old_status = booking.payment_status
         serializer = PackageBookingSerializer(booking, data=request.data, partial=True)
         if serializer.is_valid():
             booking = serializer.save()
+            
+            if 'payment_status' in request.data and old_status != booking.payment_status:
+                send_notification(
+                    user=request.user,
+                    message=f"Your package booking #{pk} status has been updated to: {booking.payment_status}"
+                )
+                
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    def delete(self, request, pk):
-        booking = self.get_object(pk, request.user)
-        booking.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 # Bus Booking Views
 class BusBookingListCreateAPIView(APIView):
@@ -118,7 +129,6 @@ class BusBookingListCreateAPIView(APIView):
         if serializer.is_valid():
             booking = serializer.save(user=request.user)
             
-            # Create a traveler entry for the user who's making the booking
             traveler_data = {
                 "first_name": request.user.name or request.user.username,
                 "last_name": '',
@@ -136,9 +146,17 @@ class BusBookingListCreateAPIView(APIView):
             travelerSerializer = TravelerCreateSerializer(data=traveler_data)
             if travelerSerializer.is_valid():
                 travelerSerializer.save()
+                
+                bus_name = booking.bus.name if hasattr(booking.bus, 'name') else "Bus"
+                route_info = f"from {booking.bus.from_location} to {booking.bus.to_location}" if hasattr(booking.bus, 'from_location') and hasattr(booking.bus, 'to_location') else ""
+                
+                send_notification(
+                    user=request.user,
+                    message=f"Your bus booking for {bus_name} {route_info} has been confirmed! Booking ID: {booking.id}"
+                )
+                
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             else:
-                # If traveler creation fails, delete the booking
                 booking.delete()
                 return Response(travelerSerializer.errors, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -156,16 +174,20 @@ class BusBookingDetailAPIView(APIView):
     
     def put(self, request, pk):
         booking = self.get_object(pk, request.user)
+        old_status = booking.payment_status
         serializer = BusBookingSerializer(booking, data=request.data, partial=True)
         if serializer.is_valid():
             booking = serializer.save()
+            
+            if 'payment_status' in request.data and old_status != booking.payment_status:
+                send_notification(
+                    user=request.user,
+                    message=f"Your bus booking #{pk} status has been updated to: {booking.payment_status}"
+                )
+                
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    def delete(self, request, pk):
-        booking = self.get_object(pk, request.user)
-        booking.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 # Traveler Views
 class TravelerCreateAPIView(APIView):
@@ -175,10 +197,22 @@ class TravelerCreateAPIView(APIView):
         serializer = TravelerCreateSerializer(data=request.data)
         
         if serializer.is_valid():
-            # The validation in TravelerCreateSerializer will ensure correct booking association
             traveler = serializer.save()
             
-            # Return the standard traveler serializer for consistency in the response
+            if traveler.package_booking:
+                booking = traveler.package_booking
+                booking_type = "package"
+            elif traveler.bus_booking:
+                booking = traveler.bus_booking
+                booking_type = "bus"
+            else:
+                booking_type = "unknown"
+            
+            send_notification(
+                user=request.user,
+                message=f"New traveler {traveler.first_name} {traveler.last_name} has been added to your {booking_type} booking"
+            )
+            
             return Response(TravelerSerializer(traveler).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -206,7 +240,6 @@ class TravelerDetailAPIView(APIView):
     def get_object(self, pk, user):
         traveler = get_object_or_404(Travelers, pk=pk)
         
-        # Check permissions - user must own the booking associated with this traveler
         if (traveler.bus_booking and traveler.bus_booking.user != user) or \
            (traveler.package_booking and traveler.package_booking.user != user):
             self.permission_denied(self.request)
@@ -222,21 +255,38 @@ class TravelerDetailAPIView(APIView):
         traveler = self.get_object(pk, request.user)
         serializer = TravelerSerializer(traveler, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
+            updated_traveler = serializer.save()
+            
+            send_notification(
+                user=request.user,
+                message=f"Traveler information for {updated_traveler.first_name} {updated_traveler.last_name} has been updated"
+            )
+            
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def delete(self, request, pk):
         traveler = self.get_object(pk, request.user)
+        traveler_name = f"{traveler.first_name} {traveler.last_name}"
         
-        # Update the total_travelers count if this is a package booking
         if traveler.package_booking:
             booking = traveler.package_booking
             traveler.delete()
             booking.total_travelers = booking.travelers.count()
             booking.save()
+            
+            send_notification(
+                user=request.user,
+                message=f"Traveler {traveler_name} has been removed from your package booking"
+            )
         else:
+            booking = traveler.bus_booking
             traveler.delete()
+            
+            send_notification(
+                user=request.user,
+                message=f"Traveler {traveler_name} has been removed from your bus booking"
+            )
         
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -279,7 +329,7 @@ class VendorPackageBookingAPI(APIView):
         try:
             vendor = Vendor.objects.get(user=request.user)
             package_bookings = PackageBooking.objects.filter(package__vendor=vendor).order_by('-created_at')
-            serializer = PackageBooking(package_bookings, many=True)
+            serializer = PackageBookingSerializer(package_bookings, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Vendor.DoesNotExist:
             return Response({"detail": "Unauthorized: Only vendors can access this data."}, status=status.HTTP_403_FORBIDDEN)
@@ -309,3 +359,67 @@ class VendorPackageBookingByStatusAPI(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Vendor.DoesNotExist:
             return Response({"detail": "Unauthorized: Only vendors can access this data."}, status=status.HTTP_403_FORBIDDEN)
+        
+
+class CancelBookingView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, booking_type):
+        booking_id = request.data.get('booking_id')
+        cancellation_reason = request.data.get('cancellation_reason')
+        
+        if not booking_type or not booking_id:
+            return Response(
+                {"error": "Both booking_type and booking_id are required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if booking_type not in ['bus', 'package']:
+            return Response(
+                {"error": "booking_type must be either 'bus' or 'package'"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            if booking_type == 'bus':
+                booking = BusBooking.objects.get(id=booking_id)
+                serializer_class = BusBookingSerializer
+            else:
+                booking = PackageBooking.objects.get(id=booking_id)
+                serializer_class = PackageBookingSerializer
+                
+            if booking.user != request.user:
+                return Response(
+                    {"error": "You do not have permission to cancel this booking"}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+                
+            if booking.payment_status == 'cancelled':
+                return Response(
+                    {"error": "This booking is already cancelled"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+            booking.payment_status = 'cancelled'
+            booking.cancelation_reason = cancellation_reason
+            booking.save()
+
+            send_notification(
+                user=request.user,
+                message=f"Your booking with ID {booking_id} has been successfully canceled."
+            )
+
+            
+            serializer = serializer_class(booking)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+            
+        except (BusBooking.DoesNotExist, PackageBooking.DoesNotExist):
+            return Response(
+                {"error": f"{booking_type.capitalize()} booking with id {booking_id} does not exist"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
