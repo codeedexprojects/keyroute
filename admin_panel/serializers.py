@@ -255,3 +255,97 @@ class PackageCategoryListSerializer(serializers.ModelSerializer):
     class Meta:
         model = PackageCategory
         fields = ['id', 'name', 'image']
+
+
+
+
+class AdminCreateUserSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'mobile', 'email', 'role', 'password']
+
+    def create(self, validated_data):
+        password = validated_data.pop('password')
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
+
+
+
+
+
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'name', 'email', 'mobile', ]
+
+
+# --------------------------------- Advertisement-----------------
+
+class AdvertisementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Advertisement
+        fields = ['title', 'description', 'image']
+
+
+class LimitedDealImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LimitedDealImage
+        fields = ['image']
+
+
+class LimitedDealSerializer(serializers.ModelSerializer):
+    images = serializers.ListField(
+        child=serializers.ImageField(),
+        write_only=True
+    )
+
+    class Meta:
+        model = LimitedDeal
+        fields = ['title', 'description', 'images']
+
+
+class FooterSectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FooterSection
+        fields = ['title', 'description', 'image']
+
+
+# --------------------------------------------------------
+
+
+
+class ExperienceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Experience
+        fields = ['image', 'description',]
+
+
+class SightSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Sight
+        fields = ['title', 'description', 'season_description','image']
+
+
+
+class SightListSerializer(serializers.ModelSerializer):
+    experiences = ExperienceSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Sight
+        fields = ['id', 'title', 'description', 'season_description', 'experiences','image']
+
+
+
+
+
+
+
+
+
