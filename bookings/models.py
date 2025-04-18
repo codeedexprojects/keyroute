@@ -20,6 +20,7 @@ class BaseBooking(models.Model):
     advance_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
+    cancelation_reason = models.CharField(max_length=250,null=True,blank=True)
     
     class Meta:
         abstract = True
