@@ -4,7 +4,7 @@ from .views import (
     PackageBookingListCreateAPIView, PackageBookingDetailAPIView,
     BusBookingListCreateAPIView, BusBookingDetailAPIView,
     TravelerCreateAPIView, PackageBookingTravelersAPIView, BusBookingTravelersAPIView,
-    TravelerDetailAPIView, BookingsByStatusAPIView
+    TravelerDetailAPIView, BookingsByStatusAPIView,CancelBookingView
 )
 
 urlpatterns = [
@@ -21,6 +21,8 @@ urlpatterns = [
     path('bookings/bus/', BusBookingListCreateAPIView.as_view(), name='bus-booking-list-create'),
     path('bookings/bus/<int:pk>/', BusBookingDetailAPIView.as_view(), name='bus-booking-detail'),
     path('bookings/bus/<int:booking_id>/travelers/', BusBookingTravelersAPIView.as_view(), name='bus-booking-travelers'),
+
+    path('bookings/<str:booking_type>/cancel/',CancelBookingView.as_view(),name="booking_cancel"),
     
     # Bookstatus endpoints
     path('bookings/<str:booking_type>/status/<str:status>/', BookingsByStatusAPIView.as_view(), name='bookings-by-status'),
