@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import CreateReviewView, NormalUserLoginView, NormalUserSignupView, UserLogoutView, UserProfileUpdateView,  VerifyLoginOTPView, VerifySignupOTPView,FavouriteAPIView
+from .views import CreateReviewView, NormalUserLoginView, NormalUserSignupView, UserLogoutView, UserProfileUpdateView,  VerifyLoginOTPView, VerifySignupOTPView,FavouriteAPIView,ListFavourites
 
 urlpatterns = [
     path("signup/", NormalUserSignupView.as_view(), name="user-signup"),
@@ -15,4 +15,6 @@ urlpatterns = [
     path('profile/', UserProfileUpdateView.as_view(), name='user-profile'),
 
     path('favourites/', FavouriteAPIView.as_view(), name='favourite-api'),
+
+    path('list-favourite/<str:bus_or_package>/',ListFavourites.as_view(),name='list-favourite')
 ]
