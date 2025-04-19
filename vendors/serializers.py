@@ -105,7 +105,7 @@ class BusSerializer(serializers.ModelSerializer):
     )
     def get_amenities(self, obj):
         return [amenity.name for amenity in obj.amenities.all()]
-
+  
     def validate_bus_number(self, value):
         if Bus.objects.filter(bus_number=value).exists():
             raise serializers.ValidationError("A bus with this number already exists.")
@@ -435,7 +435,6 @@ class BusSerializer2(serializers.ModelSerializer):
             'vendor',
             'bus_name',
             'bus_number',
-            'bus_type',
             'capacity',
             'vehicle_description',
             'vehicle_rc_number',

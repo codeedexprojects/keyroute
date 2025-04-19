@@ -4,3 +4,9 @@ from .models import *
 
 admin.site.register(User)
 admin.site.register(Vendor)
+admin.site.register(Advertisement)
+admin.site.register(Experience)
+admin.site.register(Sight)
+admin.site.register(LimitedDeal)
+admin.site.register(FooterSection)
+admin.site.register(LimitedDealImage)
