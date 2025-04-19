@@ -6,32 +6,40 @@ from django.contrib.auth import login
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import generics, permissions
 from admin_panel.utils import send_otp, verify_otp
-from .serializers import ResetPasswordSerializer, ReviewSerializer, SendOTPSerializer, UserLoginSerializer, UserProfileSerializer, UserSignupSerializer,FavouriteSerializer
+from .serializers import ReviewSerializer, SendOTPSerializer, UserLoginSerializer, UserProfileSerializer, UserSignupSerializer,FavouriteSerializer
 from google.auth.transport import requests
 from google.oauth2 import id_token
 from django.conf import settings
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
-from vendors.models import Bus
+from vendors.models import Bus,Package
 from .models import Favourite
 
 User = get_user_model()
 
 class NormalUserSignupView(APIView):
     def post(self, request):
+        name = request.data.get("name")
         mobile = request.data.get("mobile")
-        if not mobile:
-            return Response({"error": "Mobile number is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not name or not mobile:
+            return Response({"error": "Name and mobile number are required"}, status=status.HTTP_400_BAD_REQUEST)
 
         if User.objects.filter(mobile=mobile).exists():
             return Response({"error": "Mobile number already registered"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Send OTP to verify mobile number
         response = send_otp(mobile)
         
         if response.get("Status") == "Success":
             return Response({
                 "message": "OTP sent to your mobile",
-                "session_id": response.get("Details")  # Store session ID for verification
+                "session_id": response.get("Details"),
+                "temp_data": {
+                    "name": name,
+                    "mobile": mobile,
+                    "email": request.data.get("email", "")
+                }
             }, status=status.HTTP_200_OK)
         
         return Response({"error": "Failed to send OTP"}, status=status.HTTP_400_BAD_REQUEST)
@@ -41,24 +49,21 @@ class VerifySignupOTPView(APIView):
     def post(self, request):
         mobile = request.data.get("mobile")
         otp = request.data.get("otp")
-        name = request.data.get("name", "")
+        name = request.data.get("name")
         email = request.data.get("email", "")
-        password = request.data.get("password")
-        confirm_password = request.data.get("confirm_password")
 
-        if not mobile or not otp:
-            return Response({"error": "Mobile number and OTP are required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not mobile or not otp or not name:
+            return Response({"error": "Name, mobile number and OTP are required"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Verify OTP
         response = verify_otp(mobile, otp)
         
         if response.get("Status") == "Success":
             # Create user data dictionary for serializer
             user_data = {
-                "mobile": mobile,
                 "name": name,
-                "email": email if email else None,
-                "password": password,
-                "confirm_password": confirm_password
+                "mobile": mobile,
+                "email": email
             }
             
             serializer = UserSignupSerializer(data=user_data)
@@ -87,19 +92,25 @@ class VerifySignupOTPView(APIView):
 
 class NormalUserLoginView(APIView):
     def post(self, request):
-        mobile = request.data.get("mobile")
+        mobile = request.data.get("mobile")  # Can be mobile or email
+        
         if not mobile:
             return Response({"error": "Mobile number is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not User.objects.filter(mobile=mobile).exists():
+        # Find user by mobile or email
+        user = User.objects.filter(mobile=mobile).first()
+            
+        if not user:
             return Response({"error": "User does not exist. Please sign up first."}, status=status.HTTP_400_BAD_REQUEST)
 
-        response = send_otp(mobile)
+        # Send OTP to user's mobile
+        response = send_otp(user.mobile)
         
         if response.get("Status") == "Success":
             return Response({
                 "message": "OTP sent to your mobile",
-                "session_id": response.get("Details")  # Store session ID for verification
+                "session_id": response.get("Details"),
+                "user_id": user.id,
             }, status=status.HTTP_200_OK)
 
         return Response({"error": "Failed to send OTP"}, status=status.HTTP_400_BAD_REQUEST)
@@ -113,6 +124,7 @@ class VerifyLoginOTPView(APIView):
         if not mobile or not otp:
             return Response({"error": "Mobile number and OTP are required"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Verify OTP
         response = verify_otp(mobile, otp)
         
         if response.get("Status") == "Success":
@@ -159,28 +171,35 @@ class UserLogoutView(APIView):
 
         except Exception as e:
             return Response({"error": "Invalid token or already logged out."}, status=status.HTTP_400_BAD_REQUEST)
+        
 
+class UserProfileUpdateView(generics.RetrieveUpdateAPIView):
+    serializer_class = UserProfileSerializer
+    permission_classes = [IsAuthenticated]
 
-class SendOTPView(APIView):
-    def post(self, request):
-        serializer = SendOTPSerializer(data=request.data)
-        if serializer.is_valid():
-            response = serializer.send_otp()
-            return Response(response, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def get_object(self):
+        return self.request.user
     
-
-class ResetPasswordView(APIView):
-    def post(self, request):
-        serializer = ResetPasswordSerializer(data=request.data)
-        if serializer.is_valid():
-            response = serializer.save()
-            return Response(response, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def retrieve(self, request, *args, **kwargs):
+        user = self.get_object()
+        serializer = self.get_serializer(user)
+        return Response(serializer.data)
+        
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        
+        return Response({
+            "message": "Profile updated successfully",
+            "user": serializer.data
+        })
 
 
 class CreateReviewView(APIView):
-    permission_classes = [IsAuthenticated]  # User must be logged in
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         serializer = ReviewSerializer(data=request.data, context={'request': request})
@@ -189,29 +208,25 @@ class CreateReviewView(APIView):
             return Response({"message": "Review submitted successfully!"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    
-class UserProfileUpdateView(generics.RetrieveUpdateAPIView):
-    """
-    API endpoint for users to view and update their profile.
-    """
-    serializer_class = UserProfileSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
-    def get_object(self):
-        """Return the authenticated user"""
-        return self.request.user
-    
+
 class FavouriteAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         bus_id = request.data.get('bus_id')
-        if not bus_id:
-            return Response({'error': 'bus_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        package_id = request.data.get('package_id')
 
-        bus = get_object_or_404(Bus, id=bus_id)
+        if not bus_id and not package_id:
+            return Response({'error': 'bus_id or package_id is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        favourite, created = Favourite.objects.get_or_create(user=request.user, bus=bus)
+        if bus_id:
+            bus = get_object_or_404(Bus, id=bus_id)
+            favourite, created = Favourite.objects.get_or_create(user=request.user, bus=bus)
+        else:
+            package = get_object_or_404(Package, id=package_id)
+            favourite, created = Favourite.objects.get_or_create(user=request.user, package=package)
+
         if not created:
             return Response({'message': 'Already added to favourites'}, status=status.HTTP_200_OK)
 
@@ -220,14 +235,37 @@ class FavouriteAPIView(APIView):
 
     def delete(self, request):
         bus_id = request.data.get('bus_id')
-        if not bus_id:
-            return Response({'error': 'bus_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        package_id = request.data.get('package_id')
 
-        bus = get_object_or_404(Bus, id=bus_id)
-        favourite = Favourite.objects.filter(user=request.user, bus=bus).first()
+        if not bus_id and not package_id:
+            return Response({'error': 'bus_id or package_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if bus_id:
+            bus = get_object_or_404(Bus, id=bus_id)
+            favourite = Favourite.objects.filter(user=request.user, bus=bus).first()
+        else:
+            package = get_object_or_404(Package, id=package_id)
+            favourite = Favourite.objects.filter(user=request.user, package=package).first()
 
         if not favourite:
-            return Response({'message': 'This bus is not in your favourites'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'message': 'Item is not in your favourites'}, status=status.HTTP_404_NOT_FOUND)
 
         favourite.delete()
         return Response({'message': 'Removed from favourites'}, status=status.HTTP_204_NO_CONTENT)
+
+
+class ListFavourites(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, bus_or_package):
+        user = request.user
+
+        if bus_or_package == "bus":
+            favourites = Favourite.objects.filter(user=user, bus__isnull=False)
+        elif bus_or_package == "package":
+            favourites = Favourite.objects.filter(user=user, package__isnull=False)
+        else:
+            return Response({'error': 'Invalid type. Use "bus" or "package".'}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = FavouriteSerializer(favourites, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
