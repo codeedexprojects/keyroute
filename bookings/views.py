@@ -28,15 +28,6 @@ class BusListAPIView(APIView):
     
     def get(self, request):
         buses = Bus.objects.all()
-        
-        if request.user.is_authenticated:
-            favorite_bus_ids = Favourite.objects.filter(
-                user=request.user
-            ).values_list('bus_id', flat=True)
-            
-            for bus in buses:
-                bus.is_favourited = bus.id in favorite_bus_ids
-        
         serializer = BusSerializer(buses, many=True)
         return Response(serializer.data)
 
