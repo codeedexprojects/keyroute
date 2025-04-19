@@ -12,7 +12,7 @@ from google.oauth2 import id_token
 from django.conf import settings
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
-from vendors.models import Bus
+from vendors.models import Bus,Package
 from .models import Favourite
 
 User = get_user_model()
@@ -32,7 +32,6 @@ class NormalUserSignupView(APIView):
         response = send_otp(mobile)
         
         if response.get("Status") == "Success":
-            # Store user data temporarily in session or return for frontend to store
             return Response({
                 "message": "OTP sent to your mobile",
                 "session_id": response.get("Details"),
@@ -176,7 +175,7 @@ class UserLogoutView(APIView):
 
 class UserProfileUpdateView(generics.RetrieveUpdateAPIView):
     serializer_class = UserProfileSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_object(self):
         return self.request.user
@@ -209,18 +208,25 @@ class CreateReviewView(APIView):
             return Response({"message": "Review submitted successfully!"}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    
+
+
 class FavouriteAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         bus_id = request.data.get('bus_id')
-        if not bus_id:
-            return Response({'error': 'bus_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        package_id = request.data.get('package_id')
 
-        bus = get_object_or_404(Bus, id=bus_id)
+        if not bus_id and not package_id:
+            return Response({'error': 'bus_id or package_id is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        favourite, created = Favourite.objects.get_or_create(user=request.user, bus=bus)
+        if bus_id:
+            bus = get_object_or_404(Bus, id=bus_id)
+            favourite, created = Favourite.objects.get_or_create(user=request.user, bus=bus)
+        else:
+            package = get_object_or_404(Package, id=package_id)
+            favourite, created = Favourite.objects.get_or_create(user=request.user, package=package)
+
         if not created:
             return Response({'message': 'Already added to favourites'}, status=status.HTTP_200_OK)
 
@@ -229,14 +235,37 @@ class FavouriteAPIView(APIView):
 
     def delete(self, request):
         bus_id = request.data.get('bus_id')
-        if not bus_id:
-            return Response({'error': 'bus_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        package_id = request.data.get('package_id')
 
-        bus = get_object_or_404(Bus, id=bus_id)
-        favourite = Favourite.objects.filter(user=request.user, bus=bus).first()
+        if not bus_id and not package_id:
+            return Response({'error': 'bus_id or package_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if bus_id:
+            bus = get_object_or_404(Bus, id=bus_id)
+            favourite = Favourite.objects.filter(user=request.user, bus=bus).first()
+        else:
+            package = get_object_or_404(Package, id=package_id)
+            favourite = Favourite.objects.filter(user=request.user, package=package).first()
 
         if not favourite:
-            return Response({'message': 'This bus is not in your favourites'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'message': 'Item is not in your favourites'}, status=status.HTTP_404_NOT_FOUND)
 
         favourite.delete()
         return Response({'message': 'Removed from favourites'}, status=status.HTTP_204_NO_CONTENT)
+
+
+class ListFavourites(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, bus_or_package):
+        user = request.user
+
+        if bus_or_package == "bus":
+            favourites = Favourite.objects.filter(user=user, bus__isnull=False)
+        elif bus_or_package == "package":
+            favourites = Favourite.objects.filter(user=user, package__isnull=False)
+        else:
+            return Response({'error': 'Invalid type. Use "bus" or "package".'}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = FavouriteSerializer(favourites, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

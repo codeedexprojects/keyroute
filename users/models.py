@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
-from vendors.models import Bus
+from vendors.models import Bus,Package
 
 
 # Create your models here.
@@ -18,7 +18,11 @@ class Review(models.Model):
 
 class Favourite(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    bus = models.ForeignKey(Bus, on_delete=models.CASCADE)
+    bus = models.ForeignKey(Bus, on_delete=models.CASCADE, null=True, blank=True)
+    package = models.ForeignKey(Package, on_delete=models.CASCADE, null=True, blank=True)
 
     class Meta:
-        unique_together = ('user', 'bus')
+        unique_together = [
+            ('user', 'bus'),
+            ('user', 'package'),
+        ]

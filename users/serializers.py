@@ -118,11 +118,15 @@ class ReviewSerializer(serializers.ModelSerializer):
 class FavouriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Favourite
-        fields = ['user', 'bus']
+        fields = ['user', 'bus','package']
 
     def create(self, validated_data):
         user = validated_data.get('user')
         bus = validated_data.get('bus')
+        package = validated_data.get('package')
 
-        favourite, created = Favourite.objects.get_or_create(user=user, bus=bus)
+        if bus:
+            favourite, created = Favourite.objects.get_or_create(user=user, bus=bus)
+        else:
+            favourite, created = Favourite.objects.get_or_create(user=user, package=package)
         return favourite
