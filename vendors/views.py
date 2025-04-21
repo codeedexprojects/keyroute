@@ -211,7 +211,11 @@ class BusAPIView(APIView):
 
             serializer = BusSerializer(data=request.data, context={'vendor': vendor})
             if serializer.is_valid():
-                serializer.save()
+                bus = serializer.save()
+                VendorNotification.objects.create(
+                    vendor=vendor,
+                    description=f"Your bus '{bus.bus_name}' has been created successfully!"
+                )
                 return Response({"message": "Bus created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -527,6 +531,10 @@ class PackageAPIView(APIView):
             print('second')
             if serializer.is_valid():
                 package = serializer.save()
+                VendorNotification.objects.create(
+                    vendor=vendor,
+                    description=f"Your package '{package.places}' has been successfully created."
+                )
                 return Response({
                     "message": "Package created successfully.",
                     "data": PackageSerializer(package).data
@@ -754,3 +762,41 @@ class BusFeatureCreateAPIView(APIView):
 
 
          
+
+
+class VendorNotificationListView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        vendor = Vendor.objects.filter(user=request.user).first()
+        if not vendor:
+            return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        notifications = VendorNotification.objects.filter(vendor=vendor).order_by('-created_at')
+        serializer = VendorNotificationSerializer(notifications, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+class MarkNotificationAsReadView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, notification_id):
+        vendor = Vendor.objects.filter(user=request.user).first()
+        if not vendor:
+            return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            notification = VendorNotification.objects.get(id=notification_id, vendor=vendor)
+            notification.is_read = True
+            notification.save()
+            return Response({"message": "Notification marked as read."}, status=status.HTTP_200_OK)
+        except VendorNotification.DoesNotExist:
+            return Response({"error": "Notification not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+

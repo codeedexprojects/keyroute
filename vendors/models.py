@@ -56,7 +56,6 @@ class Bus(models.Model):
     passenger_insurance = models.FileField(upload_to='insurance/', null=True, blank=True)
     vehicle_insurance = models.FileField(upload_to='insurance/')
     amenities = models.ManyToManyField(Amenity, related_name='buses', blank=True)
-    is_favourited = models.BooleanField(default=False)
     base_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     price_per_km = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     features = models.ManyToManyField(BusFeature, related_name='buses', blank=True)
@@ -194,5 +193,27 @@ class VendorBankDetail(models.Model):
 
     def __str__(self):
         return f"{self.vendor.full_name} - {self.account_number}"
+
+
+
+
+
+class VendorNotification(models.Model):
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='notifications')
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)  # Optional but useful
+
+    def __str__(self):
+        return f"Notification for {self.vendor.full_name} - {self.description[:30]}..."
+
+
+
+
+
+
+
+
+
 
 
