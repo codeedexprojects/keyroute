@@ -83,7 +83,7 @@ class BusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bus
         fields = [
-            'id','is_favourited',
+            'id',
             'features',
             'id',
             'features',
