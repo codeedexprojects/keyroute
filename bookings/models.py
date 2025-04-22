@@ -19,31 +19,29 @@ class BaseBooking(models.Model):
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     advance_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
+    booking_status = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     cancelation_reason = models.CharField(max_length=250,null=True,blank=True)
+    total_travelers = models.PositiveIntegerField(default=1)
+    from_location = models.CharField(max_length=150)
+    to_location = models.CharField(max_length=150)
     
     class Meta:
         abstract = True
         
     @property
     def balance_amount(self):
-        """Calculate remaining balance to be paid"""
         return self.total_amount - self.advance_amount
 
 class BusBooking(BaseBooking):
-    """Model for bus bookings"""
     bus = models.ForeignKey(Bus, on_delete=models.CASCADE, related_name='bookings')
     one_way = models.BooleanField(default=True)
-    from_location = models.CharField(max_length=150)
-    to_location = models.CharField(max_length=150)
     
     def __str__(self):
         return f"Bus Booking #{self.id} - {self.from_location} to {self.to_location} ({self.start_date})"
 
 class PackageBooking(BaseBooking):
-    """Model for package bookings"""
     package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='bookings')
-    total_travelers = models.PositiveIntegerField(default=1)
     
     def __str__(self):
         return f"Package Booking #{self.id} - {self.package.places} ({self.start_date})"
