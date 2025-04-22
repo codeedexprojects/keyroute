@@ -22,6 +22,7 @@ from django.db.models import Sum
 from datetime import datetime, timedelta
 from bookings.models import *
 from django.db.models import Sum, Count, F
+from django.utils.timezone import now
 
 from admin_panel.models import *
 
@@ -852,6 +853,9 @@ class VendorTotalRevenueView(APIView):
 
 class BusBookingRevenueListView(APIView):
     def get(self, request):
+        today = now()
+        current_month = today.month
+        current_year = today.year
         queryset = BusBooking.objects.values(
             'bus_id',
             'from_location',
@@ -862,7 +866,12 @@ class BusBookingRevenueListView(APIView):
             total_revenue=Sum('total_amount'),
             total_advance_paid=Sum('advance_amount'),
             total_balance_due=Sum(F('total_amount') - F('advance_amount')),
-            total_travelers=Count('travelers__id')
+            total_travelers=Count('travelers__id'),
+             total_monthly_revenue=Sum(
+                    'total_amount',
+                    filter=Q(created_at__month=current_month, created_at__year=current_year)
+                )
+            
         )
 
         serializer = BusBookingRevenueSerializer(queryset, many=True)
