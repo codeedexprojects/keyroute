@@ -193,3 +193,25 @@ class VendorBankDetail(models.Model):
         return f"{self.vendor.full_name} - {self.account_number}"
 
 
+
+
+
+class VendorNotification(models.Model):
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='notifications')
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)  # Optional but useful
+
+    def __str__(self):
+        return f"Notification for {self.vendor.full_name} - {self.description[:30]}..."
+
+
+
+
+
+
+
+
+
+
+

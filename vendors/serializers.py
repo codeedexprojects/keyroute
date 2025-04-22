@@ -551,6 +551,10 @@ class BusFeatureSerializer(serializers.ModelSerializer):
 
 
 
+class VendorNotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VendorNotification
+        fields = ['id', 'description', 'is_read', 'created_at']
 
 
 
