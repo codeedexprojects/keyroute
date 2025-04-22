@@ -571,5 +571,6 @@ class BusBookingRevenueSerializer(serializers.Serializer):
     total_travelers = serializers.IntegerField()
     from_location = serializers.CharField()
     to_location = serializers.CharField()
+    total_monthly_revenue = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
 
 
