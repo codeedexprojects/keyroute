@@ -3,6 +3,7 @@ from admin_panel.models import Vendor
 from .models import User
 from vendors.serializers import *
 
+from bookings.models import *
 
 class VendorSerializer1(serializers.ModelSerializer):
     class Meta:
@@ -343,6 +344,27 @@ class SightListSerializer(serializers.ModelSerializer):
 
 
 
+
+
+
+
+class AdminBookingSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField(source='user.full_name')
+    date = serializers.DateField(source='start_date')
+    category = serializers.SerializerMethodField()
+    trip = serializers.SerializerMethodField()
+    cost = serializers.DecimalField(source='total_amount', max_digits=10, decimal_places=2)
+
+    def get_category(self, obj):
+        return "Bus" if isinstance(obj, BusBooking) else "Package"
+
+    def get_trip(self, obj):
+        if isinstance(obj, BusBooking):
+            return f"{obj.from_location} to {obj.to_location}"
+        elif isinstance(obj, PackageBooking):
+            return f"{obj.package.places}"  # Assuming places is a string
+        return ""
 
 
 

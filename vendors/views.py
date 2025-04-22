@@ -17,6 +17,10 @@ import json
 from collections import defaultdict
 import re
 from django.shortcuts import get_object_or_404
+from django.db.models.functions import TruncMonth
+from django.db.models import Sum
+from datetime import datetime, timedelta
+from bookings.models import *
 
 from admin_panel.models import *
 
@@ -795,6 +799,63 @@ class MarkNotificationAsReadView(APIView):
             return Response({"message": "Notification marked as read."}, status=status.HTTP_200_OK)
         except VendorNotification.DoesNotExist:
             return Response({"error": "Notification not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ------------------------------------HOME PAGE-----------------
+
+
+
+class VendorTotalRevenueView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        vendor = Vendor.objects.filter(user=request.user).first()
+        if not vendor:
+            return Response({"error": "Vendor not found."}, status=404)
+
+        today = datetime.today()
+        five_months_ago = today.replace(day=1) - timedelta(days=150)
+
+        # Get total revenue from bus bookings
+        bus_revenue = BusBooking.objects.filter(
+            bus__vendor=vendor,
+            created_at__gte=five_months_ago,
+            payment_status__in=["paid", "partial"]
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+        # Get total revenue from package bookings
+        package_revenue = PackageBooking.objects.filter(
+            package__vendor=vendor,
+            created_at__gte=five_months_ago,
+            payment_status__in=["paid", "partial"]
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+        # Combine both revenues
+        total_revenue = float(bus_revenue) + float(package_revenue)
+
+        return Response({
+            "total_revenue_last_5_months": total_revenue
+        }, status=200)
+
+
+
+
+
+
+
+
 
 
 

@@ -266,6 +266,8 @@ class VendorBusBookingAPI(APIView):
     def get(self, request):
         try:
             vendor = Vendor.objects.get(user=request.user)
+            print(vendor.user)
+            
             bus_bookings = BusBooking.objects.filter(bus__vendor=vendor).order_by('-created_at')
             serializer = BusBookingSerializer(bus_bookings, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
