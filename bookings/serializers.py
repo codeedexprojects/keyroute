@@ -47,7 +47,7 @@ class BusBookingSerializer(BaseBookingSerializer):
         booking = BusBooking.objects.create(**validated_data)
         return booking
 
-class PackageBookingSerializer(BaseBookingSerializer):
+class              PackageBookingSerializer(BaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
     
