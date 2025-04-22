@@ -59,5 +59,8 @@ urlpatterns = [
     path('api/vendor/revenue/', VendorTotalRevenueView.as_view(), name='vendor-total-revenue'),
     path('api/vendor/bus-revenue/', BusBookingRevenueListView.as_view(), name='vendor-bus-revenue'),
     path('api/vendor/package-revenue/', PackageBookingRevenueListView.as_view(), name='vendor-package-revenue'),
+    path('api/bus-bookings/latest/', BusBookingLatestView.as_view(), name='latest-bus-bookings'),
+    path('api/bus-booking/<int:booking_id>/', BusBookingDetailView.as_view(), name='bus-booking-detail'),
+    path('api/package-booking/latest/', LatestPackageBookingDetailView.as_view(), name='latest-package-booking-detail')
 
 ]
