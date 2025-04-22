@@ -559,5 +559,17 @@ class VendorNotificationSerializer(serializers.ModelSerializer):
 
 
 
+# VENDOR SIDE HOME PAGE-----------------
+
+class BusBookingRevenueSerializer(serializers.Serializer):
+    bus_id = serializers.IntegerField()
+    bus_name = serializers.CharField()
+    total_bookings = serializers.IntegerField()
+    total_revenue = serializers.DecimalField(max_digits=10, decimal_places=2)
+    total_advance_paid = serializers.DecimalField(max_digits=10, decimal_places=2)
+    total_balance_due = serializers.DecimalField(max_digits=10, decimal_places=2)
+    total_travelers = serializers.IntegerField()
+    from_location = serializers.CharField()
+    to_location = serializers.CharField()
 
 
