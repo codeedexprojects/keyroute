@@ -50,7 +50,12 @@ urlpatterns = [
     path('api/vendor/package/bookings/<str:booking_status>/',VendorPackageBookingByStatusAPI.as_view(),name="vendor-package-booking-status"),
 
 
-
+    # NOTIFICATION
     path('api/vendor/notifications/', VendorNotificationListView.as_view(), name='vendor-notifications'),
     path('api/vendor/notifications/<int:notification_id>/read/', MarkNotificationAsReadView.as_view(), name='mark-notification-read'),
+
+
+    # REVENUE
+    path('api/vendor/revenue/', VendorTotalRevenueView.as_view(), name='vendor-total-revenue'),
+
 ]

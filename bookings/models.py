@@ -51,7 +51,7 @@ class Travelers(models.Model):
     """Model for individual travelers associated with a booking"""
     GENDER_CHOICES = (
         ('M', 'Male'),
-        ('F', 'Female'),
+        ('F', 'Female'),                 
         ('O', 'Other'),
     )
     
