@@ -25,6 +25,12 @@ class OTP(models.Model):
 
 class Amenity(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    icon = models.ImageField(
+        upload_to='amenity/icons/',
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'svg'])],
+        null=True,
+        blank=True
+    )
 
     def __str__(self):
         return self.name
