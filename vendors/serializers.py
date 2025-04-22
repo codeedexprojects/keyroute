@@ -5,6 +5,7 @@ from .models import *
 from django.db import transaction
 from django.core.exceptions import ValidationError
 import re
+from bookings.models import *
 
 
 class VendorSerializer(serializers.ModelSerializer):
@@ -584,3 +585,73 @@ class PackageBookingRevenueSerializer(serializers.Serializer):
     total_advance_paid = serializers.DecimalField(max_digits=10, decimal_places=2)
     total_balance_due = serializers.DecimalField(max_digits=10, decimal_places=2)
     total_travelers = serializers.IntegerField()
+
+
+
+
+class BusBookingLatestSerializer(serializers.ModelSerializer):
+    total_travelers = serializers.SerializerMethodField()   
+    from_to_location = serializers.SerializerMethodField()  
+
+    class Meta:
+        model = BusBooking
+        fields = ['id','from_to_location', 'total_amount', 'total_travelers', 'start_date']
+
+
+
+    def get_from_to_location(self, obj):
+        return f"{obj.from_location} to {obj.to_location}"
+
+    def get_total_travelers(self, obj):
+        return obj.travelers.count() 
+
+
+
+
+class TravelerSerializer(serializers.ModelSerializer):
+    """Serializer for individual traveler details"""
+    class Meta:
+        model = Travelers
+        fields = ['first_name', 'last_name', 'gender', 'dob', 'email', 'mobile', 'place', 'city']
+
+class BusBookingDetailSerializer(serializers.ModelSerializer):
+    """Serializer for the full bus booking details"""
+    user = serializers.StringRelatedField()  
+    bus = serializers.StringRelatedField()   
+    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    advance_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    travelers = TravelerSerializer(many=True)  
+
+    class Meta:
+        model = BusBooking
+        fields = [
+            'id', 'start_date', 'from_location', 'to_location', 'one_way',
+            'total_amount', 'advance_amount', 'balance_amount', 'payment_status', 
+            'user', 'bus', 'travelers'
+        ]
+
+
+class PackageBookingDetailSerializer(serializers.ModelSerializer):
+    """Serializer for the full package booking details"""
+    user = serializers.StringRelatedField()   
+    package = serializers.StringRelatedField()   
+    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    advance_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    travelers = TravelerSerializer(many=True)   
+
+    class Meta:
+        model = PackageBooking
+        fields = [
+            'id', 'start_date', 'total_travelers', 'total_amount', 'advance_amount', 
+            'balance_amount', 'payment_status', 'user', 'package', 'travelers'
+        ]
+
+
+
+
+
+
+
+

@@ -930,11 +930,49 @@ class PackageBookingRevenueListView(APIView):
 
 
 
+class BusBookingLatestView(APIView):
+    def get(self, request):
+        latest_bookings = BusBooking.objects.all().order_by('-created_at')[:5]   
+
+        serializer = BusBookingLatestSerializer(latest_bookings, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
+class BusBookingDetailView(APIView):
+    """API View to get full details of a single bus booking"""
+
+    def get(self, request, booking_id, format=None):
+        try:
+            # Fetch the bus booking by ID
+            booking = BusBooking.objects.get(id=booking_id)
+        except BusBooking.DoesNotExist:
+            return Response({"error": "Booking not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = BusBookingDetailSerializer(booking)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 
 
 
+class LatestPackageBookingDetailView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
 
+    def get(self, request, format=None):
+        user = request.user
+        print(user)
+
+        latest_booking = PackageBooking.objects.filter(user=user).order_by('-id').first()
+        
+        if not latest_booking:
+            return Response({"message": "No package bookings found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PackageBookingDetailSerializer(latest_booking)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
 
