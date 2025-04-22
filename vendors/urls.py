@@ -48,4 +48,9 @@ urlpatterns = [
     path('api/vendor/package/bookings/',VendorPackageBookingAPI.as_view(),name="vendor-package-booking-list"),
     path('api/vendor/bus/bookings/<str:booking_status>/',VendorBusBookingByStatusAPI.as_view(),name="vendor-bus-booking-status"),
     path('api/vendor/package/bookings/<str:booking_status>/',VendorPackageBookingByStatusAPI.as_view(),name="vendor-package-booking-status"),
+
+
+
+    path('api/vendor/notifications/', VendorNotificationListView.as_view(), name='vendor-notifications'),
+    path('api/vendor/notifications/<int:notification_id>/read/', MarkNotificationAsReadView.as_view(), name='mark-notification-read'),
 ]
