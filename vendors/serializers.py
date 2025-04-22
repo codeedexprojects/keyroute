@@ -654,4 +654,73 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
 
 
 
+class BusBookingBasicSerializer(serializers.ModelSerializer):
+    bus_number = serializers.CharField(source='bus.bus_number')
+
+    class Meta:
+        model = BusBooking
+        fields = ['id','bus_number', 'from_location', 'to_location', 'total_amount', 'payment_status']
+
+
+
+
+
+
+
+
+class BusInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Bus
+        fields = ['bus_number', 'bus_name', 'capacity']
+
+
+class BusBookingDetailSerializer(serializers.ModelSerializer):
+    travelers = TravelerSerializer(many=True, read_only=True)
+    user = serializers.StringRelatedField()
+    bus = BusInfoSerializer()
+
+    class Meta:
+        model = BusBooking
+        fields = [
+            'id', 'user', 'bus', 'from_location', 'to_location',
+            'start_date', 'total_amount', 'advance_amount',
+            'balance_amount', 'payment_status', 'one_way',
+            'travelers'
+        ]
+
+
+
+
+
+class PackageBookingBasicSerializer(serializers.ModelSerializer):
+    package_name = serializers.CharField(source='package.places')
+    start_date = serializers.DateField()
+    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    payment_status = serializers.CharField()
+
+    class Meta:
+        model = PackageBooking
+        fields = ['id','package_name', 'start_date', 'total_amount', 'payment_status']
+
+
+
+
+class PackageBookingDetailSerializer(serializers.ModelSerializer):
+    package_name = serializers.CharField(source='package.places')
+    start_date = serializers.DateField()
+    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    payment_status = serializers.CharField()
+    travelers = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PackageBooking
+        fields = ['package_name', 'start_date', 'total_amount', 'payment_status', 'travelers']
+
+    def get_travelers(self, obj):
+        travelers = Travelers.objects.filter(package_booking=obj)
+        return [{"name": f"{traveler.first_name} {traveler.last_name}",
+                 "gender": traveler.get_gender_display(),
+                 "email": traveler.email,
+                 "mobile": traveler.mobile} for traveler in travelers]
+
 

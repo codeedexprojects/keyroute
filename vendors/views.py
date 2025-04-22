@@ -976,3 +976,76 @@ class LatestPackageBookingDetailView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 
+
+
+
+
+class BusBookingBasicHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        vendor = request.user.vendor   
+
+        vendor_buses = Bus.objects.filter(vendor=vendor)
+
+        # Get bookings where the bus is in vendor_buses
+        bookings = BusBooking.objects.filter(bus__in=vendor_buses).order_by('-start_date')
+
+        serializer = BusBookingBasicSerializer(bookings, many=True)
+        return Response({"history": serializer.data})
+
+
+
+
+
+
+
+
+
+
+class SingleBusBookingDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, booking_id):
+        try:
+            print('is working')
+            vendor = request.user.vendor
+            booking = BusBooking.objects.select_related('bus', 'user').prefetch_related('travelers').get(
+                id=booking_id, bus__vendor=vendor
+            )
+            serializer = BusBookingDetailSerializer(booking)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except BusBooking.DoesNotExist:
+            return Response({"error": "Booking not found or not authorized."}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+
+
+
+class PackageBookingBasicHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        package_bookings = PackageBooking.objects.filter(user=request.user).order_by('-start_date')
+        serializer = PackageBookingBasicSerializer(package_bookings, many=True)
+        return Response({"history": serializer.data})
+
+
+
+class SinglePackageBookingDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, booking_id):
+        try:
+            package_booking = PackageBooking.objects.get(id=booking_id, user=request.user)
+        except PackageBooking.DoesNotExist:
+            return Response({"error": "Package booking not found"}, status=404)
+        
+        serializer = PackageBookingDetailSerializer(package_booking)
+        return Response({"package_booking_details": serializer.data})
+
+
+
