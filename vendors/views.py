@@ -21,6 +21,7 @@ from django.db.models.functions import TruncMonth
 from django.db.models import Sum
 from datetime import datetime, timedelta
 from bookings.models import *
+from django.db.models import Sum, Count, F
 
 from admin_panel.models import *
 
@@ -828,21 +829,18 @@ class VendorTotalRevenueView(APIView):
         today = datetime.today()
         five_months_ago = today.replace(day=1) - timedelta(days=150)
 
-        # Get total revenue from bus bookings
         bus_revenue = BusBooking.objects.filter(
             bus__vendor=vendor,
             created_at__gte=five_months_ago,
             payment_status__in=["paid", "partial"]
         ).aggregate(total=Sum('total_amount'))['total'] or 0
 
-        # Get total revenue from package bookings
         package_revenue = PackageBooking.objects.filter(
             package__vendor=vendor,
             created_at__gte=five_months_ago,
             payment_status__in=["paid", "partial"]
         ).aggregate(total=Sum('total_amount'))['total'] or 0
 
-        # Combine both revenues
         total_revenue = float(bus_revenue) + float(package_revenue)
 
         return Response({
@@ -852,7 +850,23 @@ class VendorTotalRevenueView(APIView):
 
 
 
+class BusBookingRevenueListView(APIView):
+    def get(self, request):
+        queryset = BusBooking.objects.values(
+            'bus_id',
+            'from_location',
+                'to_location',
+            bus_name=F('bus__bus_name')
+        ).annotate(
+            total_bookings=Count('id'),
+            total_revenue=Sum('total_amount'),
+            total_advance_paid=Sum('advance_amount'),
+            total_balance_due=Sum(F('total_amount') - F('advance_amount')),
+            total_travelers=Count('travelers__id')
+        )
 
+        serializer = BusBookingRevenueSerializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 
