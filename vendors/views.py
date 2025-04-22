@@ -998,11 +998,6 @@ class BusBookingBasicHistoryView(APIView):
 
 
 
-
-
-
-
-
 class SingleBusBookingDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
