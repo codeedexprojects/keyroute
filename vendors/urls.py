@@ -58,5 +58,6 @@ urlpatterns = [
     # REVENUE
     path('api/vendor/revenue/', VendorTotalRevenueView.as_view(), name='vendor-total-revenue'),
     path('api/vendor/bus-revenue/', BusBookingRevenueListView.as_view(), name='vendor-bus-revenue'),
+    path('api/vendor/package-revenue/', PackageBookingRevenueListView.as_view(), name='vendor-package-revenue'),
 
 ]

@@ -574,3 +574,13 @@ class BusBookingRevenueSerializer(serializers.Serializer):
     total_monthly_revenue = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
 
 
+
+
+
+class PackageBookingRevenueSerializer(serializers.Serializer):
+    package_places = serializers.CharField()
+    total_bookings = serializers.IntegerField()
+    total_revenue = serializers.DecimalField(max_digits=10, decimal_places=2)
+    total_advance_paid = serializers.DecimalField(max_digits=10, decimal_places=2)
+    total_balance_due = serializers.DecimalField(max_digits=10, decimal_places=2)
+    total_travelers = serializers.IntegerField()

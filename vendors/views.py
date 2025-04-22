@@ -894,3 +894,47 @@ class BusBookingRevenueListView(APIView):
 
 
 
+
+
+class PackageBookingRevenueListView(APIView):
+    def get(self, request):
+        today = datetime.today()
+        current_month = today.month
+        current_year = today.year
+
+
+        monthly_revenue = PackageBooking.objects.filter(
+            created_at__month=current_month,
+            created_at__year=current_year
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+        queryset = PackageBooking.objects.values(
+            'package_id',
+            package_places=F('package__places'),
+        ).annotate(
+            total_bookings=Count('id'),
+            total_revenue=Sum('total_amount'),
+            total_advance_paid=Sum('advance_amount'),
+            total_balance_due=Sum(F('total_amount') - F('advance_amount')),
+            total_travelers=Count('travelers__id'),
+        )
+
+        serializer = PackageBookingRevenueSerializer(queryset, many=True)
+        return Response({
+            "total_monthly_revenue": monthly_revenue,
+            "data": serializer.data
+        })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
