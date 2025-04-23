@@ -74,6 +74,19 @@ class Bus(models.Model):
         return self.bus_name
 
 
+class BusTravelImage(models.Model):
+    bus = models.ForeignKey(Bus, on_delete=models.CASCADE, related_name='travel_images')
+    image = models.ImageField(upload_to='bus_travel_images/')
+
+    def __str__(self):
+        return f"Image for {self.bus.bus_name} ({self.bus.bus_number})"
+
+
+
+
+
+
+
 class BusImage(models.Model):
     bus = models.ForeignKey(Bus, related_name='images', on_delete=models.CASCADE)
     bus_view_image = models.ImageField(upload_to='bus_views/', null=True, blank=True)
