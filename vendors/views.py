@@ -209,24 +209,49 @@ class BusAPIView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+  
+
     def post(self, request):
         try:
             vendor = Vendor.objects.filter(user=request.user).first()
             if not vendor:
-                return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
+                return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
-            serializer = BusSerializer(data=request.data, context={'vendor': vendor})
-            if serializer.is_valid():
-                bus = serializer.save()
-                VendorNotification.objects.create(
-                    vendor=vendor,
-                    description=f"Your bus '{bus.bus_name}' has been created successfully!"
-                )
-                return Response({"message": "Bus created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            data = request.data.copy()
+
+            def parse_list_field(key):
+                raw = data.get(key)
+                if raw:
+                    try:
+                        return json.loads(raw)
+                    except (TypeError, ValueError):
+                        return [int(x) for x in raw.strip("[]").replace("'", "").split(',') if x]
+                return []
+
+            amenities_ids = parse_list_field('amenities')
+            features_ids = parse_list_field('features')
+
+            data.pop('amenities', None)
+            data.pop('features', None)
+
+            serializer = BusSerializer(data=data, context={'vendor': vendor})
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            bus = serializer.save()
+            bus.amenities.set(amenities_ids)
+            bus.features.set(features_ids)
+
+            VendorNotification.objects.create(
+                vendor=vendor,
+                description=f"Your bus '{bus.bus_name}' has been created successfully!"
+            )
+
+            return Response({"message": "Bus created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 # BUS EDIT  AND DELETE
@@ -1041,6 +1066,44 @@ class SinglePackageBookingDetailView(APIView):
         
         serializer = PackageBookingDetailSerializer(package_booking)
         return Response({"package_booking_details": serializer.data})
+
+
+
+
+
+
+
+
+
+
+class VendorBusyDateCreateView(APIView):
+    def post(self, request):
+        try:
+            vendor = Vendor.objects.filter(user=request.user).first()
+            if not vendor:
+                return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = VendorBusyDateSerializer(data=request.data)
+            if serializer.is_valid():
+                VendorBusyDate.objects.create(
+                    vendor=vendor,
+                    **serializer.validated_data
+                )
+                return Response({"message": "Busy date created successfully!"}, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+
 
 
 
