@@ -142,7 +142,7 @@ class BusSerializer(serializers.ModelSerializer):
 class AmenitySerializer(serializers.ModelSerializer):
     class Meta:
         model = Amenity
-        fields = ['id', 'name']
+        fields = ['id', 'name','icon']
 
 
 class PackageCategorySerializer(serializers.ModelSerializer):
