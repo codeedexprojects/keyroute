@@ -89,6 +89,7 @@ class BusSerializer(serializers.ModelSerializer):
             'id',
             'features',
             'minimum_fare',
+            'bus_travel_images',
 
             'bus_name', 'bus_number',  'capacity', 'vehicle_description',
             'vehicle_rc_number', 'travels_logo', 'rc_certificate', 'license',
@@ -99,6 +100,14 @@ class BusSerializer(serializers.ModelSerializer):
         child=serializers.ImageField(),
         write_only=True
     )
+
+    bus_travel_images = serializers.ListField(
+    child=serializers.ImageField(),
+    write_only=True,
+    required=False
+    )
+
+
     amenities = serializers.PrimaryKeyRelatedField(
         queryset=Amenity.objects.all(),
         many=True,
@@ -129,11 +138,15 @@ class BusSerializer(serializers.ModelSerializer):
         amenities = validated_data.pop('amenities', [])
         features = validated_data.pop('features', [])
         vendor = self.context['vendor']
+        travel_images = validated_data.pop('bus_travel_images', [])
 
         bus = Bus.objects.create(vendor=vendor, **validated_data)
 
         for image in bus_images:
             BusImage.objects.create(bus=bus, bus_view_image=image)
+
+        for travel_img in travel_images:
+            BusTravelImage.objects.create(bus=bus, image=travel_img)
 
         bus.amenities.set(amenities)
         bus.features.set(features) 
