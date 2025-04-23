@@ -231,7 +231,22 @@ class VendorNotification(models.Model):
 
 
 
+class VendorBusyDate(models.Model):
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='busy_dates')
+    date = models.DateField()
+    from_time = models.TimeField(blank=True, null=True)
+    to_time = models.TimeField(blank=True, null=True)
+    reason = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        unique_together = ('vendor', 'date', 'from_time', 'to_time')  # avoids same time range duplicate
+        ordering = ['-date']
+
+    def __str__(self):
+        if self.from_time and self.to_time:
+            return f"{self.vendor.user.username} - {self.date} ({self.from_time} to {self.to_time})"
+        return f"{self.vendor.user.username} - {self.date} (Full Day)"
 
 
 
