@@ -6,6 +6,7 @@ from django.db import transaction
 from django.core.exceptions import ValidationError
 import re
 from bookings.models import *
+import json
 
 
 class VendorSerializer(serializers.ModelSerializer):
@@ -77,14 +78,20 @@ class VendorSerializer(serializers.ModelSerializer):
 
 class BusSerializer(serializers.ModelSerializer):
 
+
     features = serializers.PrimaryKeyRelatedField(
         queryset=BusFeature.objects.all(), many=True, required=False
+    )
+    amenities = serializers.PrimaryKeyRelatedField(
+        queryset=Amenity.objects.all(),
+        many=True,
+        required=False
     )
     
     class Meta:
         model = Bus
         fields = [
-            'id',
+            # 'id',
             'features',
             'id',
             'features',
@@ -95,6 +102,8 @@ class BusSerializer(serializers.ModelSerializer):
             'vehicle_rc_number', 'travels_logo', 'rc_certificate', 'license',
             'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance', 'bus_view_images','amenities','base_price', 'price_per_km' 
         ]
+
+    
 
     bus_view_images = serializers.ListField(
         child=serializers.ImageField(),
@@ -108,11 +117,7 @@ class BusSerializer(serializers.ModelSerializer):
     )
 
 
-    amenities = serializers.PrimaryKeyRelatedField(
-        queryset=Amenity.objects.all(),
-        many=True,
-        required=False
-    )
+  
     def get_amenities(self, obj):
         return [amenity.name for amenity in obj.amenities.all()]
   
@@ -130,12 +135,17 @@ class BusSerializer(serializers.ModelSerializer):
         if not value.isalnum():
             raise serializers.ValidationError("RC number must be alphanumeric.")
         return value
+    
+  
+
 
    
     
     def create(self, validated_data):
+        print('creating iw wlring')
         bus_images = validated_data.pop('bus_view_images', [])
         amenities = validated_data.pop('amenities', [])
+        
         features = validated_data.pop('features', [])
         vendor = self.context['vendor']
         travel_images = validated_data.pop('bus_travel_images', [])
@@ -151,6 +161,17 @@ class BusSerializer(serializers.ModelSerializer):
         bus.amenities.set(amenities)
         bus.features.set(features) 
         return bus
+
+
+
+
+
+
+
+
+
+
+
 
 class AmenitySerializer(serializers.ModelSerializer):
     class Meta:
@@ -737,3 +758,27 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
                  "mobile": traveler.mobile} for traveler in travelers]
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+class VendorBusyDateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VendorBusyDate
+        fields = ['date', 'from_time', 'to_time', 'reason']
+
+    def validate(self, data):
+        from_time = data.get('from_time')
+        to_time = data.get('to_time')
+
+        if from_time and to_time and from_time >= to_time:
+            raise serializers.ValidationError("From time must be earlier than to time.")
+        return data
