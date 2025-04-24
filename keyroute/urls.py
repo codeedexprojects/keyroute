@@ -25,6 +25,7 @@ urlpatterns = [
     path('', include('admin_panel.urls')),
     path('api/user/', include('users.urls')),
     path('api/user/', include('bookings.urls')),
+    path('api/user/',include('notifications.urls')),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

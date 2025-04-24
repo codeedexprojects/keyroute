@@ -141,10 +141,11 @@ DATABASES = {
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'keyroute$db',
+#         'NAME': 'keyroute$database',
 #         'USER': 'keyroute',
 #         'PASSWORD': 'admin@123',
 #         'HOST': 'keyroute.mysql.pythonanywhere-services.com',
@@ -154,8 +155,6 @@ DATABASES = {
 #         }
 #     }
 # }
-
-
 
 
 
