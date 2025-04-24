@@ -25,6 +25,12 @@ class OTP(models.Model):
 
 class Amenity(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    icon = models.ImageField(
+        upload_to='amenity/icons/',
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'svg'])],
+        null=True,
+        blank=True
+    )
 
     def __str__(self):
         return self.name
@@ -66,6 +72,19 @@ class Bus(models.Model):
 
     def __str__(self):
         return self.bus_name
+
+
+class BusTravelImage(models.Model):
+    bus = models.ForeignKey(Bus, on_delete=models.CASCADE, related_name='travel_images')
+    image = models.ImageField(upload_to='bus_travel_images/')
+
+    def __str__(self):
+        return f"Image for {self.bus.bus_name} ({self.bus.bus_number})"
+
+
+
+
+
 
 
 class BusImage(models.Model):
@@ -191,5 +210,42 @@ class VendorBankDetail(models.Model):
 
     def __str__(self):
         return f"{self.vendor.full_name} - {self.account_number}"
+
+
+
+
+
+class VendorNotification(models.Model):
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='notifications')
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)  # Optional but useful
+
+    def __str__(self):
+        return f"Notification for {self.vendor.full_name} - {self.description[:30]}..."
+
+
+
+
+
+
+class VendorBusyDate(models.Model):
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='busy_dates')
+    date = models.DateField()
+    from_time = models.TimeField(blank=True, null=True)
+    to_time = models.TimeField(blank=True, null=True)
+    reason = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('vendor', 'date', 'from_time', 'to_time')  # avoids same time range duplicate
+        ordering = ['-date']
+
+    def __str__(self):
+        if self.from_time and self.to_time:
+            return f"{self.vendor.user.username} - {self.date} ({self.from_time} to {self.to_time})"
+        return f"{self.vendor.user.username} - {self.date} (Full Day)"
+
+
 
 

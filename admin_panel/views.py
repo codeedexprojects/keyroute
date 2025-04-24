@@ -407,7 +407,20 @@ class ExploreSectionListView(APIView):
 
 
 
+class AdminBookingListView(APIView):
+    # permission_classes = [IsAdminUser]
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
+    def get(self, request):
+        bus_bookings = list(BusBooking.objects.select_related('user').all())
+        package_bookings = list(PackageBooking.objects.select_related('user', 'package').all())
+
+        combined = bus_bookings + package_bookings
+        combined_sorted = sorted(combined, key=lambda x: x.created_at, reverse=True)
+
+        serializer = AdminBookingSerializer(combined_sorted, many=True)
+        return Response(serializer.data)
 
 
 

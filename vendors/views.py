@@ -17,6 +17,12 @@ import json
 from collections import defaultdict
 import re
 from django.shortcuts import get_object_or_404
+from django.db.models.functions import TruncMonth
+from django.db.models import Sum
+from datetime import datetime, timedelta
+from bookings.models import *
+from django.db.models import Sum, Count, F
+from django.utils.timezone import now
 
 from admin_panel.models import *
 
@@ -203,20 +209,49 @@ class BusAPIView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+  
+
     def post(self, request):
         try:
             vendor = Vendor.objects.filter(user=request.user).first()
             if not vendor:
-                return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
+                return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
-            serializer = BusSerializer(data=request.data, context={'vendor': vendor})
-            if serializer.is_valid():
-                serializer.save()
-                return Response({"message": "Bus created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            data = request.data.copy()
+
+            def parse_list_field(key):
+                raw = data.get(key)
+                if raw:
+                    try:
+                        return json.loads(raw)
+                    except (TypeError, ValueError):
+                        return [int(x) for x in raw.strip("[]").replace("'", "").split(',') if x]
+                return []
+
+            amenities_ids = parse_list_field('amenities')
+            features_ids = parse_list_field('features')
+
+            data.pop('amenities', None)
+            data.pop('features', None)
+
+            serializer = BusSerializer(data=data, context={'vendor': vendor})
+            if not serializer.is_valid():
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            bus = serializer.save()
+            bus.amenities.set(amenities_ids)
+            bus.features.set(features_ids)
+
+            VendorNotification.objects.create(
+                vendor=vendor,
+                description=f"Your bus '{bus.bus_name}' has been created successfully!"
+            )
+
+            return Response({"message": "Bus created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 # BUS EDIT  AND DELETE
@@ -527,6 +562,10 @@ class PackageAPIView(APIView):
             print('second')
             if serializer.is_valid():
                 package = serializer.save()
+                VendorNotification.objects.create(
+                    vendor=vendor,
+                    description=f"Your package '{package.places}' has been successfully created."
+                )
                 return Response({
                     "message": "Package created successfully.",
                     "data": PackageSerializer(package).data
@@ -754,3 +793,317 @@ class BusFeatureCreateAPIView(APIView):
 
 
          
+
+
+class VendorNotificationListView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        vendor = Vendor.objects.filter(user=request.user).first()
+        if not vendor:
+            return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        notifications = VendorNotification.objects.filter(vendor=vendor).order_by('-created_at')
+        serializer = VendorNotificationSerializer(notifications, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+class MarkNotificationAsReadView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, notification_id):
+        vendor = Vendor.objects.filter(user=request.user).first()
+        if not vendor:
+            return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            notification = VendorNotification.objects.get(id=notification_id, vendor=vendor)
+            notification.is_read = True
+            notification.save()
+            return Response({"message": "Notification marked as read."}, status=status.HTTP_200_OK)
+        except VendorNotification.DoesNotExist:
+            return Response({"error": "Notification not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ------------------------------------HOME PAGE-----------------
+
+
+
+class VendorTotalRevenueView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        vendor = Vendor.objects.filter(user=request.user).first()
+        if not vendor:
+            return Response({"error": "Vendor not found."}, status=404)
+
+        today = datetime.today()
+        five_months_ago = today.replace(day=1) - timedelta(days=150)
+
+        bus_revenue = BusBooking.objects.filter(
+            bus__vendor=vendor,
+            created_at__gte=five_months_ago,
+            payment_status__in=["paid", "partial"]
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+        package_revenue = PackageBooking.objects.filter(
+            package__vendor=vendor,
+            created_at__gte=five_months_ago,
+            payment_status__in=["paid", "partial"]
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+        total_revenue = float(bus_revenue) + float(package_revenue)
+
+        return Response({
+            "total_revenue_last_5_months": total_revenue
+        }, status=200)
+
+
+
+
+
+
+
+
+class BusBookingRevenueListView(APIView):
+    def get(self, request):
+        today = datetime.today()
+        current_month = today.month
+        current_year = today.year
+
+        next_month = today.replace(day=28) + timedelta(days=4)
+
+        monthly_revenue = BusBooking.objects.filter(
+            created_at__month=current_month,
+            created_at__year=current_year
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+        queryset = BusBooking.objects.values(
+            'bus_id',
+            'from_location',
+            'to_location',
+            bus_name=F('bus__bus_name')
+        ).annotate(
+            total_bookings=Count('id'),
+            total_revenue=Sum('total_amount'),
+            total_advance_paid=Sum('advance_amount'),
+            total_balance_due=Sum(F('total_amount') - F('advance_amount')),
+            total_travelers=Count('travelers__id'),
+        )
+
+        serializer = BusBookingRevenueSerializer(queryset, many=True)
+
+        return Response({
+            "total_monthly_revenue": monthly_revenue,
+            
+            "data": serializer.data
+        })
+
+
+
+
+
+
+
+
+class PackageBookingRevenueListView(APIView):
+    def get(self, request):
+        today = datetime.today()
+        current_month = today.month
+        current_year = today.year
+
+
+        monthly_revenue = PackageBooking.objects.filter(
+            created_at__month=current_month,
+            created_at__year=current_year
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+        queryset = PackageBooking.objects.values(
+            'package_id',
+            package_places=F('package__places'),
+        ).annotate(
+            total_bookings=Count('id'),
+            total_revenue=Sum('total_amount'),
+            total_advance_paid=Sum('advance_amount'),
+            total_balance_due=Sum(F('total_amount') - F('advance_amount')),
+            total_travelers=Count('travelers__id'),
+        )
+
+        serializer = PackageBookingRevenueSerializer(queryset, many=True)
+        return Response({
+            "total_monthly_revenue": monthly_revenue,
+            "data": serializer.data
+        })
+
+
+
+
+
+
+class BusBookingLatestView(APIView):
+    def get(self, request):
+        latest_bookings = BusBooking.objects.all().order_by('-created_at')[:5]   
+
+        serializer = BusBookingLatestSerializer(latest_bookings, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
+class BusBookingDetailView(APIView):
+    """API View to get full details of a single bus booking"""
+
+    def get(self, request, booking_id, format=None):
+        try:
+            # Fetch the bus booking by ID
+            booking = BusBooking.objects.get(id=booking_id)
+        except BusBooking.DoesNotExist:
+            return Response({"error": "Booking not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = BusBookingDetailSerializer(booking)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
+
+class LatestPackageBookingDetailView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+
+    def get(self, request, format=None):
+        user = request.user
+        print(user)
+
+        latest_booking = PackageBooking.objects.filter(user=user).order_by('-id').first()
+        
+        if not latest_booking:
+            return Response({"message": "No package bookings found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PackageBookingDetailSerializer(latest_booking)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+
+
+
+
+class BusBookingBasicHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        vendor = request.user.vendor   
+
+        vendor_buses = Bus.objects.filter(vendor=vendor)
+
+        # Get bookings where the bus is in vendor_buses
+        bookings = BusBooking.objects.filter(bus__in=vendor_buses).order_by('-start_date')
+
+        serializer = BusBookingBasicSerializer(bookings, many=True)
+        return Response({"history": serializer.data})
+
+
+
+
+
+class SingleBusBookingDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, booking_id):
+        try:
+            print('is working')
+            vendor = request.user.vendor
+            booking = BusBooking.objects.select_related('bus', 'user').prefetch_related('travelers').get(
+                id=booking_id, bus__vendor=vendor
+            )
+            serializer = BusBookingDetailSerializer(booking)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except BusBooking.DoesNotExist:
+            return Response({"error": "Booking not found or not authorized."}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+
+
+
+class PackageBookingBasicHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        package_bookings = PackageBooking.objects.filter(user=request.user).order_by('-start_date')
+        serializer = PackageBookingBasicSerializer(package_bookings, many=True)
+        return Response({"history": serializer.data})
+
+
+
+class SinglePackageBookingDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, booking_id):
+        try:
+            package_booking = PackageBooking.objects.get(id=booking_id, user=request.user)
+        except PackageBooking.DoesNotExist:
+            return Response({"error": "Package booking not found"}, status=404)
+        
+        serializer = PackageBookingDetailSerializer(package_booking)
+        return Response({"package_booking_details": serializer.data})
+
+
+
+
+
+
+
+
+
+
+class VendorBusyDateCreateView(APIView):
+    def post(self, request):
+        try:
+            vendor = Vendor.objects.filter(user=request.user).first()
+            if not vendor:
+                return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = VendorBusyDateSerializer(data=request.data)
+            if serializer.is_valid():
+                VendorBusyDate.objects.create(
+                    vendor=vendor,
+                    **serializer.validated_data
+                )
+                return Response({"message": "Busy date created successfully!"}, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+
+
+
+
