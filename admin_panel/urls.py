@@ -56,7 +56,8 @@ urlpatterns = [
     path('explore/list/', ExploreSectionListView.as_view(), name='explore-list'),
 
 
-
+    #ALL BOOKINGS
+    path('api/admin/all-bookings/', AdminBookingListView.as_view(), name='explore-list'),
 
 
 
