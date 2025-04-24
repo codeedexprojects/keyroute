@@ -71,6 +71,10 @@ class VendorSerializer(serializers.ModelSerializer):
 
 
 
+class AmenitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Amenity
+        fields = ['id', 'name','icon']
 
 
 
@@ -87,6 +91,8 @@ class BusSerializer(serializers.ModelSerializer):
         many=True,
         required=False
     )
+
+    amenities = AmenitySerializer(many=True, read_only=True)
     
     class Meta:
         model = Bus
@@ -173,10 +179,6 @@ class BusSerializer(serializers.ModelSerializer):
 
 
 
-class AmenitySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Amenity
-        fields = ['id', 'name','icon']
 
 
 class PackageCategorySerializer(serializers.ModelSerializer):
