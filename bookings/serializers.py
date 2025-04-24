@@ -18,7 +18,7 @@ class BaseBookingSerializer(serializers.ModelSerializer):
     
     class Meta:
         abstract = True
-        fields = ['id', 'user', 'start_date', 'total_amount', 'advance_amount', 
+        fields = ['id','booking_status', 'user', 'start_date', 'total_amount', 'advance_amount', 
                  'payment_status', 'created_at', 'balance_amount','cancelation_reason','from_location', 'to_location', 'total_travelers']
         read_only_fields = ['id', 'created_at', 'balance_amount']
         extra_kwargs = {
