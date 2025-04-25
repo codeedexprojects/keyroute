@@ -238,7 +238,7 @@ class VendorBusyDate(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('vendor', 'date', 'from_time', 'to_time')  # avoids same time range duplicate
+        unique_together = ('vendor', 'date', 'from_time', 'to_time')
         ordering = ['-date']
 
     def __str__(self):
