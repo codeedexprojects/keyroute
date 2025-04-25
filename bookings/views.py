@@ -459,10 +459,10 @@ class BookingFilterByDate(APIView):
             )
 
         if booking_type == 'bus':
-            bookings = BusBooking.objects.filter(start_date=parsed_date, bus__vendor=vendor)
+            bookings = BusBooking.objects.filter(created_at=parsed_date, bus__vendor=vendor)
             serializer = BusBookingSerializer(bookings, many=True)
         elif booking_type == 'package':
-            bookings = PackageBooking.objects.filter(start_date=parsed_date, package__vendor=vendor)
+            bookings = PackageBooking.objects.filter(created_at=parsed_date, package__vendor=vendor)
             serializer = PackageBookingSerializer(bookings, many=True)
         else:
             return Response(

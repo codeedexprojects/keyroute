@@ -62,6 +62,5 @@ urlpatterns = [
 
     path('api/admin/commission-slabs/', AdminCommissionSlabListCreateAPIView.as_view(), name='slab-list-create'),
     path('api/admin/commission-slabs/<int:pk>/', AdminCommissionSlabDetailAPIView.as_view(), name='slab-detail'),
-    path('api/admin/commissions/', AdminCommissionListAPIView.as_view(), name='commission-list'),
-
+    path('api/admin/commissions/', TotalAdminCommission.as_view(), name='commission-list'),
 ] 
