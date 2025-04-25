@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from .models import BusBooking, PackageBooking, Travelers
 from vendors.models import Package, Bus
+from admin_panel.utils import get_admin_commission_from_db,get_advance_amount_from_db
+from admin_panel.models import AdminCommission
 
 class TravelerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -41,12 +43,29 @@ class BusBookingSerializer(BaseBookingSerializer):
     def get_bus_details(self, obj):
         from vendors.serializers import BusSerializer
         return BusSerializer(obj.bus).data
-    
+
     def create(self, validated_data):
-        booking = BusBooking.objects.create(**validated_data)
+        total_amount = validated_data.get('total_amount')
+
+        commission_percent, revenue = get_admin_commission_from_db(total_amount)
+        advance_percent, advance_amount = get_advance_amount_from_db(total_amount)
+
+        validated_data['advance_amount'] = advance_amount
+
+        booking = super().create(validated_data)
+
+        AdminCommission.objects.create(
+            booking_type='bus',
+            booking_id=booking.id,
+            trip_amount=total_amount,
+            commission_percentage=commission_percent,
+            revenue_to_admin=revenue
+        )
+
         return booking
 
-class              PackageBookingSerializer(BaseBookingSerializer):
+
+class PackageBookingSerializer(BaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
     
@@ -63,9 +82,29 @@ class              PackageBookingSerializer(BaseBookingSerializer):
     def get_package_details(self, obj):
         from vendors.serializers import PackageSerializer
         return PackageSerializer(obj.package).data
-    
+
     def create(self, validated_data):
-        booking = PackageBooking.objects.create(**validated_data)
+        # Calculate advance before saving
+        total_amount = validated_data.get('total_amount')
+
+        commission_percent, revenue = get_admin_commission_from_db(total_amount)
+        advance_percent, advance_amount = get_advance_amount_from_db(total_amount)
+
+        # Set advance amount in validated_data
+        validated_data['advance_amount'] = advance_amount
+
+        # Create booking
+        booking = super().create(validated_data)
+
+        # Store admin commission
+        AdminCommission.objects.create(
+            booking_type='package',
+            booking_id=booking.id,
+            trip_amount=total_amount,
+            commission_percentage=commission_percent,
+            revenue_to_admin=revenue
+        )
+
         return booking
 
 class TravelerCreateSerializer(serializers.ModelSerializer):
