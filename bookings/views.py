@@ -15,6 +15,7 @@ from admin_panel.models import Vendor
 from users.models import Favourite
 from notifications.utils import send_notification
 
+
 class PackageListAPIView(APIView):
     permission_classes = [AllowAny]
     
@@ -415,4 +416,4 @@ class CancelBookingView(APIView):
             return Response(
                 {"error": str(e)}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+
