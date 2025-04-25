@@ -148,6 +148,7 @@ class AdminCommissionSlab(models.Model):
     min_amount = models.DecimalField(max_digits=10, decimal_places=2)
     max_amount = models.DecimalField(max_digits=10, decimal_places=2)
     commission_percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    advance_percentage = models.DecimalField(max_digits=5, decimal_places=2)
 
     class Meta:
         ordering = ['min_amount']
