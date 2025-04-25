@@ -77,5 +77,5 @@ urlpatterns = [
 
     path('api/vendor/busy-date/create/', VendorBusyDateCreateView.as_view(), name='create-busy-date'),
 
-    path('api/vendor/<str:booking_type>/filter/<str:date>/', BookingFilterByDate.as_view(), name='booking-by-filter'),
+    path('api/vendor/booking/<str:booking_type>/filter/<str:date>/', BookingFilterByDate.as_view(), name='booking-by-filter'),
 ]
