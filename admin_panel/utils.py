@@ -35,3 +35,16 @@ def get_admin_commission_from_db(trip_amount):
         return slab.commission_percentage, revenue
 
     return 0, 0
+
+
+def get_advance_amount_from_db(trip_amount):
+    slab = AdminCommissionSlab.objects.filter(
+        min_amount__lte=trip_amount,
+        max_amount__gte=trip_amount
+    ).first()
+
+    if slab:
+        advance = round(trip_amount * (slab.advance_percentage / 100), 2)
+        return slab.advance_percentage, advance
+
+    return 0, 0
