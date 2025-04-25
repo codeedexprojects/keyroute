@@ -213,6 +213,12 @@ def validate_places(places):
         raise ValidationError("Places field cannot be empty.")
 
 
+class PackageImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageImage
+        fields = ['image']
+
+
 
 
 
@@ -222,6 +228,7 @@ class PackageSerializer(serializers.ModelSerializer):
     vendor_name = serializers.CharField(source='vendor.name', read_only=True)  
     sub_category_name = serializers.CharField(source='sub_category.name', read_only=True)  
     buses = serializers.PrimaryKeyRelatedField(queryset=Bus.objects.all(), many=True)
+    package_images = PackageImageSerializer(many=True, write_only=True)
 
     class Meta:
         model = Package
@@ -381,6 +388,49 @@ class PackageSerializer(serializers.ModelSerializer):
                     ActivityImage.objects.create(activity=activity_instance, image=image['image'])
 
         return package
+
+
+
+class PackageBasicSerializer(serializers.ModelSerializer):
+    buses = serializers.PrimaryKeyRelatedField(queryset=Bus.objects.all(), many=True)
+    package_images = serializers.ListField(
+        child=serializers.ImageField(), write_only=True, required=False
+    )
+
+    class Meta:
+        model = Package
+        fields = [
+            'id',
+            'sub_category', 'header_image', 'places', 'days', 'nights',
+            'ac_available', 'guide_included', 'buses', 'package_images'
+        ]
+
+    def create(self, validated_data):
+        vendor = self.context['vendor']
+        buses = validated_data.pop('buses')
+        images = validated_data.pop('package_images', [])
+
+        package = Package.objects.create(vendor=vendor, **validated_data)
+        package.buses.set(buses)
+
+        for img in images:
+            PackageImage.objects.create(package=package, image=img)
+
+        return package
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -760,12 +810,28 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
                  "mobile": traveler.mobile} for traveler in travelers]
 
 
+class CombinedBookingSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    type = serializers.SerializerMethodField()
+    name = serializers.SerializerMethodField()   
+    from_location = serializers.CharField()
+    to_location = serializers.CharField()
+    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    payment_status = serializers.CharField()
+    created_at = serializers.DateTimeField()
+    members_count = serializers.SerializerMethodField()
 
+    def get_type(self, obj):
+        return "bus" if isinstance(obj, BusBooking) else "package"
 
+    def get_name(self, obj):
+        traveler = obj.travelers.first()
+        if traveler:
+            return f"{traveler.first_name} {traveler.last_name or ''}".strip()
+        return "No Name"
 
-
-
-
+    def get_members_count(self, obj):
+        return obj.travelers.count()
 
 
 
