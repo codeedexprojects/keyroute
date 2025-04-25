@@ -502,84 +502,7 @@ class PackageAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated] 
 
-    def post(self, request):
-        data = request.data.dict()   
-        files = request.FILES   
-
-
-        day_plans = data.get('day_plans')
-        if day_plans and isinstance(day_plans, str):
-            try:
-                data['day_plans'] = json.loads(day_plans)
-            except json.JSONDecodeError:
-                return Response({"error": "Invalid JSON format for day_plans"}, status=400)
-
-        
-        print(files,'files')
-
-        image_fields = defaultdict(list)
-
-        for key, file in files.items():
-            key_parts = key.split('_')
-            if len(key_parts) >= 4:
-                model_type = key_parts[0]       
-                index = int(key_parts[1])       
-                image_index = int(key_parts[3]) 
-                image_fields[(model_type, index)].append({"image": file})
-
-        for day_plan in data['day_plans']:
-            for model_type in ['places', 'meals', 'activities']:
-                if model_type in day_plan:
-                    for idx, item in enumerate(day_plan[model_type]):
-                        item['images'] = image_fields.get((model_type, idx), [])
-
-            if 'stay' in day_plan:
-                day_plan['stay']['images'] = image_fields.get(('stay', 0), [])
-
-        buses_raw = request.data.getlist('buses')
-
-        if len(buses_raw) == 1:
-            try:
-                buses_list = json.loads(buses_raw[0])
-                if isinstance(buses_list, list):
-                    data['buses'] = [int(b) for b in buses_list]
-                else:
-                    data['buses'] = [int(buses_raw[0])]
-            except (ValueError, json.JSONDecodeError):
-                data['buses'] = [int(buses_raw[0])]
-        else:
-            data['buses'] = [int(b) for b in buses_raw]
-
-
-
-        try:
-            vendor = Vendor.objects.filter(user=request.user).first()
-            if not vendor:
-                return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
-            print('started')
-
-            serializer = PackageSerializer(data=data, context={"vendor": vendor})
-            print('second')
-            if serializer.is_valid():
-                package = serializer.save()
-                VendorNotification.objects.create(
-                    vendor=vendor,
-                    description=f"Your package '{package.places}' has been successfully created."
-                )
-                return Response({
-                    "message": "Package created successfully.",
-                    "data": PackageSerializer(package).data
-                }, status=status.HTTP_201_CREATED)
-            else:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-
-
-
-
+  
     def get(self, request, package_id=None):
         vendor = Vendor.objects.filter(user=request.user).first()
         if not vendor:
@@ -646,6 +569,140 @@ class PackageAPIView(APIView):
         package.delete()
         return Response({"message": "Package deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
+
+
+
+
+class BasicPackageAPIView(APIView):
+    parser_classes = [MultiPartParser, JSONParser]
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            vendor = Vendor.objects.filter(user=request.user).first()
+            if not vendor:
+                return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            data = request.data.dict()
+            buses_raw = request.data.getlist('buses')
+
+            if len(buses_raw) == 1:
+                try:
+                    buses_list = json.loads(buses_raw[0])
+                    data['buses'] = [int(b) for b in buses_list]
+                except:
+                    data['buses'] = [int(buses_raw[0])]
+            else:
+                data['buses'] = [int(b) for b in buses_raw]
+
+            package_images = request.FILES.getlist('package_images')
+
+            mutable_data = request.data.copy()
+            mutable_data.setlist('package_images', package_images)
+            mutable_data.setlist('buses', data['buses'])
+
+            serializer = PackageBasicSerializer(data=mutable_data, context={'vendor': vendor})
+            if serializer.is_valid():
+                package = serializer.save()
+                return Response({
+                    "message": "Basic Package created successfully.",
+                    "package_id": package.id
+                }, status=status.HTTP_201_CREATED)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+class DayPlanCreateAPIView(APIView):
+    parser_classes = [MultiPartParser, JSONParser]
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+  
+        
+    
+    def post(self, request, package_id):
+        try:
+            data = request.data.dict()
+            files = request.FILES
+
+            try:
+                day_plans = json.loads(data.get("day_plans", "[]"))
+            except json.JSONDecodeError:
+                return Response({"error": "Invalid day_plans JSON format"}, status=400)
+
+            grouped_images = defaultdict(list)
+            for key in files:
+                parts = key.split('_')
+                if parts[0] in ['places', 'meals', 'activities'] and len(parts) == 3:
+                    section, day_idx, item_idx = parts[0], int(parts[1][3:]), int(parts[2])
+                    grouped_images[(day_idx, section, item_idx)].extend(request.FILES.getlist(key))
+                elif parts[0] == 'stay' and len(parts) == 2:
+                    day_idx = int(parts[1][3:])
+                    grouped_images[(day_idx, 'stay', 0)].extend(request.FILES.getlist(key))
+
+            print("\n--- DEBUG: Grouped Day Plans with Images ---")
+            for i, day in enumerate(day_plans):
+                print(f"Day {i + 1}:")
+                for section in ['places', 'meals', 'activities']:
+                    for idx, item in enumerate(day.get(section, [])):
+                        imgs = grouped_images.get((i, section, idx), [])
+                        item['images'] = [{"image": img} for img in imgs]
+                        print(f"  {section.capitalize()}[{idx}]: {item.get('name', '') or item.get('type', '')}")
+                        print(f"    Images: {[img.name for img in imgs]}")
+                if 'stay' in day:
+                    imgs = grouped_images.get((i, 'stay', 0), [])
+                    day['stay']['images'] = [{"image": img} for img in imgs]
+                    print(f"  Stay:\n    Images: {[img.name for img in imgs]}")
+            print("--- End Debug ---\n")
+
+            package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
+            if not package:
+                return Response({"error": "Package not found"}, status=404)
+
+            with transaction.atomic():
+                for day in day_plans:
+                    places = day.pop("places", [])
+                    meals = day.pop("meals", [])
+                    activities = day.pop("activities", [])
+                    stay = day.pop("stay", None)
+
+                    day_instance = DayPlan.objects.create(package=package, **day)
+
+                    for place in places:
+                        images = place.pop("images", [])
+                        p = Place.objects.create(day_plan=day_instance, **place)
+                        for img in images:
+                            PlaceImage.objects.create(place=p, image=img["image"])
+
+                    if stay:
+                        images = stay.pop("images", [])
+                        s = Stay.objects.create(day_plan=day_instance, **stay)
+                        for img in images:
+                            StayImage.objects.create(stay=s, image=img["image"])
+
+                    for meal in meals:
+                        images = meal.pop("images", [])
+                        m = Meal.objects.create(day_plan=day_instance, **meal)
+                        for img in images:
+                            MealImage.objects.create(meal=m, image=img["image"])
+
+                    for activity in activities:
+                        images = activity.pop("images", [])
+                        a = Activity.objects.create(day_plan=day_instance, **activity)
+                        for img in images:
+                            ActivityImage.objects.create(activity=a, image=img["image"])
+
+            return Response({"message": "Day plans added successfully."}, status=201)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
 
 
 
@@ -845,35 +902,36 @@ class MarkNotificationAsReadView(APIView):
 
 
 class VendorTotalRevenueView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
+
+    
 
     def get(self, request):
         vendor = Vendor.objects.filter(user=request.user).first()
         if not vendor:
             return Response({"error": "Vendor not found."}, status=404)
 
-        today = datetime.today()
-        five_months_ago = today.replace(day=1) - timedelta(days=150)
-
+        # Fetch total bus revenue
         bus_revenue = BusBooking.objects.filter(
             bus__vendor=vendor,
-            created_at__gte=five_months_ago,
             payment_status__in=["paid", "partial"]
-        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        ).aggregate(total=Sum('total_amount'), count=Count('id'))
 
+        # Fetch total package revenue
         package_revenue = PackageBooking.objects.filter(
             package__vendor=vendor,
-            created_at__gte=five_months_ago,
             payment_status__in=["paid", "partial"]
-        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        ).aggregate(total=Sum('total_amount'), count=Count('id'))
 
-        total_revenue = float(bus_revenue) + float(package_revenue)
+        # Calculate totals
+        total_revenue = float(bus_revenue['total'] or 0) + float(package_revenue['total'] or 0)
+        total_bookings = (bus_revenue['count'] or 0) + (package_revenue['count'] or 0)
 
         return Response({
-            "total_revenue_last_5_months": total_revenue
+            "total_revenue": total_revenue,
+            "total_bookings": total_bookings
         }, status=200)
-
-
 
 
 
@@ -955,13 +1013,28 @@ class PackageBookingRevenueListView(APIView):
 
 
 
-class BusBookingLatestView(APIView):
+
+
+class LatestSingleBookingView(APIView):
     def get(self, request):
-        latest_bookings = BusBooking.objects.all().order_by('-created_at')[:5]   
+        latest_bus = BusBooking.objects.order_by('-created_at').first()
+        latest_package = PackageBooking.objects.order_by('-created_at').first()
 
-        serializer = BusBookingLatestSerializer(latest_bookings, many=True)
+        latest = max(
+            filter(None, [latest_bus, latest_package]),
+            key=lambda x: x.created_at,
+            default=None
+        )
 
+        if not latest:
+            return Response({"message": "No bookings found."}, status=status.HTTP_204_NO_CONTENT)
+
+        serializer = CombinedBookingSerializer(latest)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
 
 
 
