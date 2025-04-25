@@ -2,7 +2,7 @@ from rest_framework import serializers
 from admin_panel.models import Vendor
 from .models import User
 from vendors.serializers import *
-
+from .models import AdminCommissionSlab, AdminCommission
 from bookings.models import *
 
 class VendorSerializer1(serializers.ModelSerializer):
@@ -371,3 +371,12 @@ class AdminBookingSerializer(serializers.Serializer):
 
 
 
+class AdminCommissionSlabSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AdminCommissionSlab
+        fields = '__all__'
+
+class AdminCommissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AdminCommission
+        fields = '__all__'
