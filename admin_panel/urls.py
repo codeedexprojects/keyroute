@@ -60,10 +60,7 @@ urlpatterns = [
     path('api/admin/all-bookings/', AdminBookingListView.as_view(), name='explore-list'),
 
 
-
-
-
-
+    path('api/admin/commission-slabs/', AdminCommissionSlabListCreateAPIView.as_view(), name='slab-list-create'),
+    path('api/admin/commission-slabs/<int:pk>/', AdminCommissionSlabDetailAPIView.as_view(), name='slab-detail'),
+    path('api/admin/commissions/', TotalAdminCommission.as_view(), name='commission-list'),
 ] 
-
-
