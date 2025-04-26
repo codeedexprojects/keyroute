@@ -99,7 +99,6 @@ class BusImage(models.Model):
 
 
 class PackageCategory(models.Model):
-    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE)
     name = models.CharField(max_length=100, unique=True)
     image = models.ImageField(upload_to='package_categories/', null=True, blank=True)
 
@@ -133,9 +132,25 @@ class Package(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    bus_location = models.CharField(max_length=255, blank=True, null=True)
+    price_per_person = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    extra_charge_per_km = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+
 
     def __str__(self):
         return f"{self.sub_category.name} - {self.places}"
+
+
+class PackageImage(models.Model):
+    package = models.ForeignKey('Package', on_delete=models.CASCADE, related_name='package_images')
+    image = models.ImageField(
+        upload_to='packages/images/',
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png'])]
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+
+
 
 
 class DayPlan(models.Model):

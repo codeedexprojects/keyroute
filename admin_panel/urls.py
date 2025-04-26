@@ -57,8 +57,15 @@ urlpatterns = [
 
 
     #ALL BOOKINGS
-    path('api/admin/all-bookings/', AdminBookingListView.as_view(), name='explore-list'),
+    path('api/admin/all-bookings/', AdminBookingListView.as_view(), name='all-booking'),
 
+    # CATEGORY
+    path('api/admin/category/', AdminPackageCategoryAPIView.as_view(), name='category'),
+    path('api/admin/category/<int:pk>/', AdminPackageCategoryAPIView.as_view(), name='category'),
+
+    # SUB CATEGORY
+    path('api/admin/sub-category/', AdminPackageSubCategoryAPIView.as_view(), name='sub-category'),
+    path('api/admin/sub-category/<int:pk>/', AdminPackageSubCategoryAPIView.as_view(), name='sub-category'),
 
     path('api/admin/commission-slabs/', AdminCommissionSlabListCreateAPIView.as_view(), name='slab-list-create'),
     path('api/admin/commission-slabs/<int:pk>/', AdminCommissionSlabDetailAPIView.as_view(), name='slab-detail'),

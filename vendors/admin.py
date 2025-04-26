@@ -27,4 +27,4 @@ admin.site.register(BusFeature)
 admin.site.register(VendorBankDetail)
 admin.site.register(VendorNotification)
 admin.site.register(BusTravelImage)
-
+admin.site.register(PackageImage)
