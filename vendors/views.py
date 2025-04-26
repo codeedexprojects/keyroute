@@ -625,7 +625,6 @@ class DayPlanCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
   
-        
     
     def post(self, request, package_id):
         try:
