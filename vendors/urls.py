@@ -32,7 +32,7 @@ urlpatterns = [
     # PACKAGE 
     path('api/vendor/package/', PackageAPIView.as_view(), name='package-create-list'),
     path('api/vendor/package/<int:package_id>/', PackageAPIView.as_view(), name='package-detail'), 
-    
+
     # NEW
     path('packages/create/', BasicPackageAPIView.as_view(), name='create-package'),
     path('packages/<int:package_id>/add-day-plans/', DayPlanCreateAPIView.as_view(), name='add-day-plans'),
@@ -93,8 +93,9 @@ urlpatterns = [
     path('api/package-booking-history/<int:booking_id>/', SinglePackageBookingDetailView.as_view(), name='single-package-booking-detail'),
     
 
-
-    path('api/vendor/busy-date/create/', VendorBusyDateCreateView.as_view(), name='create-busy-date'),
+    # MARK EVENT
+    path('api/vendor/busy-date/', VendorBusyDateCreateView.as_view(), name='create-busy-date'),
+    path('api/vendor/busy-date/<int:pk>/', VendorBusyDateCreateView.as_view(), name='create-busy-date'),
 
     path('api/vendor/booking/<str:booking_type>/filter/<str:date>/', BookingFilterByDate.as_view(), name='booking-by-filter'),
 ]

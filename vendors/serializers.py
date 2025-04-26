@@ -558,6 +558,7 @@ class PackageReadSerializer(serializers.ModelSerializer):
         ]
 
 
+
 class PackageSerializerPUT(serializers.ModelSerializer):
     day_plans = DayPlanSerializer(many=True, required=False)
     buses = serializers.PrimaryKeyRelatedField(many=True, queryset=Bus.objects.all(), required=False)
@@ -848,7 +849,7 @@ class CombinedBookingSerializer(serializers.Serializer):
 class VendorBusyDateSerializer(serializers.ModelSerializer):
     class Meta:
         model = VendorBusyDate
-        fields = ['date', 'from_time', 'to_time', 'reason']
+        fields = ['id','date', 'from_time', 'to_time', 'reason']
 
     def validate(self, data):
         from_time = data.get('from_time')

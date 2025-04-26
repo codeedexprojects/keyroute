@@ -1110,6 +1110,10 @@ class SinglePackageBookingDetailView(APIView):
 
 
 class VendorBusyDateCreateView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+
     def post(self, request):
         try:
             vendor = Vendor.objects.filter(user=request.user).first()
@@ -1129,7 +1133,64 @@ class VendorBusyDateCreateView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+    def get(self, request, pk=None):
+        try:
+            vendor = Vendor.objects.filter(user=request.user).first()
+            if not vendor:
+                return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
+            if pk:
+                busy_date = VendorBusyDate.objects.filter(id=pk, vendor=vendor).first()
+                if not busy_date:
+                    return Response({"error": "Busy date not found."}, status=status.HTTP_404_NOT_FOUND)
+
+                serializer = VendorBusyDateSerializer(busy_date)
+                return Response({"busy_date": serializer.data}, status=status.HTTP_200_OK)
+
+            busy_dates = VendorBusyDate.objects.filter(vendor=vendor).order_by('date', 'from_time')
+            serializer = VendorBusyDateSerializer(busy_dates, many=True)
+            return Response({"busy_dates": serializer.data}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        try:
+            vendor = Vendor.objects.filter(user=request.user).first()
+            if not vendor:
+                return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            busy_date = VendorBusyDate.objects.filter(id=pk, vendor=vendor).first()
+            if not busy_date:
+                return Response({"error": "Busy date not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            busy_date.delete()
+            return Response({"message": "Busy date deleted successfully."}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, pk):
+        try:
+            vendor = Vendor.objects.filter(user=request.user).first()
+            if not vendor:
+                return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            busy_date = VendorBusyDate.objects.filter(id=pk, vendor=vendor).first()
+            if not busy_date:
+                return Response({"error": "Busy date not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = VendorBusyDateSerializer(busy_date, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({"message": "Busy date updated successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+    
 
 
 
