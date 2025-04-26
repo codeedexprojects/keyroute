@@ -477,24 +477,19 @@ class TotalAdminCommission(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
-        # Fetch all commissions ordered by created_at
         commissions = AdminCommission.objects.all().order_by('-created_at')
         serializer = AdminCommissionSerializer(commissions, many=True)
 
-        # Total commission revenue
         total_revenue = commissions.aggregate(total=Sum('revenue_to_admin'))['total'] or 0
 
-        # Revenue grouped by booking type
         bus_revenue = commissions.filter(booking_type='bus').aggregate(total=Sum('revenue_to_admin'))['total'] or 0
         package_revenue = commissions.filter(booking_type='package').aggregate(total=Sum('revenue_to_admin'))['total'] or 0
 
-        # Revenue grouped by date
         commissions_by_date = defaultdict(float)
         for commission in commissions:
             day = commission.created_at.date()
             commissions_by_date[day] += float(commission.revenue_to_admin)
 
-        # Convert grouped-by-date dict to list
         revenue_by_date = [
             {'date': str(date_key), 'total_revenue': total}
             for date_key, total in commissions_by_date.items()
