@@ -47,17 +47,17 @@ class BusBookingSerializer(BaseBookingSerializer):
     def create(self, validated_data):
         total_amount = validated_data.get('total_amount')
 
-        commission_percent, revenue = get_admin_commission_from_db(total_amount)
         advance_percent, advance_amount = get_advance_amount_from_db(total_amount)
-
         validated_data['advance_amount'] = advance_amount
+
+        commission_percent, revenue = get_admin_commission_from_db(advance_amount)
 
         booking = super().create(validated_data)
 
         AdminCommission.objects.create(
             booking_type='bus',
             booking_id=booking.id,
-            trip_amount=total_amount,
+            trip_amount=advance_amount,
             commission_percentage=commission_percent,
             revenue_to_admin=revenue
         )
@@ -84,23 +84,19 @@ class PackageBookingSerializer(BaseBookingSerializer):
         return PackageSerializer(obj.package).data
 
     def create(self, validated_data):
-        # Calculate advance before saving
         total_amount = validated_data.get('total_amount')
 
-        commission_percent, revenue = get_admin_commission_from_db(total_amount)
         advance_percent, advance_amount = get_advance_amount_from_db(total_amount)
-
-        # Set advance amount in validated_data
         validated_data['advance_amount'] = advance_amount
 
-        # Create booking
+        commission_percent, revenue = get_admin_commission_from_db(advance_amount)
+
         booking = super().create(validated_data)
 
-        # Store admin commission
         AdminCommission.objects.create(
             booking_type='package',
             booking_id=booking.id,
-            trip_amount=total_amount,
+            trip_amount=advance_amount,
             commission_percentage=commission_percent,
             revenue_to_admin=revenue
         )
