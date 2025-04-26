@@ -186,7 +186,7 @@ class BusSerializer(serializers.ModelSerializer):
 class PackageCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = PackageCategory
-        fields = ['id', 'vendor', 'name', 'image']
+        fields = ['id', 'name', 'image']
 
     def validate_name(self, value):
         if not value.strip():
