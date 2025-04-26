@@ -13,7 +13,7 @@ from .serializers import *
 from vendors.models import *
 from vendors.serializers import *
 from django.db.models import Q
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
 from .models import AdminCommissionSlab, AdminCommission
 from .serializers import AdminCommissionSlabSerializer, AdminCommissionSerializer
 from rest_framework.permissions import IsAdminUser
@@ -502,3 +502,121 @@ class TotalAdminCommission(APIView):
             'revenue_by_date': revenue_by_date,
             'commissions': serializer.data
         })
+    
+
+
+
+
+
+class AdminPackageCategoryAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get(self, request):
+        categories = PackageCategory.objects.all()
+        serializer = PackageCategorySerializer(categories, many=True)
+        return Response({"message": "Package categories fetched successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        if not request.user.is_staff:
+            return Response({"error": "Only admin can create categories."}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = PackageCategorySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Package Category created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, pk):
+        if not request.user.is_staff:
+            return Response({"error": "Only admin can update categories."}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            category = PackageCategory.objects.get(id=pk)
+        except PackageCategory.DoesNotExist:
+            return Response({"error": "Package Category not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PackageCategorySerializer(category, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Package Category updated successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        if not request.user.is_staff:
+            return Response({"error": "Only admin can delete categories."}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            category = PackageCategory.objects.get(id=pk)
+        except PackageCategory.DoesNotExist:
+            return Response({"error": "Package Category not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        category.delete()
+        return Response({"message": "Package Category deleted successfully!"}, status=status.HTTP_204_NO_CONTENT)
+
+
+
+
+
+class AdminPackageSubCategoryAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_object(self, pk):
+        try:
+            return PackageSubCategory.objects.get(pk=pk)
+        except PackageSubCategory.DoesNotExist:
+            return None
+
+    def post(self, request):
+        if not request.user.is_staff:
+            return Response({"error": "Only admin users can create subcategories."}, status=status.HTTP_403_FORBIDDEN)
+
+        serializer = PackageSubCategorySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Package SubCategory created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get(self, request, pk=None):
+        if pk:
+            subcategory = self.get_object(pk)
+            if not subcategory:
+                return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = PackageSubCategorySerializer(subcategory)
+            return Response({"subcategory": serializer.data}, status=status.HTTP_200_OK)
+
+        subcategories = PackageSubCategory.objects.all()
+        serializer = PackageSubCategorySerializer(subcategories, many=True)
+        return Response({"subcategories": serializer.data}, status=status.HTTP_200_OK)
+
+    def put(self, request, pk):
+        if not request.user.is_staff:
+            return Response({"error": "Only admin users can update subcategories."}, status=status.HTTP_403_FORBIDDEN)
+
+        subcategory = self.get_object(pk)
+        if not subcategory:
+            return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PackageSubCategorySerializer(subcategory, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "SubCategory updated successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        if not request.user.is_staff:
+            return Response({"error": "Only admin users can delete subcategories."}, status=status.HTTP_403_FORBIDDEN)
+
+        subcategory = self.get_object(pk)
+        if not subcategory:
+            return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        subcategory.delete()
+        return Response({"message": "SubCategory deleted successfully!"}, status=status.HTTP_200_OK)
+
+
