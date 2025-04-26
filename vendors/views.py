@@ -367,58 +367,55 @@ class PackageCategoryAPIView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser,JSONParser]
 
-    def post(self, request):
-        try:
-            vendor = Vendor.objects.get(user=request.user) 
+    # def post(self, request):
+    #     try:
+    #         vendor = Vendor.objects.get(user=request.user) 
 
 
-        except Vendor.DoesNotExist:
-            return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
+    #     except Vendor.DoesNotExist:
+    #         return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
 
-        data = request.data.copy()
-        data["vendor"] = vendor.user_id
+    #     data = request.data.copy()
+    #     data["vendor"] = vendor.user_id
 
-        serializer = PackageCategorySerializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "Package Category created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    #     serializer = PackageCategorySerializer(data=data)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         return Response({"message": "Package Category created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def get(self, request):
-        try:
-            vendor = Vendor.objects.get(user=request.user)
-        except Vendor.DoesNotExist:
-            return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
+       
 
-        categories = PackageCategory.objects.filter(vendor=vendor)
+        categories = PackageCategory.objects.all()
         serializer = PackageCategorySerializer(categories, many=True)
 
         return Response({"message": "Package categories fetched successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
     
 
-    def patch(self, request, pk):
-        try:
-            vendor = Vendor.objects.get(user=request.user)
-            category = PackageCategory.objects.get(id=pk, vendor=vendor)
-        except (Vendor.DoesNotExist, PackageCategory.DoesNotExist):
-            return Response({"error": "Package Category not found."}, status=status.HTTP_404_NOT_FOUND)
+    # def patch(self, request, pk):
+    #     try:
+    #         vendor = Vendor.objects.get(user=request.user)
+    #         category = PackageCategory.objects.get(id=pk, vendor=vendor)
+    #     except (Vendor.DoesNotExist, PackageCategory.DoesNotExist):
+    #         return Response({"error": "Package Category not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = PackageCategorySerializer(category, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "Package Category updated successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    #     serializer = PackageCategorySerializer(category, data=request.data, partial=True)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         return Response({"message": "Package Category updated successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-    def delete(self, request, pk):
-        try:
-            vendor = Vendor.objects.get(user=request.user)
-            category = PackageCategory.objects.get(id=pk, vendor=vendor)
-        except (Vendor.DoesNotExist, PackageCategory.DoesNotExist):
-            return Response({"error": "Package Category not found."}, status=status.HTTP_404_NOT_FOUND)
+    # def delete(self, request, pk):
+    #     try:
+    #         vendor = Vendor.objects.get(user=request.user)
+    #         category = PackageCategory.objects.get(id=pk, vendor=vendor)
+    #     except (Vendor.DoesNotExist, PackageCategory.DoesNotExist):
+    #         return Response({"error": "Package Category not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        category.delete()
-        return Response({"message": "Package Category deleted successfully!"}, status=status.HTTP_204_NO_CONTENT)
+    #     category.delete()
+    #     return Response({"message": "Package Category deleted successfully!"}, status=status.HTTP_204_NO_CONTENT)
 
 
 
@@ -438,24 +435,24 @@ class PackageSubCategoryAPIView(APIView):
         except PackageSubCategory.DoesNotExist:
             return None
 
-    def post(self, request):
-        try:
-            vendor = Vendor.objects.get(user=request.user)
-        except Vendor.DoesNotExist:
-            return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+    # def post(self, request):
+    #     try:
+    #         vendor = Vendor.objects.get(user=request.user)
+    #     except Vendor.DoesNotExist:
+    #         return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        data = request.data.copy()
+    #     data = request.data.copy()
         
-        try:
-            category = PackageCategory.objects.get(id=data["category"], vendor=vendor)
-        except PackageCategory.DoesNotExist:
-            return Response({"error": "Invalid category for this vendor."}, status=status.HTTP_400_BAD_REQUEST)
+    #     try:
+    #         category = PackageCategory.objects.get(id=data["category"], vendor=vendor)
+    #     except PackageCategory.DoesNotExist:
+    #         return Response({"error": "Invalid category for this vendor."}, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = PackageSubCategorySerializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "Package SubCategory created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    #     serializer = PackageSubCategorySerializer(data=data)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         return Response({"message": "Package SubCategory created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
     def get(self, request, pk=None):
@@ -471,25 +468,25 @@ class PackageSubCategoryAPIView(APIView):
         serializer = PackageSubCategorySerializer(subcategories, many=True)
         return Response({"subcategories": serializer.data}, status=status.HTTP_200_OK)
 
-    def put(self, request, pk):
-        subcategory = self.get_object(pk)
-        if not subcategory:
-            return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
+    # def put(self, request, pk):
+    #     subcategory = self.get_object(pk)
+    #     if not subcategory:
+    #         return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = PackageSubCategorySerializer(subcategory, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "SubCategory updated successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+    #     serializer = PackageSubCategorySerializer(subcategory, data=request.data, partial=True)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         return Response({"message": "SubCategory updated successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request, pk):
-        subcategory = self.get_object(pk)
-        if not subcategory:
-            return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
+    # def delete(self, request, pk):
+    #     subcategory = self.get_object(pk)
+    #     if not subcategory:
+    #         return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        subcategory.delete()
-        return Response({"message": "SubCategory deleted successfully!"}, status=status.HTTP_200_OK)
+    #     subcategory.delete()
+    #     return Response({"message": "SubCategory deleted successfully!"}, status=status.HTTP_200_OK)
 
 
 

@@ -24,7 +24,8 @@ class BaseBookingSerializer(serializers.ModelSerializer):
                  'payment_status', 'created_at', 'balance_amount','cancelation_reason','from_location', 'to_location', 'total_travelers']
         read_only_fields = ['id', 'created_at', 'balance_amount']
         extra_kwargs = {
-            'user': {'write_only': True, 'required': False}
+            'user': {'write_only': True, 'required': False},
+            'advance_amount': {'write_only': True, 'required': False},
         }
 
 class BusBookingSerializer(BaseBookingSerializer):
@@ -37,7 +38,8 @@ class BusBookingSerializer(BaseBookingSerializer):
             'bus', 'bus_details', 'one_way','travelers'
         ]
         extra_kwargs = {
-            'user': {'write_only': True, 'required': False}
+            'user': {'write_only': True, 'required': False},
+            'advance_amount': {'write_only': True, 'required': False},
         }
     
     def get_bus_details(self, obj):
@@ -76,7 +78,8 @@ class PackageBookingSerializer(BaseBookingSerializer):
         ]
         read_only_fields = BaseBookingSerializer.Meta.read_only_fields + ['total_travelers']
         extra_kwargs = {
-            'user': {'write_only': True, 'required': False}
+            'user': {'write_only': True, 'required': False},
+            'advance_amount': {'write_only': True, 'required': False},
         }
     
     def get_package_details(self, obj):
