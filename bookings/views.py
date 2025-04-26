@@ -15,6 +15,8 @@ from admin_panel.models import Vendor
 from users.models import Favourite
 from notifications.utils import send_notification
 from django.utils.dateparse import parse_date
+from datetime import datetime, time
+from django.db.models import Q
 
 
 from .utils import *
@@ -452,7 +454,6 @@ class BookingFilterByDate(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Create datetime range for the specific date (from 00:00:00 to 23:59:59)
         start_datetime = datetime.combine(parsed_date, time.min)
         end_datetime = datetime.combine(parsed_date, time.max)
 
@@ -471,7 +472,6 @@ class BookingFilterByDate(APIView):
             )
             serializer = PackageBookingSerializer(bookings, many=True)
         elif booking_type == 'all':
-            # Get both types of bookings and combine them
             bus_bookings = BusBooking.objects.filter(
                 created_at__gte=start_datetime,
                 created_at__lte=end_datetime,
