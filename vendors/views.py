@@ -235,6 +235,8 @@ class BusAPIView(APIView):
             data.pop('features', None)
 
             serializer = BusSerializer(data=data, context={'vendor': vendor})
+
+
             if not serializer.is_valid():
                 return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -252,6 +254,8 @@ class BusAPIView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+
+    
 
 
 # BUS EDIT  AND DELETE
