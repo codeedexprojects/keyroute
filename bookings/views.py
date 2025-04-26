@@ -34,7 +34,6 @@ class BusListAPIView(APIView):
         serializer = BusSerializer(buses, many=True)
         return Response(serializer.data)
 
-# Package Booking Views
 class PackageBookingListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -50,13 +49,11 @@ class PackageBookingListCreateAPIView(APIView):
             vendor = package.vendor
             booking_date = serializer.validated_data['start_date']
 
-            # Check if vendor is busy
             if is_vendor_busy(vendor, booking_date):
                 return Response({"error": "Vendor is busy on the selected date."}, status=status.HTTP_400_BAD_REQUEST)
 
             booking = serializer.save(user=request.user)
             
-            # Create a traveler entry for the user who's making the booking
             traveler_data = {
                 "first_name": request.user.name or request.user.username,
                 "last_name": '',
@@ -75,7 +72,6 @@ class PackageBookingListCreateAPIView(APIView):
             if travelerSerializer.is_valid():
                 travelerSerializer.save()
                 
-                # Send notification to user about successful booking
                 package_name = booking.package.name if hasattr(booking.package, 'name') else "Tour package"
                 send_notification(
                     user=request.user,
@@ -84,7 +80,6 @@ class PackageBookingListCreateAPIView(APIView):
                 
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             else:
-                # If traveler creation fails, delete the booking
                 booking.delete()
                 return Response(travelerSerializer.errors, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -117,7 +112,6 @@ class PackageBookingDetailAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# Bus Booking Views
 class BusBookingListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -133,8 +127,6 @@ class BusBookingListCreateAPIView(APIView):
             vendor = bus.vendor
             booking_date = serializer.validated_data['start_date']
 
-            # Optional: If your system has bus departure time, you can extract it from request or model
-            # For now, let's assume it's not time-bound
             if is_vendor_busy(vendor, booking_date):
                 return Response({"error": "Vendor is busy on the selected date."}, status=status.HTTP_400_BAD_REQUEST)
 
