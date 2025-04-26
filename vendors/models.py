@@ -138,6 +138,17 @@ class Package(models.Model):
         return f"{self.sub_category.name} - {self.places}"
 
 
+class PackageImage(models.Model):
+    package = models.ForeignKey('Package', on_delete=models.CASCADE, related_name='package_images')
+    image = models.ImageField(
+        upload_to='packages/images/',
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png'])]
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+
+
+
 
 class DayPlan(models.Model):
     package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='day_plans')
