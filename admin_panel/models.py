@@ -144,3 +144,26 @@ class Experience(models.Model):
 
 
 
+class AdminCommissionSlab(models.Model):
+    min_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    max_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    commission_percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    advance_percentage = models.DecimalField(max_digits=5, decimal_places=2)
+
+    class Meta:
+        ordering = ['min_amount']
+
+    def __str__(self):
+        return f"{self.min_amount} - {self.max_amount} => {self.commission_percentage}%"
+
+
+class AdminCommission(models.Model):
+    booking_type = models.CharField(max_length=20, choices=[('bus', 'Bus'), ('package', 'Package')])
+    booking_id = models.IntegerField()
+    trip_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    commission_percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    revenue_to_admin = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.booking_type} Booking ID {self.booking_id} - Admin Revenue {self.revenue_to_admin}"

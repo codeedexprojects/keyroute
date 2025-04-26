@@ -15,6 +15,7 @@ from admin_panel.models import Vendor
 from users.models import Favourite
 from notifications.utils import send_notification
 
+
 class PackageListAPIView(APIView):
     permission_classes = [AllowAny]
     
@@ -43,6 +44,14 @@ class PackageBookingListCreateAPIView(APIView):
     def post(self, request):
         serializer = PackageBookingSerializer(data=request.data)
         if serializer.is_valid():
+            package = serializer.validated_data['package']
+            vendor = package.vendor
+            booking_date = serializer.validated_data['start_date']
+
+            # Check if vendor is busy
+            if is_vendor_busy(vendor, booking_date):
+                return Response({"error": "Vendor is busy on the selected date."}, status=status.HTTP_400_BAD_REQUEST)
+
             booking = serializer.save(user=request.user)
             
             # Create a traveler entry for the user who's making the booking
@@ -118,6 +127,15 @@ class BusBookingListCreateAPIView(APIView):
     def post(self, request):
         serializer = BusBookingSerializer(data=request.data)
         if serializer.is_valid():
+            bus = serializer.validated_data['bus']
+            vendor = bus.vendor
+            booking_date = serializer.validated_data['start_date']
+
+            # Optional: If your system has bus departure time, you can extract it from request or model
+            # For now, let's assume it's not time-bound
+            if is_vendor_busy(vendor, booking_date):
+                return Response({"error": "Vendor is busy on the selected date."}, status=status.HTTP_400_BAD_REQUEST)
+
             booking = serializer.save(user=request.user)
             
             traveler_data = {
