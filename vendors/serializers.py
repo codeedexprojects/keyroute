@@ -92,7 +92,12 @@ class BusSerializer(serializers.ModelSerializer):
         required=False
     )
 
-    amenities = AmenitySerializer(many=True, read_only=True)
+    # amenities = AmenitySerializer(many=True, read_only=True)
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep['amenities'] = AmenitySerializer(instance.amenities.all(), many=True).data
+        return rep
+
     
     class Meta:
         model = Bus
@@ -144,11 +149,8 @@ class BusSerializer(serializers.ModelSerializer):
     
   
 
-
-   
     
     def create(self, validated_data):
-        print('creating iw wlring')
         bus_images = validated_data.pop('bus_view_images', [])
         amenities = validated_data.pop('amenities', [])
         
