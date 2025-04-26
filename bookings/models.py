@@ -108,3 +108,6 @@ class Travelers(models.Model):
                 name="one_booking_type_only"
             )
         ]
+
+
+        
