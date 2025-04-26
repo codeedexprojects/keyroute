@@ -181,6 +181,9 @@ DATABASES = {
 
 AUTH_USER_MODEL = 'admin_panel.User'
 
+# settings.py
+FILE_UPLOAD_MAX_MEMORY_SIZE = 30 * 1024 * 1024 #30mb
+
 
 
 # Password validation
