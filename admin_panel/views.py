@@ -1,5 +1,4 @@
 from django.shortcuts import render
-
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -15,7 +14,13 @@ from vendors.models import *
 from vendors.serializers import *
 from django.db.models import Q
 from rest_framework.parsers import MultiPartParser, FormParser
-
+from .models import AdminCommissionSlab, AdminCommission
+from .serializers import AdminCommissionSlabSerializer, AdminCommissionSerializer
+from rest_framework.permissions import IsAdminUser
+from django.shortcuts import get_object_or_404
+from django.db.models import Sum
+from collections import defaultdict
+from datetime import date
 
 
 # Create your views here.
@@ -424,3 +429,76 @@ class AdminBookingListView(APIView):
 
 
 
+
+
+# 🔹 List & Create Slabs
+class AdminCommissionSlabListCreateAPIView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        slabs = AdminCommissionSlab.objects.all()
+        serializer = AdminCommissionSlabSerializer(slabs, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = AdminCommissionSlabSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminCommissionSlabDetailAPIView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get_object(self, pk):
+        return get_object_or_404(AdminCommissionSlab, pk=pk)
+
+    def get(self, request, pk):
+        slab = self.get_object(pk)
+        serializer = AdminCommissionSlabSerializer(slab)
+        return Response(serializer.data)
+
+    def put(self, request, pk):
+        slab = self.get_object(pk)
+        serializer = AdminCommissionSlabSerializer(slab, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        slab = self.get_object(pk)
+        slab.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TotalAdminCommission(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        commissions = AdminCommission.objects.all().order_by('-created_at')
+        serializer = AdminCommissionSerializer(commissions, many=True)
+
+        total_revenue = commissions.aggregate(total=Sum('revenue_to_admin'))['total'] or 0
+
+        bus_revenue = commissions.filter(booking_type='bus').aggregate(total=Sum('revenue_to_admin'))['total'] or 0
+        package_revenue = commissions.filter(booking_type='package').aggregate(total=Sum('revenue_to_admin'))['total'] or 0
+
+        commissions_by_date = defaultdict(float)
+        for commission in commissions:
+            day = commission.created_at.date()
+            commissions_by_date[day] += float(commission.revenue_to_admin)
+
+        revenue_by_date = [
+            {'date': str(date_key), 'total_revenue': total}
+            for date_key, total in commissions_by_date.items()
+        ]
+
+        return Response({
+            'total_revenue': total_revenue,
+            'bus_revenue': bus_revenue,
+            'package_revenue': package_revenue,
+            'revenue_by_date': revenue_by_date,
+            'commissions': serializer.data
+        })
