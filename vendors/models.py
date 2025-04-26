@@ -134,6 +134,7 @@ class Package(models.Model):
 
     bus_location = models.CharField(max_length=255, blank=True, null=True)
     price_per_person = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    extra_charge_per_km = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
 
 
     def __str__(self):
