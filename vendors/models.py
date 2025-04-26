@@ -138,6 +138,7 @@ class Package(models.Model):
         return f"{self.sub_category.name} - {self.places}"
 
 
+
 class DayPlan(models.Model):
     package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='day_plans')
     day_number = models.PositiveIntegerField()
