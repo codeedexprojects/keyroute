@@ -99,7 +99,6 @@ class BusImage(models.Model):
 
 
 class PackageCategory(models.Model):
-    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE)
     name = models.CharField(max_length=100, unique=True)
     image = models.ImageField(upload_to='package_categories/', null=True, blank=True)
 

@@ -14,7 +14,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from admin_panel.models import Vendor
 from users.models import Favourite
 from notifications.utils import send_notification
+from django.utils.dateparse import parse_date
 
+from .utils import *
 
 class PackageListAPIView(APIView):
     permission_classes = [AllowAny]
@@ -434,3 +436,40 @@ class CancelBookingView(APIView):
                 {"error": str(e)}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
+
+
+
+
+class BookingFilterByDate(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, booking_type, date):
+        try:
+            vendor = Vendor.objects.get(user=request.user)
+        except Vendor.DoesNotExist:
+            return Response(
+                {"detail": "Unauthorized: Only vendors can access this data."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        parsed_date = parse_date(date)
+        if not parsed_date:
+            return Response(
+                {"error": "Invalid date format. Use YYYY-MM-DD."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if booking_type == 'bus':
+            bookings = BusBooking.objects.filter(created_at__date=parsed_date, bus__vendor=vendor)
+            serializer = BusBookingSerializer(bookings, many=True)
+        elif booking_type == 'package':
+            bookings = PackageBooking.objects.filter(created_at__date=parsed_date, package__vendor=vendor)
+            serializer = PackageBookingSerializer(bookings, many=True)
+        else:
+            return Response(
+                {"error": "Invalid booking type. Must be 'bus' or 'package'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
