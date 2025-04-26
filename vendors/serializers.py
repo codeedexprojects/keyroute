@@ -398,13 +398,18 @@ class PackageBasicSerializer(serializers.ModelSerializer):
     package_images = serializers.ListField(
         child=serializers.ImageField(), write_only=True, required=False
     )
+    bus_location = serializers.CharField(required=False, allow_blank=True)
+    price_per_person = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    extra_charge_per_km = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+
+
 
     class Meta:
         model = Package
         fields = [
             'id',
             'sub_category', 'header_image', 'places', 'days', 'nights',
-            'ac_available', 'guide_included', 'buses', 'package_images'
+            'ac_available', 'guide_included', 'buses', 'package_images','bus_location', 'price_per_person','extra_charge_per_km'
         ]
 
     def create(self, validated_data):
@@ -549,7 +554,7 @@ class PackageReadSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'sub_category', 'header_image', 'places', 'days', 'nights',
             'ac_available', 'guide_included', 'buses', 'day_plans',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at','bus_location', 'price_per_person', 'extra_charge_per_km'
         ]
 
 

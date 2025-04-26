@@ -367,23 +367,7 @@ class PackageCategoryAPIView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser,JSONParser]
 
-    # def post(self, request):
-    #     try:
-    #         vendor = Vendor.objects.get(user=request.user) 
-
-
-    #     except Vendor.DoesNotExist:
-    #         return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
-
-    #     data = request.data.copy()
-    #     data["vendor"] = vendor.user_id
-
-    #     serializer = PackageCategorySerializer(data=data)
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response({"message": "Package Category created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+   
     def get(self, request):
        
 
@@ -393,31 +377,7 @@ class PackageCategoryAPIView(APIView):
         return Response({"message": "Package categories fetched successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
     
 
-    # def patch(self, request, pk):
-    #     try:
-    #         vendor = Vendor.objects.get(user=request.user)
-    #         category = PackageCategory.objects.get(id=pk, vendor=vendor)
-    #     except (Vendor.DoesNotExist, PackageCategory.DoesNotExist):
-    #         return Response({"error": "Package Category not found."}, status=status.HTTP_404_NOT_FOUND)
-
-    #     serializer = PackageCategorySerializer(category, data=request.data, partial=True)
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response({"message": "Package Category updated successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-    # def delete(self, request, pk):
-    #     try:
-    #         vendor = Vendor.objects.get(user=request.user)
-    #         category = PackageCategory.objects.get(id=pk, vendor=vendor)
-    #     except (Vendor.DoesNotExist, PackageCategory.DoesNotExist):
-    #         return Response({"error": "Package Category not found."}, status=status.HTTP_404_NOT_FOUND)
-
-    #     category.delete()
-    #     return Response({"message": "Package Category deleted successfully!"}, status=status.HTTP_204_NO_CONTENT)
-
-
+ 
 
 
 
