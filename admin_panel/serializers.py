@@ -4,6 +4,7 @@ from .models import User
 from vendors.serializers import *
 from .models import AdminCommissionSlab, AdminCommission
 from bookings.models import *
+from .models import *
 
 class VendorSerializer1(serializers.ModelSerializer):
     class Meta:
