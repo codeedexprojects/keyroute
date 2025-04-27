@@ -1248,5 +1248,42 @@ class BusBookingHistoryFilterView(APIView):
 
 
 
+class LatestCanceledBookingView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            vendor = request.user.vendor   
+            
+            latest_bus_canceled = BusBooking.objects.filter(
+                payment_status='cancelled',
+                bus__vendor=vendor   
+            ).order_by('-created_at').first()
+
+            latest_package_canceled = PackageBooking.objects.filter(
+                payment_status='cancelled',
+                package__vendor=vendor   
+            ).order_by('-created_at').first()
+
+            response_data = {}
+
+            if latest_bus_canceled and latest_package_canceled:
+                if latest_bus_canceled.created_at > latest_package_canceled.created_at:
+                    response_data = BusBookingBasicSerializer(latest_bus_canceled).data
+                else:
+                    response_data = PackageBookingBasicSerializer(latest_package_canceled).data
+            elif latest_bus_canceled:
+                response_data = BusBookingBasicSerializer(latest_bus_canceled).data
+            elif latest_package_canceled:
+                response_data = PackageBookingBasicSerializer(latest_package_canceled).data
+            else:
+                return Response({"message": "No canceled bookings found for this vendor."}, status=404)
+
+            return Response({"latest_canceled_booking": response_data})
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
+
 
 
