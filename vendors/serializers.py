@@ -128,6 +128,60 @@ class BusSummarySerializer(serializers.ModelSerializer):
 
 
 # -----------------------
+# ----------------------------------- list bus----------------------
+
+
+class BusSummarySerializer(serializers.ModelSerializer):
+    amenities_count = serializers.SerializerMethodField()
+    features = serializers.SerializerMethodField()
+    bus_travel_image = serializers.SerializerMethodField()  
+
+    class Meta:
+        model = Bus
+        fields = [
+            'bus_name',
+            'bus_number',
+            'features',
+            'capacity',
+            'amenities_count',
+            'base_price',
+            'price_per_km',
+            'bus_travel_image'   
+        ]
+    
+    def get_features(self, obj):
+        return [feature.name for feature in obj.features.all()]
+
+    def get_amenities_count(self, obj):
+        amenities_count = obj.amenities.count()
+        return f"{amenities_count}+" if amenities_count >= 5 else str(amenities_count)
+
+    def get_total_capacity(self, obj):
+        return obj.capacity
+
+    def get_bus_travel_image(self, obj):
+        bus_travel_image = BusTravelImage.objects.filter(bus=obj).first()
+        if bus_travel_image and bus_travel_image.image:
+            return bus_travel_image.image.url   
+        return None  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# -----------------------
 
 class BusSerializer(serializers.ModelSerializer):
     features = serializers.PrimaryKeyRelatedField(
@@ -936,37 +990,4 @@ class CombinedBookingSerializer(serializers.Serializer):
     name = serializers.SerializerMethodField()   
     from_location = serializers.CharField()
     to_location = serializers.CharField()
-    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
-    payment_status = serializers.CharField()
-    created_at = serializers.DateTimeField()
-    members_count = serializers.SerializerMethodField()
-
-    def get_type(self, obj):
-        return "bus" if isinstance(obj, BusBooking) else "package"
-
-    def get_name(self, obj):
-        traveler = obj.travelers.first()
-        if traveler:
-            return f"{traveler.first_name} {traveler.last_name or ''}".strip()
-        return "No Name"
-
-    def get_members_count(self, obj):
-        return obj.travelers.count()
-
-
-
-
-
-
-class VendorBusyDateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = VendorBusyDate
-        fields = ['id','date', 'from_time', 'to_time', 'reason']
-
-    def validate(self, data):
-        from_time = data.get('from_time')
-        to_time = data.get('to_time')
-
-        if from_time and to_time and from_time >= to_time:
-            raise serializers.ValidationError("From time must be earlier than to time.")
-        return data
+    total_amount = serializers.DecimalFiel
