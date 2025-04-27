@@ -17,6 +17,8 @@ from notifications.utils import send_notification
 from django.utils.dateparse import parse_date
 from datetime import datetime, time
 from django.db.models import Q
+from rest_framework import status as http_status
+from itertools import chain
 
 
 from .utils import *
@@ -296,25 +298,29 @@ class TravelerDetailAPIView(APIView):
         
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-class BookingsByStatusAPIView(APIView):
+
+class UserBookingsByStatus(APIView):
     permission_classes = [IsAuthenticated]
-    
-    def get(self, request, status, booking_type):
+
+    def get(self, request, status_filter):
         user = request.user
+        package_bookings = PackageBooking.objects.filter(payment_status=status_filter, user=user)
+        bus_bookings = BusBooking.objects.filter(payment_status=status_filter, user=user)
+
+        package_serializer = PackageBookingSerializer(package_bookings, many=True)
+        bus_serializer = BusBookingSerializer(bus_bookings, many=True)
+
+        for item in package_serializer.data:
+            item['booking_type'] = 'package'
         
-        if booking_type == 'package':
-            bookings = PackageBooking.objects.filter(payment_status=status, user=user)
-            serializer = PackageBookingSerializer(bookings, many=True)
-        elif booking_type == 'bus':
-            bookings = BusBooking.objects.filter(payment_status=status, user=user)
-            serializer = BusBookingSerializer(bookings, many=True)
-        else:
-            return Response(
-                {"error": "Invalid booking type. Use 'package' or 'bus'."}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
-        return Response(serializer.data)
+        for item in bus_serializer.data:
+            item['booking_type'] = 'bus'
+
+        combined_data = list(chain(package_serializer.data, bus_serializer.data))
+
+        sorted_combined_data = sorted(combined_data, key=lambda x: x['created_at'], reverse=True)
+
+        return Response(sorted_combined_data)
     
 class VendorBusBookingAPI(APIView):
     permission_classes = [IsAuthenticated]
