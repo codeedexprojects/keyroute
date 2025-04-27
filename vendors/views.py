@@ -197,13 +197,15 @@ class BusAPIView(APIView):
     authentication_classes = [JWTAuthentication]
 
     def get(self, request):
+        print('this work')
         try:
             vendor = Vendor.objects.filter(user=request.user).first()
             if not vendor:
                 return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
 
             buses = Bus.objects.filter(vendor=vendor)
-            serializer = BusSerializer(buses, many=True)
+            # serializer = BusSerializer(buses, many=True)
+            serializer = BusSummarySerializer(buses, many=True)
             return Response({"buses": serializer.data}, status=status.HTTP_200_OK)
 
         except Exception as e:
