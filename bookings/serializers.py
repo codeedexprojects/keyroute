@@ -8,7 +8,7 @@ class TravelerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Travelers
         fields = ['id', 'first_name', 'last_name', 'gender', 'place', 
-                 'dob', 'id_proof', 'email', 'mobile', 'city']
+                 'dob', 'id_proof', 'email', 'mobile', 'city','age']
         extra_kwargs = {
             'id': {'read_only': True},
             'bus_booking': {'read_only': True},
@@ -22,7 +22,7 @@ class BaseBookingSerializer(serializers.ModelSerializer):
         abstract = True
         fields = ['id','booking_status', 'user', 'start_date', 'total_amount', 'advance_amount', 
                  'payment_status', 'created_at', 'balance_amount','cancelation_reason','from_location', 'to_location', 'total_travelers']
-        read_only_fields = ['id', 'created_at', 'balance_amount']
+        read_only_fields = ['id', 'created_at', 'balance_amount','male','female','children']
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
             'advance_amount': {'write_only': False, 'required': False},
