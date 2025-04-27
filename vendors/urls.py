@@ -86,6 +86,8 @@ urlpatterns = [
     # BOOKING HISTORY FROM BUS SIDE
     path('api/vendor/busbasichistory/', BusBookingBasicHistoryView.as_view(), name='vendor-bus-revenue'),
     path('api/vendor/bus-booking-history/<int:booking_id>/', SingleBusBookingDetailView.as_view(), name='single-bus-booking-detail'),
+    # FILTER
+    path('api/vendor/bus-history-filter/', BusBookingHistoryFilterView.as_view(), name='bus-history-filter'),
 
 
     # BOOKING HISTORY FROM PACKAGE SIDE
