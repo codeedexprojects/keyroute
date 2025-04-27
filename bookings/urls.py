@@ -33,5 +33,4 @@ urlpatterns = [
 
     path('services/categories/', PackageCategoryListAPIView.as_view(), name='package-category-list'),
     path('services/subcategories/', PackageSubCategoryListAPIView.as_view(), name='package-subcategory-list'),
-
 ]
