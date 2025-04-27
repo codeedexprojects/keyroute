@@ -23,6 +23,9 @@ class BaseBooking(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     cancelation_reason = models.CharField(max_length=250,null=True,blank=True)
     total_travelers = models.PositiveIntegerField(default=1)
+    male  = models.PositiveIntegerField(default=1)
+    female  = models.PositiveIntegerField(default=1)
+    children  = models.PositiveIntegerField(default=1)
     from_location = models.CharField(max_length=150)
     to_location = models.CharField(max_length=150)
     
@@ -64,6 +67,7 @@ class Travelers(models.Model):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100, blank=True, null=True)
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True, null=True)
+    age = models.PositiveBigIntegerField(default=1)
     dob = models.DateField(null=True, blank=True)
     
     # Contact information
