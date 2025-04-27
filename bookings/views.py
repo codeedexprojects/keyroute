@@ -19,6 +19,8 @@ from datetime import datetime, time
 from django.db.models import Q
 from rest_framework import status as http_status
 from itertools import chain
+from vendors.models import PackageCategory,PackageSubCategory
+from vendors.serializers import PackageCategorySerializer,PackageSubCategorySerializer
 
 
 from .utils import *
@@ -507,4 +509,15 @@ class BookingFilterByDate(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 
-"""Updated for rabeeh"""
+class PackageCategoryListAPIView(APIView):
+    def get(self, request):
+        categories = PackageCategory.objects.all()
+        serializer = PackageCategorySerializer(categories, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class PackageSubCategoryListAPIView(APIView):
+    def get(self, request):
+        subcategories = PackageSubCategory.objects.all()
+        serializer = PackageSubCategorySerializer(subcategories, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

@@ -4,7 +4,7 @@ from .views import (
     PackageBookingListCreateAPIView, PackageBookingDetailAPIView,
     BusBookingListCreateAPIView, BusBookingDetailAPIView,
     TravelerCreateAPIView, PackageBookingTravelersAPIView, BusBookingTravelersAPIView,
-    TravelerDetailAPIView, UserBookingsByStatus,CancelBookingView
+    TravelerDetailAPIView, UserBookingsByStatus,CancelBookingView,PackageCategoryListAPIView,PackageSubCategoryListAPIView
 )
 
 urlpatterns = [
@@ -30,4 +30,8 @@ urlpatterns = [
     # Trav endpoints
     path('travelers/create/', TravelerCreateAPIView.as_view(), name='traveler-create'),
     path('travelers/<int:pk>/', TravelerDetailAPIView.as_view(), name='traveler-detail'),
+
+    path('categories/', PackageCategoryListAPIView.as_view(), name='package-category-list'),
+    path('subcategories/', PackageSubCategoryListAPIView.as_view(), name='package-subcategory-list'),
+
 ]
