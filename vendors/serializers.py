@@ -558,6 +558,7 @@ class PackageReadSerializer(serializers.ModelSerializer):
         ]
 
 
+
 class PackageSerializerPUT(serializers.ModelSerializer):
     day_plans = DayPlanSerializer(many=True, required=False)
     buses = serializers.PrimaryKeyRelatedField(many=True, queryset=Bus.objects.all(), required=False)
@@ -749,12 +750,46 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
 
 class BusBookingBasicSerializer(serializers.ModelSerializer):
     bus_number = serializers.CharField(source='bus.bus_number')
+    commission_amount = serializers.SerializerMethodField()
+    trip_type = serializers.SerializerMethodField()
+    total_members = serializers.SerializerMethodField()
+    one_member_name = serializers.SerializerMethodField()
+    created_date = serializers.SerializerMethodField()
 
     class Meta:
         model = BusBooking
-        fields = ['id','bus_number', 'from_location', 'to_location', 'total_amount', 'payment_status']
+        fields = ['id','bus_number', 'from_location', 'to_location', 'total_amount','commission_amount','trip_type','total_members',
+            'one_member_name','created_date']
 
 
+
+    def get_commission_amount(self, obj):
+        # Find commission related to this bus booking
+        commission = AdminCommission.objects.filter(booking_type='bus', booking_id=obj.id).first()
+        if commission:
+            return commission.revenue_to_admin
+        return None  # Or return 0 if you prefer
+    
+
+    def get_trip_type(self, obj):
+        if obj.one_way:
+            return "One Way"
+        else:
+            return "Two Way"
+        
+    def get_total_members(self, obj):
+        return obj.travelers.count()
+
+    def get_one_member_name(self, obj):
+        first_traveler = obj.travelers.first()
+        if first_traveler:
+            if first_traveler.last_name:
+                return f"{first_traveler.first_name} {first_traveler.last_name}"
+            return first_traveler.first_name
+        return None
+    
+    def get_created_date(self, obj):
+        return obj.created_at.strftime('%Y-%m-%d')
 
 
 
@@ -848,7 +883,7 @@ class CombinedBookingSerializer(serializers.Serializer):
 class VendorBusyDateSerializer(serializers.ModelSerializer):
     class Meta:
         model = VendorBusyDate
-        fields = ['date', 'from_time', 'to_time', 'reason']
+        fields = ['id','date', 'from_time', 'to_time', 'reason']
 
     def validate(self, data):
         from_time = data.get('from_time')
