@@ -1040,11 +1040,11 @@ class LatestPackageBookingDetailView(APIView):
 
 
 
-class BusBookingBasicHistoryView(APIView):
+class BusBookingEarningsHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        vendor = request.user.vendor   
+        vendor = request.user.vendor    
 
         vendor_buses = Bus.objects.filter(vendor=vendor)
 
@@ -1090,15 +1090,43 @@ class SingleBusBookingDetailView(APIView):
 
 
 
-class PackageBookingBasicHistoryView(APIView):
+# class PackageBookingBasicHistoryView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         package_bookings = PackageBooking.objects.filter(user=request.user).order_by('-start_date')
+#         serializer = PackageBookingBasicSerializer(package_bookings, many=True)
+#         return Response({"history": serializer.data})
+
+
+
+class PackageBookingEarningsView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request):
-        package_bookings = PackageBooking.objects.filter(user=request.user).order_by('-start_date')
-        serializer = PackageBookingBasicSerializer(package_bookings, many=True)
-        return Response({"history": serializer.data})
+        try:
+            vendor = Vendor.objects.filter(user=request.user).first()
+            if not vendor:
+                return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
 
+            package_bookings = PackageBooking.objects.filter(package__vendor=vendor).order_by('-start_date')
+            
+            total_revenue = package_bookings.aggregate(total_revenue=Sum('total_amount'))['total_revenue'] or 0.00
 
+            current_month = datetime.now().month
+            monthly_revenue = package_bookings.filter(start_date__month=current_month).aggregate(monthly_revenue=Sum('total_amount'))['monthly_revenue'] or 0.00
+            
+            serializer = PackageBookingEarnigsSerializer(package_bookings, many=True)
+            
+            return Response({
+                "earnings": serializer.data,
+                "total_revenue": total_revenue,
+                "monthly_revenue": monthly_revenue
+            })
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class SinglePackageBookingDetailView(APIView):
     permission_classes = [IsAuthenticated]
@@ -1112,7 +1140,44 @@ class SinglePackageBookingDetailView(APIView):
         serializer = PackageBookingDetailSerializer(package_booking)
         return Response({"package_booking_details": serializer.data})
 
+class PackageBookingEarningsFilterView(APIView):
+    permission_classes = [IsAuthenticated]   
 
+    def get(self, request):
+        filter_type = request.query_params.get('filter_type', None)
+        start_date = request.query_params.get('start_date', None)
+        end_date = request.query_params.get('end_date', None)
+        
+        package_bookings = PackageBooking.objects.all()
+
+        if filter_type == 'today':
+            today = datetime.today().date()
+            package_bookings = package_bookings.filter(created_at__date=today)
+
+        elif filter_type == 'last_week':
+            last_week = datetime.today() - timedelta(days=7)
+            package_bookings = package_bookings.filter(created_at__gte=last_week)
+
+        elif filter_type == 'last_month':
+            last_month = datetime.today() - timedelta(days=30)
+            package_bookings = package_bookings.filter(created_at__gte=last_month)
+
+        elif filter_type == 'custom':
+            if start_date and end_date:
+                try:
+                    start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+                    end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+                    package_bookings = package_bookings.filter(
+                        created_at__date__range=[start_date, end_date]
+                    )
+                except ValueError:
+                    return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({"error": "Start date and end date must be provided for custom filter."}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = PackageBookingEarnigsSerializer(package_bookings, many=True)
+
+        return Response({"package_bookings": serializer.data})
 
 
 
@@ -1207,7 +1272,7 @@ class VendorBusyDateCreateView(APIView):
 
 
 
-class BusBookingHistoryFilterView(APIView):
+class BusBookingEarningsHistoryFilterView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
