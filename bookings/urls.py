@@ -31,7 +31,7 @@ urlpatterns = [
     path('travelers/create/', TravelerCreateAPIView.as_view(), name='traveler-create'),
     path('travelers/<int:pk>/', TravelerDetailAPIView.as_view(), name='traveler-detail'),
 
-    path('categories/', PackageCategoryListAPIView.as_view(), name='package-category-list'),
-    path('subcategories/', PackageSubCategoryListAPIView.as_view(), name='package-subcategory-list'),
+    path('services/categories/', PackageCategoryListAPIView.as_view(), name='package-category-list'),
+    path('services/subcategories/', PackageSubCategoryListAPIView.as_view(), name='package-subcategory-list'),
 
 ]
