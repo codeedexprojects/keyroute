@@ -130,45 +130,11 @@ class BusSummarySerializer(serializers.ModelSerializer):
 
 
 
-
-
 # -----------------------
 
 class BusSerializer(serializers.ModelSerializer):
-
-
-    features = serializers.PrimaryKeyRelatedField(
-        queryset=BusFeature.objects.all(), many=True, required=False
-    )
-    amenities = serializers.PrimaryKeyRelatedField(
-        queryset=Amenity.objects.all(),
-        many=True,
-        required=False
-    )
-
-    # amenities = AmenitySerializer(many=True, read_only=True)
-    def to_representation(self, instance):
-        rep = super().to_representation(instance)
-        rep['amenities'] = AmenitySerializer(instance.amenities.all(), many=True).data
-        return rep
-
-    
-    class Meta:
-        model = Bus
-        fields = [
-            'id',
-            'features',
-            'id',
-            'features',
-            'minimum_fare',
-            'bus_travel_images',
-
-            'bus_name', 'bus_number',  'capacity', 'vehicle_description',
-            'vehicle_rc_number', 'travels_logo', 'rc_certificate', 'license',
-            'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance', 'bus_view_images','amenities','base_price', 'price_per_km' 
-        ]
-
-    
+    features = serializers.SerializerMethodField()
+    amenities = serializers.SerializerMethodField()
 
     bus_view_images = serializers.ListField(
         child=serializers.ImageField(),
@@ -176,16 +142,26 @@ class BusSerializer(serializers.ModelSerializer):
     )
 
     bus_travel_images = serializers.ListField(
-    child=serializers.ImageField(),
-    write_only=True,
-    required=False
+        child=serializers.ImageField(),
+        write_only=True,
+        required=False
     )
 
+    class Meta:
+        model = Bus
+        fields = [
+            'id', 'features', 'minimum_fare', 'bus_travel_images', 'bus_name', 'bus_number',
+            'capacity', 'vehicle_description', 'vehicle_rc_number', 'travels_logo',
+            'rc_certificate', 'license', 'contract_carriage_permit', 'passenger_insurance',
+            'vehicle_insurance', 'bus_view_images', 'amenities', 'base_price', 'price_per_km'
+        ]
 
-  
+    def get_features(self, obj):
+        return BusFeatureSerializer(obj.features.all(), many=True).data
+
     def get_amenities(self, obj):
-        return [amenity.name for amenity in obj.amenities.all()]
-  
+        return AmenitySerializer(obj.amenities.all(), many=True).data
+
     def validate_bus_number(self, value):
         if Bus.objects.filter(bus_number=value).exists():
             raise serializers.ValidationError("A bus with this number already exists.")
@@ -200,8 +176,7 @@ class BusSerializer(serializers.ModelSerializer):
         if not value.isalnum():
             raise serializers.ValidationError("RC number must be alphanumeric.")
         return value
-    
-  
+
 
     
     def create(self, validated_data):
@@ -223,6 +198,98 @@ class BusSerializer(serializers.ModelSerializer):
         bus.amenities.set(amenities)
         bus.features.set(features) 
         return bus
+
+# class BusSerializer(serializers.ModelSerializer):
+
+
+#     features = serializers.PrimaryKeyRelatedField(
+#         queryset=BusFeature.objects.all(), many=True, required=False
+#     )
+    
+#     amenities = serializers.PrimaryKeyRelatedField(
+#         queryset=Amenity.objects.all(),
+#         many=True,
+#         required=False
+#     )
+
+#     # amenities = AmenitySerializer(many=True, read_only=True)
+#     def to_representation(self, instance):
+#         rep = super().to_representation(instance)
+#         rep['amenities'] = AmenitySerializer(instance.amenities.all(), many=True).data
+#         return rep
+
+    
+#     class Meta:
+#         model = Bus
+#         fields = [
+#             'id',
+#             'features',
+#             'id',
+#             'features',
+#             'minimum_fare',
+#             'bus_travel_images',
+
+#             'bus_name', 'bus_number',  'capacity', 'vehicle_description',
+#             'vehicle_rc_number', 'travels_logo', 'rc_certificate', 'license',
+#             'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance', 'bus_view_images','amenities','base_price', 'price_per_km' 
+#         ]
+
+    
+
+#     bus_view_images = serializers.ListField(
+#         child=serializers.ImageField(),
+#         write_only=True
+#     )
+
+#     bus_travel_images = serializers.ListField(
+#     child=serializers.ImageField(),
+#     write_only=True,
+#     required=False
+#     )
+
+
+  
+#     def get_amenities(self, obj):
+#         return [amenity.name for amenity in obj.amenities.all()]
+  
+#     def validate_bus_number(self, value):
+#         if Bus.objects.filter(bus_number=value).exists():
+#             raise serializers.ValidationError("A bus with this number already exists.")
+#         return value
+
+#     def validate_capacity(self, value):
+#         if value <= 0:
+#             raise serializers.ValidationError("Capacity must be a positive number.")
+#         return value
+
+#     def validate_vehicle_rc_number(self, value):
+#         if not value.isalnum():
+#             raise serializers.ValidationError("RC number must be alphanumeric.")
+#         return value
+    
+  
+  
+
+    
+#     def create(self, validated_data):
+#         bus_images = validated_data.pop('bus_view_images', [])
+#         amenities = validated_data.pop('amenities', [])
+        
+#         features = validated_data.pop('features', [])
+#         vendor = self.context['vendor']
+#         travel_images = validated_data.pop('bus_travel_images', [])
+
+#         bus = Bus.objects.create(vendor=vendor, **validated_data)
+
+#         for image in bus_images:
+#             BusImage.objects.create(bus=bus, bus_view_image=image)
+
+#         for travel_img in travel_images:
+#             BusTravelImage.objects.create(bus=bus, image=travel_img)
+
+#         bus.amenities.set(amenities)
+#         bus.features.set(features) 
+#         return bus
 
 
 
