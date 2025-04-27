@@ -26,7 +26,7 @@ class PackageListAPIView(APIView):
     
     def get(self, request):
         packages = Package.objects.all()
-        serializer = PackageSerializer(packages, many=True)
+        serializer = PackageSerializer(packages, many=True, context={'request': request})
         return Response(serializer.data)
 
 class BusListAPIView(APIView):
@@ -34,7 +34,7 @@ class BusListAPIView(APIView):
     
     def get(self, request):
         buses = Bus.objects.all()
-        serializer = BusSerializer(buses, many=True)
+        serializer = BusSerializer(buses, many=True, context={'request': request})
         return Response(serializer.data)
 
 class PackageBookingListCreateAPIView(APIView):
