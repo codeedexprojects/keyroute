@@ -41,12 +41,6 @@ urlpatterns = [
 
 
 
-
-
-
-
-
-
     # PROFILE
     path('api/vendor/profile/', VendorProfileAPIView.as_view(), name='vendor-profile'),
 
@@ -87,14 +81,14 @@ urlpatterns = [
 
 
     # BOOKING HISTORY FROM BUS SIDE
-    path('api/vendor/busbasichistory/', BusBookingBasicHistoryView.as_view(), name='vendor-bus-revenue'),
+    path('api/vendor/bus-booking-earnings/', BusBookingEarningsHistoryView.as_view(), name='vendor-bus-revenue'),
     path('api/vendor/bus-booking-history/<int:booking_id>/', SingleBusBookingDetailView.as_view(), name='single-bus-booking-detail'),
     # FILTER
     path('api/vendor/bus-history-filter/', BusBookingHistoryFilterView.as_view(), name='bus-history-filter'),
 
 
     # BOOKING HISTORY FROM PACKAGE SIDE
-    path('api/package-booking-history/', PackageBookingBasicHistoryView.as_view(), name='package-booking-basic-history'),
+    path('api/package-booking-earnings/', PackageBookingEarningsView.as_view(), name='package-booking-basic-history'),
     path('api/package-booking-history/<int:booking_id>/', SinglePackageBookingDetailView.as_view(), name='single-package-booking-detail'),
     
 
