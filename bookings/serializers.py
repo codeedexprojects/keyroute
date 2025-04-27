@@ -25,7 +25,7 @@ class BaseBookingSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'balance_amount']
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
-            'advance_amount': {'write_only': True, 'required': False},
+            'advance_amount': {'write_only': False, 'required': False},
         }
 
 class BusBookingSerializer(BaseBookingSerializer):
@@ -39,7 +39,7 @@ class BusBookingSerializer(BaseBookingSerializer):
         ]
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
-            'advance_amount': {'write_only': True, 'required': False},
+            'advance_amount': {'write_only': False, 'required': False},
         }
     
     def get_bus_details(self, obj):
