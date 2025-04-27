@@ -11,11 +11,12 @@ from .models import (
     PackageCategory, PackageSubCategory, Package, PackageImage,
     DayPlan, Place, PlaceImage, Stay, StayImage, Meal, MealImage,
     Activity, ActivityImage, VendorBankDetail, VendorNotification,
-    VendorBusyDate, Favourite
+    VendorBusyDate
 )
 from bookings.models import (
     BusBooking, PackageBooking, Travelers
 )
+from users.models import Favourite
 
 
 class VendorSerializer(serializers.ModelSerializer):
@@ -303,7 +304,6 @@ class PackageSerializer(serializers.ModelSerializer):
             'day_plans_read',
             'is_favorite',
             'average_rating',
-            'total_reviews'
         ]
 
     def get_is_favorite(self, obj):
@@ -312,26 +312,20 @@ class PackageSerializer(serializers.ModelSerializer):
             return Favourite.objects.filter(user=request.user, package=obj).exists()
         return False
     
-    def get_average_rating(self, obj):
-        # Assuming you have a PackageReview model similar to BusReview
-        # If not, you'll need to create this model or adjust this code
-        from reviews.models import PackageReview
-        try:
-            avg = PackageReview.objects.filter(package=obj).aggregate(models.Avg('rating'))['rating__avg']
-            return round(avg, 1) if avg is not None else 0.0
-        except ImportError:
-            # If PackageReview doesn't exist yet
-            return 0.0
+    # def get_average_rating(self, obj):
+    #     from reviews.models import PackageReview
+    #     try:
+    #         avg = PackageReview.objects.filter(package=obj).aggregate(models.Avg('rating'))['rating__avg']
+    #         return round(avg, 1) if avg is not None else 0.0
+    #     except ImportError:
+    #         return 0.0
     
-    def get_total_reviews(self, obj):
-        # Assuming you have a PackageReview model similar to BusReview
-        # If not, you'll need to create this model or adjust this code
-        from reviews.models import PackageReview
-        try:
-            return PackageReview.objects.filter(package=obj).count()
-        except ImportError:
-            # If PackageReview doesn't exist yet
-            return 0
+    # def get_total_reviews(self, obj):
+    #     from reviews.models import PackageReview
+    #     try:
+    #         return PackageReview.objects.filter(package=obj).count()
+    #     except ImportError:
+    #         return 0
 
     def validate_days(self, value):
         if value <= 0:
@@ -416,7 +410,6 @@ class PackageBasicSerializer(serializers.ModelSerializer):
             'extra_charge_per_km',
             'is_favorite',
             'average_rating',
-            'total_reviews'
         ]
     
     def get_is_favorite(self, obj):
@@ -425,26 +418,20 @@ class PackageBasicSerializer(serializers.ModelSerializer):
             return Favourite.objects.filter(user=request.user, package=obj).exists()
         return False
     
-    def get_average_rating(self, obj):
-        # Assuming you have a PackageReview model similar to BusReview
-        # If not, you'll need to create this model or adjust this code
-        from reviews.models import PackageReview
-        try:
-            avg = PackageReview.objects.filter(package=obj).aggregate(models.Avg('rating'))['rating__avg']
-            return round(avg, 1) if avg is not None else 0.0
-        except ImportError:
-            # If PackageReview doesn't exist yet
-            return 0.0
+    # def get_average_rating(self, obj):
+    #     from reviews.models import PackageReview
+    #     try:
+    #         avg = PackageReview.objects.filter(package=obj).aggregate(models.Avg('rating'))['rating__avg']
+    #         return round(avg, 1) if avg is not None else 0.0
+    #     except ImportError:
+    #         return 0.0
     
-    def get_total_reviews(self, obj):
-        # Assuming you have a PackageReview model similar to BusReview
-        # If not, you'll need to create this model or adjust this code
-        from reviews.models import PackageReview
-        try:
-            return PackageReview.objects.filter(package=obj).count()
-        except ImportError:
-            # If PackageReview doesn't exist yet
-            return 0
+    # def get_total_reviews(self, obj):
+    #     from reviews.models import PackageReview
+    #     try:
+    #         return PackageReview.objects.filter(package=obj).count()
+    #     except ImportError:
+    #         return 0
 
     def create(self, validated_data):
         vendor = self.context['vendor']
@@ -571,26 +558,20 @@ class PackageReadSerializer(serializers.ModelSerializer):
             return Favourite.objects.filter(user=request.user, package=obj).exists()
         return False
     
-    def get_average_rating(self, obj):
-        # Assuming you have a PackageReview model similar to BusReview
-        # If not, you'll need to create this model or adjust this code
-        from reviews.models import PackageReview
-        try:
-            avg = PackageReview.objects.filter(package=obj).aggregate(models.Avg('rating'))['rating__avg']
-            return round(avg, 1) if avg is not None else 0.0
-        except ImportError:
-            # If PackageReview doesn't exist yet
-            return 0.0
+    # def get_average_rating(self, obj):
+    #     from reviews.models import PackageReview
+    #     try:
+    #         avg = PackageReview.objects.filter(package=obj).aggregate(models.Avg('rating'))['rating__avg']
+    #         return round(avg, 1) if avg is not None else 0.0
+    #     except ImportError:
+    #         return 0.0
     
-    def get_total_reviews(self, obj):
-        # Assuming you have a PackageReview model similar to BusReview
-        # If not, you'll need to create this model or adjust this code
-        from reviews.models import PackageReview
-        try:
-            return PackageReview.objects.filter(package=obj).count()
-        except ImportError:
-            # If PackageReview doesn't exist yet
-            return 0
+    # def get_total_reviews(self, obj):
+    #     from reviews.models import PackageReview
+    #     try:
+    #         return PackageReview.objects.filter(package=obj).count()
+    #     except ImportError:
+    #         return 0
 
 
 class PackageSerializerPUT(serializers.ModelSerializer):
