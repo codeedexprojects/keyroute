@@ -82,39 +82,39 @@ class AmenitySerializer(serializers.ModelSerializer):
 # ----------------------------------- list bus----------------------
 
 
-# class BusSummarySerializer(serializers.ModelSerializer):
-#     amenities_count = serializers.SerializerMethodField()
-#     features = serializers.SerializerMethodField()
-#     bus_travel_image = serializers.SerializerMethodField()  
+class BusSummarySerializer(serializers.ModelSerializer):
+    amenities_count = serializers.SerializerMethodField()
+    features = serializers.SerializerMethodField()
+    bus_travel_image = serializers.SerializerMethodField()  
 
-#     class Meta:
-#         model = Bus
-#         fields = [
-#             'bus_name',
-#             'bus_number',
-#             'features',
-#             'capacity',
-#             'amenities_count',
-#             'base_price',
-#             'price_per_km',
-#             'bus_travel_image'   
-#         ]
+    class Meta:
+        model = Bus
+        fields = ['id',
+            'bus_name',
+            'bus_number',
+            'features',
+            'capacity',
+            'amenities_count',
+            'base_price',
+            'price_per_km',
+            'bus_travel_image'   
+        ]
     
-#     def get_features(self, obj):
-#         return [feature.name for feature in obj.features.all()]
+    def get_features(self, obj):
+        return [feature.name for feature in obj.features.all()]
 
-#     def get_amenities_count(self, obj):
-#         amenities_count = obj.amenities.count()
-#         return f"{amenities_count}+" if amenities_count >= 5 else str(amenities_count)
+    def get_amenities_count(self, obj):
+        amenities_count = obj.amenities.count()
+        return f"{amenities_count}+" if amenities_count >= 5 else str(amenities_count)
 
-#     def get_total_capacity(self, obj):
-#         return obj.capacity
+    def get_total_capacity(self, obj):
+        return obj.capacity
 
-#     def get_bus_travel_image(self, obj):
-#         bus_travel_image = BusTravelImage.objects.filter(bus=obj).first()
-#         if bus_travel_image and bus_travel_image.image:
-#             return bus_travel_image.image.url   
-#         return None  
+    def get_bus_travel_image(self, obj):
+        bus_travel_image = BusTravelImage.objects.filter(bus=obj).first()
+        if bus_travel_image and bus_travel_image.image:
+            return bus_travel_image.image.url   
+        return None  
 
 
 
