@@ -74,6 +74,60 @@ class AmenitySerializer(serializers.ModelSerializer):
         model = Amenity
         fields = ['id', 'name', 'icon']
 
+# ----------------------------------- list bus----------------------
+
+
+class BusSummarySerializer(serializers.ModelSerializer):
+    amenities_count = serializers.SerializerMethodField()
+    features = serializers.SerializerMethodField()
+    bus_travel_image = serializers.SerializerMethodField()  
+
+    class Meta:
+        model = Bus
+        fields = [
+            'bus_name',
+            'bus_number',
+            'features',
+            'capacity',
+            'amenities_count',
+            'base_price',
+            'price_per_km',
+            'bus_travel_image'   
+        ]
+    
+    def get_features(self, obj):
+        return [feature.name for feature in obj.features.all()]
+
+    def get_amenities_count(self, obj):
+        amenities_count = obj.amenities.count()
+        return f"{amenities_count}+" if amenities_count >= 5 else str(amenities_count)
+
+    def get_total_capacity(self, obj):
+        return obj.capacity
+
+    def get_bus_travel_image(self, obj):
+        bus_travel_image = BusTravelImage.objects.filter(bus=obj).first()
+        if bus_travel_image and bus_travel_image.image:
+            return bus_travel_image.image.url   
+        return None  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# -----------------------
 
 class BusSerializer(serializers.ModelSerializer):
     features = serializers.PrimaryKeyRelatedField(
@@ -574,6 +628,7 @@ class PackageReadSerializer(serializers.ModelSerializer):
     #         return 0
 
 
+
 class PackageSerializerPUT(serializers.ModelSerializer):
     day_plans = DayPlanEditSerializer(many=True, required=False)
     buses = serializers.PrimaryKeyRelatedField(many=True, queryset=Bus.objects.all(), required=False)
@@ -737,10 +792,55 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
 
 class BusBookingBasicSerializer(serializers.ModelSerializer):
     bus_number = serializers.CharField(source='bus.bus_number')
+    commission_amount = serializers.SerializerMethodField()
+    trip_type = serializers.SerializerMethodField()
+    total_members = serializers.SerializerMethodField()
+    one_member_name = serializers.SerializerMethodField()
+    created_date = serializers.SerializerMethodField()
+    earnings = serializers.SerializerMethodField() 
 
     class Meta:
         model = BusBooking
-        fields = ['id', 'bus_number', 'from_location', 'to_location', 'total_amount', 'payment_status']
+
+        fields = ['id','bus_number', 'from_location', 'to_location', 'total_amount','commission_amount','trip_type','total_members',
+            'one_member_name','created_date','earnings','payment_status']
+
+
+
+    def get_commission_amount(self, obj):
+        # Find commission related to this bus booking
+        commission = AdminCommission.objects.filter(booking_type='bus', booking_id=obj.id).first()
+        if commission:
+            return commission.revenue_to_admin
+        return None  # Or return 0 if you prefer
+    
+
+    def get_trip_type(self, obj):
+        if obj.one_way:
+            return "One Way"
+        else:
+            return "Two Way"
+        
+    def get_total_members(self, obj):
+        return obj.travelers.count()
+
+    def get_one_member_name(self, obj):
+        first_traveler = obj.travelers.first()
+        if first_traveler:
+            if first_traveler.last_name:
+                return f"{first_traveler.first_name} {first_traveler.last_name}"
+            return first_traveler.first_name
+        return None
+    
+    def get_created_date(self, obj):
+        return obj.created_at.strftime('%Y-%m-%d')
+    
+    def get_earnings(self, obj):
+        commission_amount = self.get_commission_amount(obj) or 0
+        return obj.total_amount - commission_amount
+
+
+
 
 
 class BusInfoSerializer(serializers.ModelSerializer):
@@ -764,15 +864,51 @@ class BusBookingDetailSerializer(serializers.ModelSerializer):
         ]
 
 
-class PackageBookingBasicSerializer(serializers.ModelSerializer):
+
+from decimal import Decimal
+
+class PackageBookingEarnigsSerializer(serializers.ModelSerializer):
     package_name = serializers.CharField(source='package.places')
-    start_date = serializers.DateField()
     total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     payment_status = serializers.CharField()
+    commission = serializers.SerializerMethodField()  
+    earnings = serializers.SerializerMethodField()   
+    trip_type = serializers.SerializerMethodField() 
+    total_members = serializers.SerializerMethodField()  
+    one_member_name = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+
 
     class Meta:
         model = PackageBooking
-        fields = ['id', 'package_name', 'start_date', 'total_amount', 'payment_status']
+        fields = ['id', 'package_name', 'total_amount', 'start_date','payment_status', 'commission', 'earnings','trip_type','total_members','one_member_name','created_at']
+
+    def get_commission(self, obj):
+        commission = AdminCommission.objects.filter(booking_type='package', booking_id=obj.id).first()
+        return commission.revenue_to_admin if commission else 0.00   
+
+    def get_earnings(self, obj):
+        commission = Decimal(self.get_commission(obj))   
+        return obj.total_amount - commission
+    
+    def get_trip_type(self, obj):
+        return "Two Way"
+    def get_total_members(self, obj):
+        return obj.total_travelers  
+    def get_created_at(self, obj):
+        return obj.created_at.date() if obj.created_at else None
+
+   
+    def get_one_member_name(self, obj):
+        first_traveler = obj.travelers.first()
+        if first_traveler:
+            if first_traveler.last_name:
+                return f"{first_traveler.first_name} {first_traveler.last_name}"
+            return first_traveler.first_name
+        return None
+    
+
+
 
 
 class PackageBookingDetailSerializer(serializers.ModelSerializer):
@@ -800,4 +936,37 @@ class CombinedBookingSerializer(serializers.Serializer):
     name = serializers.SerializerMethodField()   
     from_location = serializers.CharField()
     to_location = serializers.CharField()
-    total_amount = serializers.DecimalFiel
+    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    payment_status = serializers.CharField()
+    created_at = serializers.DateTimeField()
+    members_count = serializers.SerializerMethodField()
+
+    def get_type(self, obj):
+        return "bus" if isinstance(obj, BusBooking) else "package"
+
+    def get_name(self, obj):
+        traveler = obj.travelers.first()
+        if traveler:
+            return f"{traveler.first_name} {traveler.last_name or ''}".strip()
+        return "No Name"
+
+    def get_members_count(self, obj):
+        return obj.travelers.count()
+
+
+
+
+
+
+class VendorBusyDateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VendorBusyDate
+        fields = ['id','date', 'from_time', 'to_time', 'reason']
+
+    def validate(self, data):
+        from_time = data.get('from_time')
+        to_time = data.get('to_time')
+
+        if from_time and to_time and from_time >= to_time:
+            raise serializers.ValidationError("From time must be earlier than to time.")
+        return data

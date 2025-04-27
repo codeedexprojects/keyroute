@@ -10,3 +10,6 @@ admin.site.register(Sight)
 admin.site.register(LimitedDeal)
 admin.site.register(FooterSection)
 admin.site.register(LimitedDealImage)
+admin.site.register(AdminCommission)
+
+admin.site.register(AdminCommissionSlab)

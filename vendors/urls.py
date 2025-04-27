@@ -32,16 +32,10 @@ urlpatterns = [
     # PACKAGE 
     path('api/vendor/package/', PackageAPIView.as_view(), name='package-create-list'),
     path('api/vendor/package/<int:package_id>/', PackageAPIView.as_view(), name='package-detail'), 
-    
+
     # NEW
     path('packages/create/', BasicPackageAPIView.as_view(), name='create-package'),
     path('packages/<int:package_id>/add-day-plans/', DayPlanCreateAPIView.as_view(), name='add-day-plans'),
-
-
-
-
-
-
 
 
 
@@ -76,6 +70,9 @@ urlpatterns = [
 
     # LATEST BOOKING 
     path('api/vendor/latest/', LatestSingleBookingView.as_view(), name='latest-bus-bookings'),
+
+    # LATEST CANCEL
+    path('api/vendor/latest-canceled-booking/', LatestCanceledBookingView.as_view(), name='latest-canceled-booking'),
    
    
    
@@ -83,18 +80,26 @@ urlpatterns = [
     path('api/package-booking/latest/', LatestPackageBookingDetailView.as_view(), name='latest-package-booking-detail'),
 
 
-    # BOOKING HISTORY FROM BUS SIDE
-    path('api/vendor/busbasichistory/', BusBookingBasicHistoryView.as_view(), name='vendor-bus-revenue'),
+    # EARNINGS BUS + PACKAGE
+    path('api/vendor/bus-booking-earnings/', BusBookingEarningsHistoryView.as_view(), name='vendor-bus-revenue'),
+    path('api/package-booking-earnings/', PackageBookingEarningsView.as_view(), name='package-booking-basic-history'),
+
+    # SINGLE BUS BOOKING HISTORY
     path('api/vendor/bus-booking-history/<int:booking_id>/', SingleBusBookingDetailView.as_view(), name='single-bus-booking-detail'),
-
-
-    # BOOKING HISTORY FROM PACKAGE SIDE
-    path('api/package-booking-history/', PackageBookingBasicHistoryView.as_view(), name='package-booking-basic-history'),
+    
+    # SIGNLE BOOKING HISTORY
     path('api/package-booking-history/<int:booking_id>/', SinglePackageBookingDetailView.as_view(), name='single-package-booking-detail'),
     
+    
+    # FILTER EARNINGS BUS AND PACKAGE
+    path('api/vendor/bus-earnings-history-filter/', BusBookingEarningsHistoryFilterView.as_view(), name='bus-history-filter'),
+    path('api/vendor/package-earnings-history-filter/', PackageBookingEarningsFilterView.as_view(), name='bus-history-filter'),
 
 
-    path('api/vendor/busy-date/create/', VendorBusyDateCreateView.as_view(), name='create-busy-date'),
+
+    # MARK EVENT
+    path('api/vendor/busy-date/', VendorBusyDateCreateView.as_view(), name='create-busy-date'),
+    path('api/vendor/busy-date/<int:pk>/', VendorBusyDateCreateView.as_view(), name='create-busy-date'),
 
     path('api/vendor/booking/<str:booking_type>/filter/<str:date>/', BookingFilterByDate.as_view(), name='booking-by-filter'),
 ]
