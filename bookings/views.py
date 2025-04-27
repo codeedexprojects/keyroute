@@ -15,6 +15,9 @@ from admin_panel.models import Vendor
 from users.models import Favourite
 from notifications.utils import send_notification
 from django.utils.dateparse import parse_date
+from datetime import datetime, time
+from django.db.models import Q
+
 
 from .utils import *
 
@@ -34,7 +37,6 @@ class BusListAPIView(APIView):
         serializer = BusSerializer(buses, many=True)
         return Response(serializer.data)
 
-# Package Booking Views
 class PackageBookingListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -50,13 +52,11 @@ class PackageBookingListCreateAPIView(APIView):
             vendor = package.vendor
             booking_date = serializer.validated_data['start_date']
 
-            # Check if vendor is busy
             if is_vendor_busy(vendor, booking_date):
                 return Response({"error": "Vendor is busy on the selected date."}, status=status.HTTP_400_BAD_REQUEST)
 
             booking = serializer.save(user=request.user)
             
-            # Create a traveler entry for the user who's making the booking
             traveler_data = {
                 "first_name": request.user.name or request.user.username,
                 "last_name": '',
@@ -75,7 +75,6 @@ class PackageBookingListCreateAPIView(APIView):
             if travelerSerializer.is_valid():
                 travelerSerializer.save()
                 
-                # Send notification to user about successful booking
                 package_name = booking.package.name if hasattr(booking.package, 'name') else "Tour package"
                 send_notification(
                     user=request.user,
@@ -84,7 +83,6 @@ class PackageBookingListCreateAPIView(APIView):
                 
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             else:
-                # If traveler creation fails, delete the booking
                 booking.delete()
                 return Response(travelerSerializer.errors, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -117,7 +115,6 @@ class PackageBookingDetailAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# Bus Booking Views
 class BusBookingListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -134,8 +131,6 @@ class BusBookingListCreateAPIView(APIView):
             vendor = bus.vendor
             booking_date = serializer.validated_data['start_date']
 
-            # Optional: If your system has bus departure time, you can extract it from request or model
-            # For now, let's assume it's not time-bound
             if is_vendor_busy(vendor, booking_date):
                 return Response({"error": "Vendor is busy on the selected date."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -439,6 +434,7 @@ class CancelBookingView(APIView):
             )
         
 
+        
 
 
 
@@ -461,15 +457,45 @@ class BookingFilterByDate(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        start_datetime = datetime.combine(parsed_date, time.min)
+        end_datetime = datetime.combine(parsed_date, time.max)
+
         if booking_type == 'bus':
-            bookings = BusBooking.objects.filter(created_at__date=parsed_date, bus__vendor=vendor)
+            bookings = BusBooking.objects.filter(
+                created_at__gte=start_datetime,
+                created_at__lte=end_datetime,
+                bus__vendor=vendor
+            )
             serializer = BusBookingSerializer(bookings, many=True)
         elif booking_type == 'package':
-            bookings = PackageBooking.objects.filter(created_at__date=parsed_date, package__vendor=vendor)
+            bookings = PackageBooking.objects.filter(
+                created_at__gte=start_datetime,
+                created_at__lte=end_datetime,
+                package__vendor=vendor
+            )
             serializer = PackageBookingSerializer(bookings, many=True)
+        elif booking_type == 'all':
+            bus_bookings = BusBooking.objects.filter(
+                created_at__gte=start_datetime,
+                created_at__lte=end_datetime,
+                bus__vendor=vendor
+            )
+            package_bookings = PackageBooking.objects.filter(
+                created_at__gte=start_datetime,
+                created_at__lte=end_datetime,
+                package__vendor=vendor
+            )
+            
+            bus_data = BusBookingSerializer(bus_bookings, many=True).data
+            package_data = PackageBookingSerializer(package_bookings, many=True).data
+            
+            return Response({
+                "bus_bookings": bus_data,
+                "package_bookings": package_data
+            }, status=status.HTTP_200_OK)
         else:
             return Response(
-                {"error": "Invalid booking type. Must be 'bus' or 'package'."},
+                {"error": "Invalid booking type. Must be 'bus', 'package', or 'all'."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
