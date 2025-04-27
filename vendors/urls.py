@@ -41,12 +41,6 @@ urlpatterns = [
 
 
 
-
-
-
-
-
-
     # PROFILE
     path('api/vendor/profile/', VendorProfileAPIView.as_view(), name='vendor-profile'),
 
@@ -86,17 +80,22 @@ urlpatterns = [
     path('api/package-booking/latest/', LatestPackageBookingDetailView.as_view(), name='latest-package-booking-detail'),
 
 
-    # BOOKING HISTORY FROM BUS SIDE
-    path('api/vendor/busbasichistory/', BusBookingBasicHistoryView.as_view(), name='vendor-bus-revenue'),
+    # EARNINGS BUS + PACKAGE
+    path('api/vendor/bus-booking-earnings/', BusBookingEarningsHistoryView.as_view(), name='vendor-bus-revenue'),
+    path('api/package-booking-earnings/', PackageBookingEarningsView.as_view(), name='package-booking-basic-history'),
+
+    # SINGLE BUS BOOKING HISTORY
     path('api/vendor/bus-booking-history/<int:booking_id>/', SingleBusBookingDetailView.as_view(), name='single-bus-booking-detail'),
-    # FILTER
-    path('api/vendor/bus-history-filter/', BusBookingHistoryFilterView.as_view(), name='bus-history-filter'),
-
-
-    # BOOKING HISTORY FROM PACKAGE SIDE
-    path('api/package-booking-history/', PackageBookingBasicHistoryView.as_view(), name='package-booking-basic-history'),
+    
+    # SIGNLE BOOKING HISTORY
     path('api/package-booking-history/<int:booking_id>/', SinglePackageBookingDetailView.as_view(), name='single-package-booking-detail'),
     
+    
+    # FILTER EARNINGS BUS AND PACKAGE
+    path('api/vendor/bus-earnings-history-filter/', BusBookingEarningsHistoryFilterView.as_view(), name='bus-history-filter'),
+    path('api/vendor/package-earnings-history-filter/', PackageBookingEarningsFilterView.as_view(), name='bus-history-filter'),
+
+
 
     # MARK EVENT
     path('api/vendor/busy-date/', VendorBusyDateCreateView.as_view(), name='create-busy-date'),

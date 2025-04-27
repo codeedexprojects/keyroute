@@ -58,7 +58,7 @@ class PackageBookingListCreateAPIView(APIView):
             booking = serializer.save(user=request.user)
             
             traveler_data = {
-                "first_name": request.user.name or request.user.username,
+                "first_name": request.user.name,
                 "last_name": '',
                 "gender": request.data.get('gender', ''),
                 "place": request.data.get('place', ''),
