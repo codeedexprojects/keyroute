@@ -1040,7 +1040,7 @@ class LatestPackageBookingDetailView(APIView):
 
 
 
-class BusBookingBasicHistoryView(APIView):
+class BusBookingEarningsHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -1090,15 +1090,43 @@ class SingleBusBookingDetailView(APIView):
 
 
 
-class PackageBookingBasicHistoryView(APIView):
+# class PackageBookingBasicHistoryView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         package_bookings = PackageBooking.objects.filter(user=request.user).order_by('-start_date')
+#         serializer = PackageBookingBasicSerializer(package_bookings, many=True)
+#         return Response({"history": serializer.data})
+
+
+
+class PackageBookingEarningsView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request):
-        package_bookings = PackageBooking.objects.filter(user=request.user).order_by('-start_date')
-        serializer = PackageBookingBasicSerializer(package_bookings, many=True)
-        return Response({"history": serializer.data})
+        try:
+            vendor = Vendor.objects.filter(user=request.user).first()
+            if not vendor:
+                return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
 
+            package_bookings = PackageBooking.objects.filter(package__vendor=vendor).order_by('-start_date')
+            
+            total_revenue = package_bookings.aggregate(total_revenue=Sum('total_amount'))['total_revenue'] or 0.00
 
+            current_month = datetime.now().month
+            monthly_revenue = package_bookings.filter(start_date__month=current_month).aggregate(monthly_revenue=Sum('total_amount'))['monthly_revenue'] or 0.00
+            
+            serializer = PackageBookingEarnigsSerializer(package_bookings, many=True)
+            
+            return Response({
+                "earnings": serializer.data,
+                "total_revenue": total_revenue,
+                "monthly_revenue": monthly_revenue
+            })
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class SinglePackageBookingDetailView(APIView):
     permission_classes = [IsAuthenticated]

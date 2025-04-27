@@ -878,17 +878,49 @@ class BusBookingDetailSerializer(serializers.ModelSerializer):
 
 
 
+from decimal import Decimal
 
-
-class PackageBookingBasicSerializer(serializers.ModelSerializer):
+class PackageBookingEarnigsSerializer(serializers.ModelSerializer):
     package_name = serializers.CharField(source='package.places')
-    start_date = serializers.DateField()
     total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     payment_status = serializers.CharField()
+    commission = serializers.SerializerMethodField()  
+    earnings = serializers.SerializerMethodField()   
+    trip_type = serializers.SerializerMethodField() 
+    total_members = serializers.SerializerMethodField()  
+    one_member_name = serializers.SerializerMethodField()
+    created_at = serializers.SerializerMethodField()
+
 
     class Meta:
         model = PackageBooking
-        fields = ['id','package_name', 'start_date', 'total_amount', 'payment_status']
+        fields = ['id', 'package_name', 'total_amount', 'payment_status', 'commission', 'earnings','trip_type','total_members','one_member_name','created_at']
+
+    def get_commission(self, obj):
+        commission = AdminCommission.objects.filter(booking_type='package', booking_id=obj.id).first()
+        return commission.revenue_to_admin if commission else 0.00   
+
+    def get_earnings(self, obj):
+        commission = Decimal(self.get_commission(obj))   
+        return obj.total_amount - commission
+    
+    def get_trip_type(self, obj):
+        return "Two Way"
+    def get_total_members(self, obj):
+        return obj.total_travelers  
+    def get_created_at(self, obj):
+        return obj.created_at.date() if obj.created_at else None
+
+   
+    def get_one_member_name(self, obj):
+        first_traveler = obj.travelers.first()
+        if first_traveler:
+            if first_traveler.last_name:
+                return f"{first_traveler.first_name} {first_traveler.last_name}"
+            return first_traveler.first_name
+        return None
+    
+
 
 
 
