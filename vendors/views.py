@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 from bookings.models import *
 from django.db.models import Sum, Count, F
 from django.utils.timezone import now
-
+from .serializers import PackageBasicSerializer
 from admin_panel.models import *
 
 # Create your views here.
@@ -1338,11 +1338,11 @@ class LatestCanceledBookingView(APIView):
                 if latest_bus_canceled.created_at > latest_package_canceled.created_at:
                     response_data = BusBookingBasicSerializer(latest_bus_canceled).data
                 else:
-                    response_data = PackageBookingBasicSerializer(latest_package_canceled).data
+                    response_data = PackageBasicSerializer(latest_package_canceled).data
             elif latest_bus_canceled:
                 response_data = BusBookingBasicSerializer(latest_bus_canceled).data
             elif latest_package_canceled:
-                response_data = PackageBookingBasicSerializer(latest_package_canceled).data
+                response_data = PackageBasicSerializer(latest_package_canceled).data
             else:
                 return Response({"message": "No canceled bookings found for this vendor."}, status=404)
 
