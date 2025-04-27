@@ -59,7 +59,7 @@ class BusBookingSerializer(BaseBookingSerializer):
         AdminCommission.objects.create(
             booking_type='bus',
             booking_id=booking.id,
-            trip_amount=advance_amount,
+            advance_amount=advance_amount,
             commission_percentage=commission_percent,
             revenue_to_admin=revenue
         )
@@ -99,7 +99,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
         AdminCommission.objects.create(
             booking_type='package',
             booking_id=booking.id,
-            trip_amount=advance_amount,
+            advance_amount=advance_amount,
             commission_percentage=commission_percent,
             revenue_to_admin=revenue
         )
