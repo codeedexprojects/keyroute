@@ -755,11 +755,12 @@ class BusBookingBasicSerializer(serializers.ModelSerializer):
     total_members = serializers.SerializerMethodField()
     one_member_name = serializers.SerializerMethodField()
     created_date = serializers.SerializerMethodField()
+    earnings = serializers.SerializerMethodField() 
 
     class Meta:
         model = BusBooking
         fields = ['id','bus_number', 'from_location', 'to_location', 'total_amount','commission_amount','trip_type','total_members',
-            'one_member_name','created_date']
+            'one_member_name','created_date','earnings']
 
 
 
@@ -790,6 +791,11 @@ class BusBookingBasicSerializer(serializers.ModelSerializer):
     
     def get_created_date(self, obj):
         return obj.created_at.strftime('%Y-%m-%d')
+    
+    def get_earnings(self, obj):
+        commission_amount = self.get_commission_amount(obj) or 0
+        return obj.total_amount - commission_amount
+
 
 
 
