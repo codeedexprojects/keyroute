@@ -941,11 +941,10 @@ class BusBookingBasicSerializer(serializers.ModelSerializer):
 
 
     def get_commission_amount(self, obj):
-        # Find commission related to this bus booking
         commission = AdminCommission.objects.filter(booking_type='bus', booking_id=obj.id).first()
         if commission:
             return commission.revenue_to_admin
-        return None  # Or return 0 if you prefer
+        return None   
     
 
     def get_trip_type(self, obj):
@@ -1005,7 +1004,7 @@ class BusBookingDetailSerializer(serializers.ModelSerializer):
         elif obj.payment_status == 'cancelled':
             return "cancelled"
         else:
-            return "unknown"  # fallback, just in case
+            return "unknown"   
 
 
 
@@ -1136,3 +1135,25 @@ class VendorBusyDateSerializer(serializers.ModelSerializer):
         if from_time and to_time and from_time >= to_time:
             raise serializers.ValidationError("From time must be earlier than to time.")
         return data
+    
+
+
+class PackageBookingBasicSerializer(serializers.ModelSerializer):
+    package_name = serializers.CharField(source='package.places')  
+    start_date = serializers.DateField()
+    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    payment_status = serializers.CharField()
+    booking_status = serializers.BooleanField()
+    created_at = serializers.DateTimeField()
+
+    class Meta:
+        model = PackageBooking
+        fields = ['id', 'package_name', 'start_date', 'total_amount', 'payment_status', 'booking_status', 'created_at']
+
+
+
+
+
+
+
+
