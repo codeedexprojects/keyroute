@@ -1671,6 +1671,75 @@ class AcceptedBusBookingDetailView(APIView):
 
 
 
+class AcceptPackageBookingView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, booking_id):
+        print('is working',booking_id)
+        try:
+            vendor = request.user.vendor   
+            package_booking = PackageBooking.objects.filter(
+                id=booking_id, 
+                booking_status='pending',   
+                package__vendor=vendor   
+            ).first()
+
+            if package_booking:
+                driver_name = request.data.get('name')
+                driver_place = request.data.get('place')
+                driver_phone_number = request.data.get('phone_number')
+                driver_image = request.FILES.get('driver_image')  
+                license_image = request.FILES.get('license_image')  
+                experience = request.data.get('experience')
+                age = request.data.get('age')
+                
+                print('1')
+                driver_details = PackageDriverDetail.objects.create(
+                    package_booking=package_booking,
+                    name=driver_name,
+                    place=driver_place,
+                    phone_number=driver_phone_number,
+                    driver_image=driver_image,
+                    license_image=license_image,
+                    experience=experience,
+                    age=age
+                )
+
+                print('2')
+
+                package_booking.booking_status = 'accepted'
+                package_booking.save()
+
+                return Response({"message": "Package booking accepted and driver details created."}, status=status.HTTP_200_OK)
+            else:
+                return Response({"message": "No pending package booking found with this ID for the current vendor."}, 
+                                 status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
+
+
+class AcceptedPackageBookingDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, booking_id):
+        try:
+            vendor = request.user.vendor   
+            package_booking = PackageBooking.objects.filter(
+                id=booking_id, 
+                booking_status='accepted',   
+                package__vendor=vendor   
+            ).first()
+
+            if package_booking:
+                serializer = AcceptedPackageBookingSerializer(package_booking)
+                return Response({"package_booking_details": serializer.data}, status=status.HTTP_200_OK)
+            else:
+                return Response({"message": "No accepted package booking found with this ID for the current vendor."}, 
+                                 status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
