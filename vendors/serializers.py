@@ -1189,3 +1189,13 @@ class AcceptedPackageBookingSerializer(serializers.ModelSerializer):
         fields = ['id', 'start_date', 'total_amount', 'advance_amount', 'payment_status', 'booking_status', 
                   'from_location', 'to_location', 'created_at', 'total_travelers', 'male', 'female', 'children', 
                   'cancelation_reason', 'driver_detail']
+
+
+
+
+class PackageBookingListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageBooking
+        fields = ['id', 'start_date', 'total_amount', 'advance_amount', 'payment_status', 'booking_status', 
+                  'from_location', 'to_location', 'created_at', 'total_travelers', 'male', 'female', 'children', 
+                  'cancelation_reason']
