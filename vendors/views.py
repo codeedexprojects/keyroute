@@ -79,10 +79,18 @@ class LoginAPIView(APIView):
             )
 
         refresh = RefreshToken.for_user(user)
+        vendor_name = ""
+        try:
+            vendor_name = user.vendor.full_name
+            travels_name= user.vendor.travels_name
+        except Vendor.DoesNotExist:
+            pass
         return Response({
             "message": "Login successful!",
             "refresh": str(refresh),
             "access": str(refresh.access_token),
+            "vendor_name": vendor_name,
+            "travels_name":travels_name
         }, status=status.HTTP_200_OK)
 
 
@@ -996,6 +1004,22 @@ class LatestSingleBookingView(APIView):
 
 
 
+class VendorBusBookingListView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    """API View to get the current vendor's bus bookings"""
+
+    def get(self, request, format=None):
+        try:
+            # Assuming Vendor model has a OneToOne relation with User
+            vendor = Vendor.objects.get(user=request.user)
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Filter bookings where bus.vendor matches the current vendor
+        bookings = BusBooking.objects.filter(bus__vendor=vendor)
+        serializer = BusBookingDetailSerializer(bookings, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 
@@ -1127,6 +1151,35 @@ class PackageBookingEarningsView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+class PackageBookingListView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        user = request.user
+        vendor = user.vendor   
+        
+        package_bookings = PackageBooking.objects.filter(user__vendor=vendor)
+        
+        serializer = PackageBookingDetailSerializer(package_bookings, many=True)
+        
+        return Response({"package_bookings": serializer.data}, status=200)
+
+
+
+
+
+
+
+
+
+
+
 
 class SinglePackageBookingDetailView(APIView):
     permission_classes = [IsAuthenticated]
