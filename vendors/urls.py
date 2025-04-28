@@ -126,7 +126,11 @@ urlpatterns = [
 
 
     path('api/vendor/accepted-bus-booking-detail/<int:booking_id>/', AcceptedBusBookingDetailView.as_view(),name='accepted_bus_booking_detail'),
+    path('api/vendor/accepted-package-booking/<int:booking_id>/', AcceptedPackageBookingDetailView.as_view(), name='accepted_package_booking_detail'),
+
+
 
 
     path('api/vendor/accepting-bus-bookings/<int:booking_id>/', AcceptBusBookingView.as_view(), name='accept-bus-bookings'),
+    path('api/vendor/accepting-package-bookings/<int:booking_id>/', AcceptPackageBookingView.as_view(), name='accept-package-bookings'),
 ]

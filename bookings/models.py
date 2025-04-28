@@ -138,7 +138,7 @@ class BusDriverDetail(models.Model):
 
 
 class PackageDriverDetail(models.Model):
-    bus_booking = models.OneToOneField(PackageBooking, on_delete=models.CASCADE, related_name='driver_detail')
+    package_booking = models.OneToOneField(PackageBooking, on_delete=models.CASCADE, related_name='driver_detail')
     name = models.CharField(max_length=150)
     place = models.CharField(max_length=150)
     phone_number = models.CharField(max_length=15)
