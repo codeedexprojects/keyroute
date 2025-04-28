@@ -1562,4 +1562,115 @@ class CanceledPackageBookingView(APIView):
 
 
 
+class AcceptedBusBookingListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            vendor = request.user.vendor   
+            
+            accepted_bus_bookings = BusBooking.objects.filter(
+                booking_status='accepted',   
+                bus__vendor=vendor
+            ).order_by('-created_at')
+
+            if accepted_bus_bookings.exists():
+                serializer = BusBookingBasicSerializer(accepted_bus_bookings, many=True)
+                return Response({"accepted_bus_bookings": serializer.data}, status=status.HTTP_200_OK)
+            else:
+                return Response({"message": "No accepted bus bookings found for this vendor."}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+class DeclinedBusBookingListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            vendor = request.user.vendor 
+            
+            declined_bus_bookings = BusBooking.objects.filter(
+                booking_status='declined',    
+                bus__vendor=vendor
+            ).order_by('-created_at')
+
+            if declined_bus_bookings.exists():
+                serializer = BusBookingBasicSerializer(declined_bus_bookings, many=True)
+                return Response({"declined_bus_bookings": serializer.data}, status=status.HTTP_200_OK)
+            else:
+                return Response({"message": "No declined bus bookings found for this vendor."}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+class AcceptBusBookingView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, booking_id):
+        try:
+            vendor = request.user.vendor
+            bus_booking = BusBooking.objects.get(id=booking_id, bus__vendor=vendor)
+
+            if bus_booking.booking_status != 'pending':
+                return Response({"error": "Booking is already accepted or declined."}, status=status.HTTP_400_BAD_REQUEST)
+
+            driver_serializer = BusDriverDetailSerializer(data=request.data)
+            if driver_serializer.is_valid():
+                driver_serializer.save(bus_booking=bus_booking)
+
+                bus_booking.booking_status = 'accepted'
+                bus_booking.save()
+
+                return Response({
+                    "message": "Bus booking accepted and driver details added successfully.",
+                    "driver_details": driver_serializer.data
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response(driver_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except BusBooking.DoesNotExist:
+            return Response({"error": "Bus booking not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+class AcceptedBusBookingDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request, booking_id):
+        try:
+            vendor = request.user.vendor   
+            bus_booking = BusBooking.objects.filter(
+                id=booking_id, 
+                booking_status='accepted',  
+                bus__vendor=vendor   
+            ).first()
+
+            if bus_booking:
+                serializer = AcceptedBusBookingSerializer(bus_booking)
+                return Response({"bus_booking_details": serializer.data}, status=status.HTTP_200_OK)
+            else:
+                return Response({"message": "No accepted bus booking found with this ID for the current vendor."}, 
+                                 status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
 
