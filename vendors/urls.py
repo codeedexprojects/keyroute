@@ -34,8 +34,8 @@ urlpatterns = [
     path('api/vendor/package/<int:package_id>/', PackageAPIView.as_view(), name='package-detail'), 
 
     # NEW
-    path('packages/create/', BasicPackageAPIView.as_view(), name='create-package'),
-    path('packages/<int:package_id>/add-day-plans/', DayPlanCreateAPIView.as_view(), name='add-day-plans'),
+    path('api/vendor/packages/create/', BasicPackageAPIView.as_view(), name='create-package'),
+    path('api/vendor/packages/<int:package_id>/add-day-plans/', DayPlanCreateAPIView.as_view(), name='add-day-plans'),
 
 
 
@@ -100,7 +100,7 @@ urlpatterns = [
 
     # EARNINGS BUS + PACKAGE
     path('api/vendor/bus-booking-earnings/', BusBookingEarningsHistoryView.as_view(), name='vendor-bus-revenue'),
-    path('api/package-booking-earnings/', PackageBookingEarningsView.as_view(), name='package-booking-basic-history'),
+    path('api/vendor/package-booking-earnings/', PackageBookingEarningsView.as_view(), name='package-booking-basic-history'),
 
     # # SINGLE BUS BOOKING HISTORY
     # path('api/vendor/bus-booking-history/<int:booking_id>/', SingleBusBookingDetailView.as_view(), name='single-bus-booking-detail'),
