@@ -8,6 +8,7 @@ import re
 from bookings.models import *
 import json
 from users.models import Favourite
+from bookings.models import *
 
 
 class VendorSerializer(serializers.ModelSerializer):
@@ -995,7 +996,7 @@ class BusBookingDetailSerializer(serializers.ModelSerializer):
             'id', 'user', 'bus', 'from_location', 'to_location',
             'start_date', 'total_amount', 'advance_amount',
             'balance_amount', 'payment_status', 'one_way',
-            'travelers','trip_status'
+            'travelers','trip_status','booking_status'
         ]
 
     def get_trip_status(self, obj):
@@ -1154,6 +1155,21 @@ class PackageBookingBasicSerializer(serializers.ModelSerializer):
 
 
 
+class BusDriverDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusDriverDetail
+        fields = ['name', 'place', 'phone_number', 'driver_image', 'license_image', 'experience', 'age']
 
+
+
+
+class AcceptedBusBookingSerializer(serializers.ModelSerializer):
+    driver_detail = BusDriverDetailSerializer(read_only=True)
+
+    class Meta:
+        model = BusBooking
+        fields = ['id', 'start_date', 'total_amount', 'advance_amount', 'payment_status', 'booking_status', 
+                  'from_location', 'to_location', 'created_at', 'total_travelers', 'male', 'female', 'children', 
+                  'cancelation_reason', 'driver_detail'] 
 
 
