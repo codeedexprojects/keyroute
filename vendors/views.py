@@ -1743,3 +1743,66 @@ class AcceptedPackageBookingDetailView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+
+
+
+
+# views.py
+
+class AcceptedPackageBookingListView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        try:
+            vendor = request.user.vendor   
+            accepted_bookings = PackageBooking.objects.filter(
+                booking_status='accepted',   
+                package__vendor=vendor   
+            )
+            
+            if accepted_bookings.exists():
+                serializer = PackageBookingListSerializer(accepted_bookings, many=True)
+                return Response({"accepted_package_bookings": serializer.data}, status=status.HTTP_200_OK)
+            else:
+                return Response({"message": "No accepted package bookings found for the current vendor."}, 
+                                 status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+class DeclinePackageBookingView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            vendor = request.user.vendor
+
+            declined_bookings = PackageBooking.objects.filter(
+                booking_status='declined',   
+                package__vendor=vendor   
+            )
+
+            serializer = PackageBookingListSerializer(declined_bookings, many=True)
+
+            return Response({"declined_bookings": serializer.data}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+
+
+
