@@ -83,9 +83,14 @@ urlpatterns = [
     path('api/vendor/bus-booking/<int:booking_id>/', BusBookingDetailView.as_view(), name='bus-booking-detail'),
     path('api/vendor/package-booking-history/<int:booking_id>/', SinglePackageBookingDetailView.as_view(), name='single-package-booking-detail'),
 
+
+
+
     #BOOKING HISTORIES FILTER BUS AND PACKAGE SIDE
     path('api/vendor/package-history-filter/', PackageBookingHistoryFilterView.as_view(), name='package-history-filter'),
     path('api/vendor/bus-history-filter/', BusHistoryFilterView.as_view(), name='bus-history-filter'),
+
+
 
     # CANCELD BUS
     path('api/vendor/canceled-bus-bookings/<int:booking_id>/', CanceledBusBookingView.as_view(), name='canceled-bus-booking-detail'),
