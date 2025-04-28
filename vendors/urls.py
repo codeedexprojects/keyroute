@@ -120,15 +120,19 @@ urlpatterns = [
 
     path('api/vendor/booking/<str:booking_type>/filter/<str:date>/', BookingFilterByDate.as_view(), name='booking-by-filter'),
 
-    # BOOKING ACCEPTED AND DECLINED
+    # BOOKING ACCEPTED AND DECLINED BUS
     path('api/vendor/accepted-bus-bookings/', AcceptedBusBookingListView.as_view(), name='accepted-bus-bookings'),
     path('api/vendor/declined-bus-bookings/', DeclinedBusBookingListView.as_view(), name='declined-bus-bookings'),
 
 
+    # ACCEPTED SINGLE DATAS BUS AND PACKAGE
     path('api/vendor/accepted-bus-booking-detail/<int:booking_id>/', AcceptedBusBookingDetailView.as_view(),name='accepted_bus_booking_detail'),
     path('api/vendor/accepted-package-booking/<int:booking_id>/', AcceptedPackageBookingDetailView.as_view(), name='accepted_package_booking_detail'),
 
 
+    #PACKAGE ACCEPTED DECLIED LIST
+    path('api/vendor/accepted-package-bookings/', AcceptedPackageBookingListView.as_view(), name='accepted_package_booking_list'),
+    path('api/vendor/decline-package-booking/', DeclinePackageBookingView.as_view(), name='decline_package_booking'),
 
 
     path('api/vendor/accepting-bus-bookings/<int:booking_id>/', AcceptBusBookingView.as_view(), name='accept-bus-bookings'),
