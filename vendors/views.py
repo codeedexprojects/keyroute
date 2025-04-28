@@ -1591,6 +1591,8 @@ class VendorBusyDateCreateView(APIView):
 class BusBookingEarningsHistoryFilterView(APIView):
     permission_classes = [IsAuthenticated]
 
+
+
     # def get(self, request):
     #     vendor = request.user.vendor
     #     vendor_buses = Bus.objects.filter(vendor=vendor)
@@ -1608,15 +1610,23 @@ class BusBookingEarningsHistoryFilterView(APIView):
 
     #     elif filter_type == 'last_week':
     #         last_week_start = today - timedelta(days=7)
-    #         bookings = bookings.filter(created_at__date__gte=last_week_start, created_at__date__lte=today)
+    #         bookings = bookings.filter(
+    #             created_at__date__gte=last_week_start, created_at__date__lte=today)
 
     #     elif filter_type == 'last_month':
     #         last_month = today - timedelta(days=30)
-    #         bookings = bookings.filter(created_at__date__gte=last_month, created_at__date__lte=today)
+    #         bookings = bookings.filter(
+    #             created_at__date__gte=last_month, created_at__date__lte=today)
 
     #     elif filter_type == 'custom':
     #         if start_date and end_date:
-    #             bookings = bookings.filter(created_at__date__gte=start_date, created_at__date__lte=end_date)
+    #             try:
+    #                 start_date = timezone.datetime.strptime(start_date, '%Y-%m-%d').date()
+    #                 end_date = timezone.datetime.strptime(end_date, '%Y-%m-%d').date()
+    #                 bookings = bookings.filter(
+    #                     created_at__date__gte=start_date, created_at__date__lte=end_date)
+    #             except ValueError:
+    #                 return Response({"error": "Invalid date format. Please use YYYY-MM-DD."}, status=400)
     #         else:
     #             return Response({"error": "Please provide start_date and end_date for custom filter."}, status=400)
 
@@ -1629,10 +1639,11 @@ class BusBookingEarningsHistoryFilterView(APIView):
     #     })
 
 
+
     def get(self, request):
         vendor = request.user.vendor
         vendor_buses = Bus.objects.filter(vendor=vendor)
-        bookings = BusBooking.objects.filter(bus__in=vendor_buses).order_by('-start_date')
+        bookings = BusBooking.objects.filter(bus__in=vendor_buses).order_by('-created_at')
 
         # Get params
         filter_type = request.query_params.get('filter')   
@@ -1673,6 +1684,7 @@ class BusBookingEarningsHistoryFilterView(APIView):
             "history": serializer.data,
             "total_revenue": total_revenue
         })
+
 
 
 class LatestCanceledBookingView(APIView):
