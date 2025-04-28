@@ -932,11 +932,10 @@ class BusBookingBasicSerializer(serializers.ModelSerializer):
 
 
     def get_commission_amount(self, obj):
-        # Find commission related to this bus booking
         commission = AdminCommission.objects.filter(booking_type='bus', booking_id=obj.id).first()
         if commission:
             return commission.revenue_to_admin
-        return None  # Or return 0 if you prefer
+        return None   
     
 
     def get_trip_type(self, obj):
@@ -979,6 +978,7 @@ class BusBookingDetailSerializer(serializers.ModelSerializer):
     travelers = TravelerSerializer(many=True, read_only=True)
     user = serializers.StringRelatedField()
     bus = BusInfoSerializer()
+    trip_status = serializers.SerializerMethodField()
 
     class Meta:
         model = BusBooking
@@ -986,8 +986,16 @@ class BusBookingDetailSerializer(serializers.ModelSerializer):
             'id', 'user', 'bus', 'from_location', 'to_location',
             'start_date', 'total_amount', 'advance_amount',
             'balance_amount', 'payment_status', 'one_way',
-            'travelers'
+            'travelers','trip_status'
         ]
+
+    def get_trip_status(self, obj):
+        if obj.payment_status in ['pending', 'partial', 'paid']:
+            return "scheduled"
+        elif obj.payment_status == 'cancelled':
+            return "cancelled"
+        else:
+            return "unknown"   
 
 
 
@@ -1032,7 +1040,9 @@ class PackageBookingEarnigsSerializer(serializers.ModelSerializer):
                 return f"{first_traveler.first_name} {first_traveler.last_name}"
             return first_traveler.first_name
         return None
-    
+
+
+
 
 
 
@@ -1044,10 +1054,16 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
     total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     payment_status = serializers.CharField()
     travelers = serializers.SerializerMethodField()
+    main_traveler_name = serializers.SerializerMethodField() 
 
+ 
     class Meta:
         model = PackageBooking
-        fields = ['package_name', 'start_date', 'total_amount', 'payment_status', 'travelers']
+        fields = [
+            'id', 'user', 'package_name', 'start_date', 'total_amount', 'advance_amount', 'balance_amount',
+            'payment_status', 'booking_status', 'created_at', 'cancelation_reason',
+            'total_travelers', 'from_location', 'to_location', 'travelers','main_traveler_name'
+        ]
 
     def get_travelers(self, obj):
         travelers = Travelers.objects.filter(package_booking=obj)
@@ -1055,6 +1071,12 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
                  "gender": traveler.get_gender_display(),
                  "email": traveler.email,
                  "mobile": traveler.mobile} for traveler in travelers]
+    
+    def get_main_traveler_name(self, obj):
+        traveler = Travelers.objects.filter(package_booking=obj).first()
+        if traveler:
+            return f"{traveler.first_name} {traveler.last_name}"
+        return None
 
 
 class CombinedBookingSerializer(serializers.Serializer):
@@ -1067,6 +1089,7 @@ class CombinedBookingSerializer(serializers.Serializer):
     payment_status = serializers.CharField()
     created_at = serializers.DateTimeField()
     members_count = serializers.SerializerMethodField()
+    phone_number = serializers.SerializerMethodField() 
 
     def get_type(self, obj):
         return "bus" if isinstance(obj, BusBooking) else "package"
@@ -1079,6 +1102,12 @@ class CombinedBookingSerializer(serializers.Serializer):
 
     def get_members_count(self, obj):
         return obj.travelers.count()
+    
+    def get_phone_number(self, obj):
+        traveler = obj.travelers.first()
+        if traveler:
+            return traveler.mobile or ""
+        return ""
 
 
 
@@ -1097,3 +1126,25 @@ class VendorBusyDateSerializer(serializers.ModelSerializer):
         if from_time and to_time and from_time >= to_time:
             raise serializers.ValidationError("From time must be earlier than to time.")
         return data
+    
+
+
+class PackageBookingBasicSerializer(serializers.ModelSerializer):
+    package_name = serializers.CharField(source='package.places')  
+    start_date = serializers.DateField()
+    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    payment_status = serializers.CharField()
+    booking_status = serializers.BooleanField()
+    created_at = serializers.DateTimeField()
+
+    class Meta:
+        model = PackageBooking
+        fields = ['id', 'package_name', 'start_date', 'total_amount', 'payment_status', 'booking_status', 'created_at']
+
+
+
+
+
+
+
+
