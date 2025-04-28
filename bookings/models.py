@@ -13,13 +13,18 @@ class BaseBooking(models.Model):
         ('paid', 'Fully Paid'),
         ('cancelled', 'Cancelled'),
     )
+    BOOKING_STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+    )
     
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     start_date = models.DateField()
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     advance_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
-    booking_status = models.BooleanField(default=False)
+    booking_status = models.CharField(max_length=20, choices=BOOKING_STATUS_CHOICES, default='pending') 
     created_at = models.DateTimeField(auto_now_add=True)
     cancelation_reason = models.CharField(max_length=250,null=True,blank=True)
     total_travelers = models.PositiveIntegerField(default=1)
@@ -115,3 +120,38 @@ class Travelers(models.Model):
 
 
         
+
+
+
+class BusDriverDetail(models.Model):
+    bus_booking = models.OneToOneField('BusBooking', on_delete=models.CASCADE, related_name='driver_detail')
+    name = models.CharField(max_length=150)
+    place = models.CharField(max_length=150)
+    phone_number = models.CharField(max_length=15)
+    driver_image = models.ImageField(upload_to='driver_images/')
+    license_image = models.ImageField(upload_to='license_images/')
+    experience = models.PositiveIntegerField(help_text="Experience in years")
+    age = models.PositiveIntegerField()
+
+    def __str__(self):
+        return self.name
+
+
+class PackageDriverDetail(models.Model):
+    package_booking = models.OneToOneField(PackageBooking, on_delete=models.CASCADE, related_name='driver_detail')
+    name = models.CharField(max_length=150)
+    place = models.CharField(max_length=150)
+    phone_number = models.CharField(max_length=15)
+    driver_image = models.ImageField(upload_to='driver_images/')
+    license_image = models.ImageField(upload_to='license_images/')
+    experience = models.PositiveIntegerField(help_text="Experience in years")
+    age = models.PositiveIntegerField()
+
+    def __str__(self):
+        return self.name
+
+
+
+
+
+
