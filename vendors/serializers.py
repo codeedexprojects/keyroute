@@ -1062,8 +1062,8 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
         model = PackageBooking
         fields = [
             'id', 'user', 'package_name', 'start_date', 'total_amount', 'advance_amount', 'balance_amount',
-            'payment_status', 'booking_status', 'created_at', 'cancelation_reason',
-            'total_travelers', 'from_location', 'to_location', 'travelers','main_traveler_name'
+            'payment_status',  'created_at', 'cancelation_reason',
+            'total_travelers', 'from_location', 'to_location', 'travelers','main_traveler_name','booking_status',
         ]
 
     def get_travelers(self, obj):
@@ -1164,3 +1164,19 @@ class AcceptedBusBookingSerializer(serializers.ModelSerializer):
                   'cancelation_reason', 'driver_detail'] 
 
 
+
+
+class PackageDriverDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageDriverDetail
+        fields = ['name', 'place', 'phone_number', 'driver_image', 'license_image', 'experience', 'age']
+
+
+class AcceptedPackageBookingSerializer(serializers.ModelSerializer):
+    driver_detail = PackageDriverDetailSerializer(read_only=True)
+
+    class Meta:
+        model = PackageBooking
+        fields = ['id', 'start_date', 'total_amount', 'advance_amount', 'payment_status', 'booking_status', 
+                  'from_location', 'to_location', 'created_at', 'total_travelers', 'male', 'female', 'children', 
+                  'cancelation_reason', 'driver_detail']
