@@ -1699,6 +1699,7 @@ class BusBookingEarningsHistoryFilterView(APIView):
     def get(self, request):
         vendor = request.user.vendor
         vendor_buses = Bus.objects.filter(vendor=vendor)
+        # vendor_buses = Bus.objects.filter(bus__vendor=vendor) 
         bookings = BusBooking.objects.filter(bus__in=vendor_buses).order_by('-created_at')
 
         filter_type = request.query_params.get('filter')   
@@ -1744,8 +1745,10 @@ class BusBookingEarningsHistoryFilterView(APIView):
         return Response({
             "earnings": serializer.data,
             "total_revenue": total_revenue,
-            "monthly_revenue": monthly_revenue
+            "monthly_revenue": monthly_revenue,
+            "sample":"hello"
         })
+
 
 
 
