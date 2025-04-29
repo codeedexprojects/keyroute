@@ -1213,3 +1213,100 @@ class PackageBookingListSerializer(serializers.ModelSerializer):
         fields = ['id', 'start_date', 'total_amount', 'advance_amount', 'payment_status', 'booking_status', 
                   'from_location', 'to_location', 'created_at', 'total_travelers', 'male', 'female', 'children', 
                   'cancelation_reason']
+
+
+
+
+
+class BusBookingRequestSerializer(serializers.ModelSerializer):
+    bus_number = serializers.CharField(source='bus.bus_number')
+    commission_amount = serializers.SerializerMethodField()
+    trip_type = serializers.SerializerMethodField()
+    total_travelers = serializers.SerializerMethodField()
+    first_traveler_name = serializers.SerializerMethodField()
+    created_date = serializers.SerializerMethodField()
+    paid_amount = serializers.SerializerMethodField()
+
+    class Meta:
+        model = BusBooking
+        fields = [
+            'id', 'bus_number', 'from_location', 'to_location', 'total_amount',
+            'commission_amount', 'trip_type', 'total_travelers', 'first_traveler_name',
+            'created_date','paid_amount'
+        ]
+
+    def get_commission_amount(self, obj):
+        commission = AdminCommission.objects.filter(booking_type='bus', booking_id=obj.id).first()
+        return commission.revenue_to_admin if commission else 0
+
+    def get_trip_type(self, obj):
+        return "One Way" if obj.one_way else "Two Way"
+
+    def get_total_travelers(self, obj):
+        return obj.travelers.count()
+
+    def get_first_traveler_name(self, obj):
+        first_traveler = obj.travelers.first()
+        if first_traveler:
+            return f"{first_traveler.first_name} {first_traveler.last_name or ''}".strip()
+        return None
+
+    def get_created_date(self, obj):
+        return obj.created_at.strftime('%Y-%m-%d')
+
+    
+    
+    def get_paid_amount(self, obj):
+        return obj.advance_amount
+
+
+
+
+
+
+class PackageBookingREQUESTSerializer(serializers.ModelSerializer):
+    package_name = serializers.CharField(source='package.places')  # Using the 'places' field of Package
+    commission_amount = serializers.SerializerMethodField()
+    trip_type = serializers.SerializerMethodField()
+    total_members = serializers.SerializerMethodField()
+    one_member_name = serializers.SerializerMethodField()
+    created_date = serializers.SerializerMethodField()
+    paid_amount = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PackageBooking
+        fields = [
+            'id', 'package_name', 'from_location', 'to_location', 'total_amount',
+            'commission_amount', 'trip_type', 'total_members', 'one_member_name',
+            'created_date', 'paid_amount'
+        ]
+
+    def get_commission_amount(self, obj):
+        commission = AdminCommission.objects.filter(booking_type='package', booking_id=obj.id).first()
+        if commission:
+            return commission.revenue_to_admin
+        return None
+
+    def get_trip_type(self, obj):
+        return "Two Way"
+
+    def get_total_members(self, obj):
+        return obj.total_travelers
+
+    def get_one_member_name(self, obj):
+        first_traveler = obj.travelers.first()
+        if first_traveler:
+            if first_traveler.last_name:
+                return f"{first_traveler.first_name} {first_traveler.last_name}"
+            return first_traveler.first_name
+        return None
+
+    def get_created_date(self, obj):
+        return obj.created_at.strftime('%Y-%m-%d')
+
+    def get_earnings(self, obj):
+        commission_amount = self.get_commission_amount(obj) or 0
+        return obj.total_amount - commission_amount
+
+    def get_paid_amount(self, obj):
+        return obj.advance_amount   
