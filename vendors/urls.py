@@ -151,4 +151,11 @@ urlpatterns = [
 
 
 
+    # REQUEST LIST
+    path('api/vendor/request-list-bus-bookings/', BusBookingRequestListView.as_view(), name='reqst-list-bus-bookings'),
+    path('api/vendor/request-list-package-bookings/', PackageBookingRequestView.as_view(), name='reqst-list-package-bookings'),
+
+
+
+
 ]
