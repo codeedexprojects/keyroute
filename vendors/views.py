@@ -1634,26 +1634,71 @@ class VendorBusyDateCreateView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-    def get(self, request, pk=None):
+    # def get(self, request, pk=None):
+    #     try:
+    #         vendor = Vendor.objects.filter(user=request.user).first()
+    #         if not vendor:
+    #             return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    #         if pk:
+    #             busy_date = VendorBusyDate.objects.filter(id=pk, vendor=vendor).first()
+    #             if not busy_date:
+    #                 return Response({"error": "Busy date not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    #             serializer = VendorBusyDateSerializer(busy_date)
+    #             return Response({"busy_date": serializer.data}, status=status.HTTP_200_OK)
+
+    #         busy_dates = VendorBusyDate.objects.filter(vendor=vendor).order_by('date', 'from_time')
+    #         serializer = VendorBusyDateSerializer(busy_dates, many=True)
+    #         return Response({"busy_dates": serializer.data}, status=status.HTTP_200_OK)
+
+    #     except Exception as e:
+    #         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+    def get(self, request):
         try:
             vendor = Vendor.objects.filter(user=request.user).first()
             if not vendor:
                 return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
-            if pk:
-                busy_date = VendorBusyDate.objects.filter(id=pk, vendor=vendor).first()
+            date_param = request.query_params.get('date', None)
+
+            if date_param:
+                try:
+                    selected_date = timezone.datetime.strptime(date_param, '%Y-%m-%d').date()
+                except ValueError:
+                    return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
+
+                busy_date = VendorBusyDate.objects.filter(vendor=vendor, date=selected_date).first()
                 if not busy_date:
-                    return Response({"error": "Busy date not found."}, status=status.HTTP_404_NOT_FOUND)
+                    return Response({"error": "No busy date found for the given date."}, status=status.HTTP_404_NOT_FOUND)
 
                 serializer = VendorBusyDateSerializer(busy_date)
                 return Response({"busy_date": serializer.data}, status=status.HTTP_200_OK)
 
+            # Return all busy dates if no specific date is passed
             busy_dates = VendorBusyDate.objects.filter(vendor=vendor).order_by('date', 'from_time')
             serializer = VendorBusyDateSerializer(busy_dates, many=True)
             return Response({"busy_dates": serializer.data}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     def delete(self, request, pk):
         try:
