@@ -52,7 +52,7 @@ class PackageBooking(BaseBooking):
     package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='bookings')
     
     def __str__(self):
-        return f"Package Booking #{self.id} - {self.package.places} ({self.start_date})"
+        return f"Package Booking #{self.id} - {self.package.places} ({self.created_at})"
 
 class Travelers(models.Model):
     """Model for individual travelers associated with a booking"""
