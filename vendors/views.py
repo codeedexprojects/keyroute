@@ -1497,10 +1497,12 @@ class PackageBookingEarningsFilterView(APIView):
 
 
 
+
     def get(self, request):
         vendor = request.user.vendor
 
-        package_bookings = PackageBooking.objects.filter(user__vendor=vendor).order_by('-created_at')
+        all_bookings = PackageBooking.objects.filter(user__vendor=vendor)
+        package_bookings = all_bookings.order_by('-created_at')
 
         filter_type = request.query_params.get('filter', None)
         start_date = request.query_params.get('start_date', None)
@@ -1533,11 +1535,11 @@ class PackageBookingEarningsFilterView(APIView):
             else:
                 return Response({"error": "Please provide start_date and end_date for custom filter."}, status=400)
 
-        total_revenue = PackageBooking.objects.filter(user__vendor=vendor).aggregate(total=Sum('total_amount'))['total'] or 0
+        total_revenue = all_bookings.aggregate(total=Sum('total_amount'))['total'] or 0
 
         first_day_of_month = today.replace(day=1)
-        monthly_revenue = PackageBooking.objects.filter(
-            user__vendor=vendor, created_at__date__gte=first_day_of_month
+        monthly_revenue = all_bookings.filter(
+            created_at__date__gte=first_day_of_month
         ).aggregate(total=Sum('total_amount'))['total'] or 0
 
         serializer = PackageBookingEarnigsSerializer(package_bookings, many=True)
@@ -1547,10 +1549,6 @@ class PackageBookingEarningsFilterView(APIView):
             "total_revenue": total_revenue,
             "monthly_revenue": monthly_revenue
         })
-
-
-
-
 
 
 
