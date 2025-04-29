@@ -2297,8 +2297,67 @@ class DeclinePackageBookingView(APIView):
 
 
 
+class BusBookingRequestListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            vendor = request.user.vendor
+
+            vendor_buses = Bus.objects.filter(vendor=vendor)
+
+            pending_bookings = BusBooking.objects.filter(
+                bus__in=vendor_buses,
+                booking_status='pending'
+            ).order_by('-created_at')
+
+            confirmed_bookings = BusBooking.objects.filter(
+                bus__in=vendor_buses,
+                booking_status='accepted'
+            ).order_by('-created_at')
+
+            pending_serializer = BusBookingRequestSerializer(pending_bookings, many=True)
+            confirmed_serializer = BusBookingRequestSerializer(confirmed_bookings, many=True)
+
+            return Response({
+                "pending_requests": pending_serializer.data,
+                "confirmed_bookings": confirmed_serializer.data
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
+
+
+class PackageBookingRequestView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            print('hello')
+            vendor = request.user.vendor
+
+            pending_bookings = PackageBooking.objects.filter(
+                package__vendor=vendor,
+                booking_status='pending'
+            ).order_by('-created_at')
+
+            accepted_bookings = PackageBooking.objects.filter(
+                package__vendor=vendor,
+                booking_status='accepted'
+            ).order_by('-created_at')
+
+            pending_serializer = PackageBookingREQUESTSerializer(pending_bookings, many=True)
+            accepted_serializer = PackageBookingREQUESTSerializer(accepted_bookings, many=True)
+
+            return Response({
+                "pending_requests": pending_serializer.data,
+                "confirmed_bookings": accepted_serializer.data
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
