@@ -1052,14 +1052,48 @@ class VendorBusBookingListView(APIView):
 class BusBookingDetailView(APIView):
     """API View to get full details of a single bus booking"""
 
+    # def get(self, request, booking_id, format=None):
+    #     try:
+    #         booking = BusBooking.objects.get(id=booking_id)
+    #     except BusBooking.DoesNotExist:
+    #         return Response({"error": "Booking not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+    #     serializer = BusBookingDetailSerializer(booking)
+    #     return Response(serializer.data, status=status.HTTP_200_OK)
+
     def get(self, request, booking_id, format=None):
         try:
             booking = BusBooking.objects.get(id=booking_id)
         except BusBooking.DoesNotExist:
             return Response({"error": "Booking not found."}, status=status.HTTP_404_NOT_FOUND)
-        
+
+        # Check if booking has travelers
+        # if not booking.travelers.exists():
+        #     # If no traveler, create a default one
+        #     Travelers.objects.create(
+        #         bus_booking=booking,
+        #         first_name="Default",
+        #         last_name="Traveler",
+        #         gender="O",  # 'O' for Other
+        #         age=18,
+        #         email="default@example.com",
+        #         mobile="0000000000",
+        #         place="Default Place",
+        #         city="Default City",
+        #     )
+
+        # Serialize and return
         serializer = BusBookingDetailSerializer(booking)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
 
 
 
