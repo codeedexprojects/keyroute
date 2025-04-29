@@ -1052,14 +1052,48 @@ class VendorBusBookingListView(APIView):
 class BusBookingDetailView(APIView):
     """API View to get full details of a single bus booking"""
 
+    # def get(self, request, booking_id, format=None):
+    #     try:
+    #         booking = BusBooking.objects.get(id=booking_id)
+    #     except BusBooking.DoesNotExist:
+    #         return Response({"error": "Booking not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+    #     serializer = BusBookingDetailSerializer(booking)
+    #     return Response(serializer.data, status=status.HTTP_200_OK)
+
     def get(self, request, booking_id, format=None):
         try:
             booking = BusBooking.objects.get(id=booking_id)
         except BusBooking.DoesNotExist:
             return Response({"error": "Booking not found."}, status=status.HTTP_404_NOT_FOUND)
-        
+
+        # Check if booking has travelers
+        # if not booking.travelers.exists():
+        #     # If no traveler, create a default one
+        #     Travelers.objects.create(
+        #         bus_booking=booking,
+        #         first_name="Default",
+        #         last_name="Traveler",
+        #         gender="O",  # 'O' for Other
+        #         age=18,
+        #         email="default@example.com",
+        #         mobile="0000000000",
+        #         place="Default Place",
+        #         city="Default City",
+        #     )
+
+        # Serialize and return
         serializer = BusBookingDetailSerializer(booking)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1497,10 +1531,12 @@ class PackageBookingEarningsFilterView(APIView):
 
 
 
+
     def get(self, request):
         vendor = request.user.vendor
 
-        package_bookings = PackageBooking.objects.filter(user__vendor=vendor).order_by('-created_at')
+        all_bookings = PackageBooking.objects.filter(user__vendor=vendor)
+        package_bookings = all_bookings.order_by('-created_at')
 
         filter_type = request.query_params.get('filter', None)
         start_date = request.query_params.get('start_date', None)
@@ -1533,11 +1569,11 @@ class PackageBookingEarningsFilterView(APIView):
             else:
                 return Response({"error": "Please provide start_date and end_date for custom filter."}, status=400)
 
-        total_revenue = PackageBooking.objects.filter(user__vendor=vendor).aggregate(total=Sum('total_amount'))['total'] or 0
+        total_revenue = all_bookings.aggregate(total=Sum('total_amount'))['total'] or 0
 
         first_day_of_month = today.replace(day=1)
-        monthly_revenue = PackageBooking.objects.filter(
-            user__vendor=vendor, created_at__date__gte=first_day_of_month
+        monthly_revenue = all_bookings.filter(
+            created_at__date__gte=first_day_of_month
         ).aggregate(total=Sum('total_amount'))['total'] or 0
 
         serializer = PackageBookingEarnigsSerializer(package_bookings, many=True)
@@ -1547,10 +1583,6 @@ class PackageBookingEarningsFilterView(APIView):
             "total_revenue": total_revenue,
             "monthly_revenue": monthly_revenue
         })
-
-
-
-
 
 
 
@@ -2188,6 +2220,77 @@ class DeclinePackageBookingView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+
+
+
+
+
+
+class DeclineBusBookingView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, booking_id):
+        try:
+            vendor = request.user.vendor
+            bus_booking = BusBooking.objects.get(id=booking_id, bus__vendor=vendor)
+
+            if bus_booking.booking_status != 'pending':
+                return Response({"error": "Booking is already accepted or declined."}, status=status.HTTP_400_BAD_REQUEST)
+
+            cancelation_reason = request.data.get('cancelation_reason')
+
+            if not cancelation_reason:
+                return Response({"error": "Cancellation reason is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+            bus_booking.booking_status = 'declined'
+            bus_booking.cancelation_reason = cancelation_reason
+            bus_booking.save()
+
+            return Response({
+                "message": "Bus booking has been declined successfully.",
+                "cancelation_reason": cancelation_reason
+            }, status=status.HTTP_200_OK)
+
+        except BusBooking.DoesNotExist:
+            return Response({"error": "Bus booking not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+class DeclinePackageBookingView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, booking_id):
+        try:
+            vendor = request.user.vendor
+            package_booking = PackageBooking.objects.get(id=booking_id, package__vendor=vendor)
+
+            if package_booking.booking_status != 'pending':
+                return Response({"error": "Booking is already accepted or declined."}, status=status.HTTP_400_BAD_REQUEST)
+
+            reason = request.data.get('cancelation_reason', '').strip()
+            if not reason:
+                return Response({"error": "Cancelation reason is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+            package_booking.booking_status = 'declined'
+            package_booking.cancelation_reason = reason
+            package_booking.save()
+
+            return Response({
+                "message": "Package booking declined successfully.",
+                "cancelation_reason": reason
+            }, status=status.HTTP_200_OK)
+
+        except PackageBooking.DoesNotExist:
+            return Response({"error": "Package booking not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
