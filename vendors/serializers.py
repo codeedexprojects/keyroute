@@ -996,7 +996,7 @@ class BusBookingDetailSerializer(serializers.ModelSerializer):
             'id', 'user', 'bus', 'from_location', 'to_location',
             'start_date', 'total_amount', 'advance_amount',
             'balance_amount', 'payment_status', 'one_way',
-            'travelers','trip_status','booking_status'
+            'travelers','trip_status','booking_status','cancelation_reason'
         ]
 
     def get_trip_status(self, obj):
