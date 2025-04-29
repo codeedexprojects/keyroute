@@ -883,7 +883,7 @@ class TravelerSerializer(serializers.ModelSerializer):
     """Serializer for individual traveler details"""
     class Meta:
         model = Travelers
-        fields = ['first_name', 'last_name', 'gender', 'dob', 'email', 'mobile', 'place', 'city']
+        fields = ['first_name', 'last_name', 'gender', 'dob', 'email', 'mobile', 'place', 'city','id_proof']
 
 class BusBookingDetailSerializer(serializers.ModelSerializer):
     """Serializer for the full bus booking details"""
@@ -1075,13 +1075,36 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
             'total_travelers', 'from_location', 'to_location', 'travelers','main_traveler_name','booking_status',
         ]
 
+    # def get_travelers(self, obj):
+    #     travelers = Travelers.objects.filter(package_booking=obj)
+    #     return [{"name": f"{traveler.first_name} {traveler.last_name}",
+    #              "gender": traveler.get_gender_display(),
+    #              "email": traveler.email,
+    #              "mobile": traveler.mobile} for traveler in travelers]
+    
+
     def get_travelers(self, obj):
         travelers = Travelers.objects.filter(package_booking=obj)
-        return [{"name": f"{traveler.first_name} {traveler.last_name}",
-                 "gender": traveler.get_gender_display(),
-                 "email": traveler.email,
-                 "mobile": traveler.mobile} for traveler in travelers]
-    
+        return [
+            {
+                "id": traveler.id,
+                "first_name": traveler.first_name,
+                "last_name": traveler.last_name,
+                "gender": traveler.get_gender_display(),
+                "age": traveler.age,
+                "dob": traveler.dob,
+                "email": traveler.email,
+                "mobile": traveler.mobile,
+                "place": traveler.place,
+                "city": traveler.city,
+                "id_proof": traveler.id_proof.url if traveler.id_proof else None,
+                "created_at": traveler.created_at,
+            }
+            for traveler in travelers
+        ]
+
+
+
     def get_main_traveler_name(self, obj):
         traveler = Travelers.objects.filter(package_booking=obj).first()
         if traveler:
