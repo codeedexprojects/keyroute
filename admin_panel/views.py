@@ -21,7 +21,7 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Sum
 from collections import defaultdict
 from datetime import date
-
+from django.core.paginator import Paginator
 
 # Create your views here.
 
@@ -619,4 +619,67 @@ class AdminPackageSubCategoryAPIView(APIView):
         subcategory.delete()
         return Response({"message": "SubCategory deleted successfully!"}, status=status.HTTP_200_OK)
 
+
+
+
+
+
+
+
+
+class AdminVendorOverview(APIView):
+    permission_classes = [IsAdminUser]
+    authentication_classes = [JWTAuthentication]
+
+
+
+   
+
+    def get(self, request):
+        vendors = Vendor.objects.all()
+        today = timezone.now().date()
+
+        data = []
+
+        for vendor in vendors:
+            buses = Bus.objects.filter(vendor=vendor)
+            packages = Package.objects.filter(vendor=vendor)
+
+            bus_bookings = BusBooking.objects.filter(bus__vendor=vendor)
+            package_bookings = PackageBooking.objects.filter(package__vendor=vendor)
+
+            total_bookings = bus_bookings.count() + package_bookings.count()
+            ongoing_bookings = bus_bookings.filter(start_date__gte=today).count() + \
+                                package_bookings.filter(start_date__gte=today).count()
+
+            total_earned = bus_bookings.aggregate(b=Sum('total_amount'))['b'] or 0
+            total_earned += package_bookings.aggregate(p=Sum('total_amount'))['p'] or 0
+
+            data.append({
+                "vendor_id": vendor.pk,
+                "vendor_name": vendor.full_name,
+                "total_buses": buses.count(),
+                "available_buses": buses.filter(status='available').count(),
+                "booked_buses": buses.filter(status='booked').count(),
+                "total_packages": packages.count(),
+                "available_packages": packages.filter(status='available').count(),
+                "booked_packages": packages.filter(status='booked').count(),
+                "total_bookings": total_bookings,
+                "ongoing_bookings": ongoing_bookings,
+                "total_earned": total_earned,
+            })
+
+
+        page_number = request.query_params.get('page', 1)   
+        paginator = Paginator(data, 6)   
+        page_obj = paginator.get_page(page_number)
+
+        return Response({
+            'vendors': page_obj.object_list,  
+            'count': paginator.count,  
+            'num_pages': paginator.num_pages,   
+            'current_page': page_obj.number,   
+            'next_page': page_obj.next_page_number() if page_obj.has_next() else None,  
+            'previous_page': page_obj.previous_page_number() if page_obj.has_previous() else None   
+        })
 

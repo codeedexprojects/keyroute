@@ -1679,7 +1679,6 @@ class VendorBusyDateCreateView(APIView):
                 serializer = VendorBusyDateSerializer(busy_date)
                 return Response({"busy_date": serializer.data}, status=status.HTTP_200_OK)
 
-            # Return all busy dates if no specific date is passed
             busy_dates = VendorBusyDate.objects.filter(vendor=vendor).order_by('date', 'from_time')
             serializer = VendorBusyDateSerializer(busy_dates, many=True)
             return Response({"busy_dates": serializer.data}, status=status.HTTP_200_OK)
