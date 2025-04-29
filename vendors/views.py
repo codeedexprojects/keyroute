@@ -1493,49 +1493,12 @@ class PackageBookingHistoryFilterView(APIView):
 class PackageBookingEarningsFilterView(APIView):
     permission_classes = [IsAuthenticated]   
 
-    # def get(self, request):
-    #     filter_type = request.query_params.get('filter_type', None)
-    #     start_date = request.query_params.get('start_date', None)
-    #     end_date = request.query_params.get('end_date', None)
-        
-    #     package_bookings = PackageBooking.objects.all()
-
-    #     if filter_type == 'today':
-    #         today = datetime.today().date()
-    #         package_bookings = package_bookings.filter(created_at__date=today)
-
-    #     elif filter_type == 'last_week':
-    #         last_week = datetime.today() - timedelta(days=7)
-    #         package_bookings = package_bookings.filter(created_at__gte=last_week)
-
-    #     elif filter_type == 'last_month':
-    #         last_month = datetime.today() - timedelta(days=30)
-    #         package_bookings = package_bookings.filter(created_at__gte=last_month)
-
-    #     elif filter_type == 'custom':
-    #         if start_date and end_date:
-    #             try:
-    #                 start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-    #                 end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-    #                 package_bookings = package_bookings.filter(
-    #                     created_at__date__range=[start_date, end_date]
-    #                 )
-    #             except ValueError:
-    #                 return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
-    #         else:
-    #             return Response({"error": "Start date and end date must be provided for custom filter."}, status=status.HTTP_400_BAD_REQUEST)
-
-    #     serializer = PackageBookingEarnigsSerializer(package_bookings, many=True)
-
-    #     return Response({"earnings": serializer.data})
-
-
-
+  
 
     def get(self, request):
         vendor = request.user.vendor
 
-        all_bookings = PackageBooking.objects.filter(user__vendor=vendor)
+        all_bookings = PackageBooking.objects.filter(package__vendor=vendor) 
         package_bookings = all_bookings.order_by('-created_at')
 
         filter_type = request.query_params.get('filter', None)
@@ -1545,7 +1508,11 @@ class PackageBookingEarningsFilterView(APIView):
         today = timezone.now().date()
 
         if filter_type == 'today':
+            print('today is working')
+
             package_bookings = package_bookings.filter(created_at__date=today)
+            print(package_bookings)
+            
 
         elif filter_type == 'last_week':
             last_week_start = today - timedelta(days=7)
