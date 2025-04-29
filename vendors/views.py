@@ -1495,6 +1495,64 @@ class PackageBookingEarningsFilterView(APIView):
 
   
 
+    # def get(self, request):
+    #     vendor = request.user.vendor
+
+    #     all_bookings = PackageBooking.objects.filter(package__vendor=vendor) 
+    #     package_bookings = all_bookings.order_by('-created_at')
+
+    #     filter_type = request.query_params.get('filter', None)
+    #     start_date = request.query_params.get('start_date', None)
+    #     end_date = request.query_params.get('end_date', None)
+
+    #     today = timezone.now().date()
+
+    #     if filter_type == 'today':
+    #         print('today is working')
+
+    #         package_bookings = package_bookings.filter(created_at__date=today)
+    #         print(package_bookings)
+            
+
+    #     elif filter_type == 'last_week':
+    #         last_week_start = today - timedelta(days=7)
+    #         package_bookings = package_bookings.filter(
+    #             created_at__date__gte=last_week_start, created_at__date__lte=today)
+
+    #     elif filter_type == 'last_month':
+    #         last_month = today - timedelta(days=30)
+    #         package_bookings = package_bookings.filter(
+    #             created_at__date__gte=last_month, created_at__date__lte=today)
+
+    #     elif filter_type == 'custom':
+    #         if start_date and end_date:
+    #             try:
+    #                 start_date = timezone.datetime.strptime(start_date, '%Y-%m-%d').date()
+    #                 end_date = timezone.datetime.strptime(end_date, '%Y-%m-%d').date()
+    #                 package_bookings = package_bookings.filter(
+    #                     created_at__date__gte=start_date, created_at__date__lte=end_date)
+    #             except ValueError:
+    #                 return Response({"error": "Invalid date format. Please use YYYY-MM-DD."}, status=400)
+    #         else:
+    #             return Response({"error": "Please provide start_date and end_date for custom filter."}, status=400)
+
+    #     total_revenue = all_bookings.aggregate(total=Sum('total_amount'))['total'] or 0
+
+    #     first_day_of_month = today.replace(day=1)
+    #     monthly_revenue = all_bookings.filter(
+    #         created_at__date__gte=first_day_of_month
+    #     ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+    #     serializer = PackageBookingEarnigsSerializer(package_bookings, many=True)
+
+    #     return Response({
+    #         "earnings": serializer.data,
+    #         "total_revenue": total_revenue,
+    #         "monthly_revenue": monthly_revenue
+    #     })
+
+
+
     def get(self, request):
         vendor = request.user.vendor
 
@@ -1505,43 +1563,40 @@ class PackageBookingEarningsFilterView(APIView):
         start_date = request.query_params.get('start_date', None)
         end_date = request.query_params.get('end_date', None)
 
-        today = timezone.now().date()
+        today = now().date()
 
         if filter_type == 'today':
-            print('today is working')
-
-            package_bookings = package_bookings.filter(created_at__date=today)
-            print(package_bookings)
-            
+            start = make_aware(datetime.combine(today, datetime.min.time()))
+            end = make_aware(datetime.combine(today, datetime.max.time()))
+            package_bookings = package_bookings.filter(created_at__range=(start, end))
 
         elif filter_type == 'last_week':
-            last_week_start = today - timedelta(days=7)
-            package_bookings = package_bookings.filter(
-                created_at__date__gte=last_week_start, created_at__date__lte=today)
+            start = make_aware(datetime.combine(today - timedelta(days=7), datetime.min.time()))
+            end = make_aware(datetime.combine(today, datetime.max.time()))
+            package_bookings = package_bookings.filter(created_at__range=(start, end))
 
         elif filter_type == 'last_month':
-            last_month = today - timedelta(days=30)
-            package_bookings = package_bookings.filter(
-                created_at__date__gte=last_month, created_at__date__lte=today)
+            start = make_aware(datetime.combine(today - timedelta(days=30), datetime.min.time()))
+            end = make_aware(datetime.combine(today, datetime.max.time()))
+            package_bookings = package_bookings.filter(created_at__range=(start, end))
 
         elif filter_type == 'custom':
             if start_date and end_date:
                 try:
-                    start_date = timezone.datetime.strptime(start_date, '%Y-%m-%d').date()
-                    end_date = timezone.datetime.strptime(end_date, '%Y-%m-%d').date()
-                    package_bookings = package_bookings.filter(
-                        created_at__date__gte=start_date, created_at__date__lte=end_date)
+                    start = make_aware(datetime.combine(datetime.strptime(start_date, '%Y-%m-%d'), datetime.min.time()))
+                    end = make_aware(datetime.combine(datetime.strptime(end_date, '%Y-%m-%d'), datetime.max.time()))
+                    package_bookings = package_bookings.filter(created_at__range=(start, end))
                 except ValueError:
                     return Response({"error": "Invalid date format. Please use YYYY-MM-DD."}, status=400)
             else:
                 return Response({"error": "Please provide start_date and end_date for custom filter."}, status=400)
 
+        # Revenue calculations
         total_revenue = all_bookings.aggregate(total=Sum('total_amount'))['total'] or 0
 
-        first_day_of_month = today.replace(day=1)
-        monthly_revenue = all_bookings.filter(
-            created_at__date__gte=first_day_of_month
-        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        first_day = today.replace(day=1)
+        start_of_month = make_aware(datetime.combine(first_day, datetime.min.time()))
+        monthly_revenue = all_bookings.filter(created_at__gte=start_of_month).aggregate(total=Sum('total_amount'))['total'] or 0
 
         serializer = PackageBookingEarnigsSerializer(package_bookings, many=True)
 
@@ -1550,8 +1605,6 @@ class PackageBookingEarningsFilterView(APIView):
             "total_revenue": total_revenue,
             "monthly_revenue": monthly_revenue
         })
-
-
 
 
 
@@ -1640,7 +1693,7 @@ class VendorBusyDateCreateView(APIView):
         
     
 
-
+from django.utils.timezone import make_aware
 
 
 class BusBookingEarningsHistoryFilterView(APIView):
@@ -1696,48 +1749,106 @@ class BusBookingEarningsHistoryFilterView(APIView):
 
 
     
+    # def get(self, request):
+    #     vendor = request.user.vendor
+    #     vendor_buses = Bus.objects.filter(vendor=vendor)
+    #     # vendor_buses = Bus.objects.filter(bus__vendor=vendor) 
+    #     bookings = BusBooking.objects.filter(bus__in=vendor_buses).order_by('-created_at')
+
+    #     filter_type = request.query_params.get('filter')   
+    #     start_date = request.query_params.get('start_date')   
+    #     end_date = request.query_params.get('end_date')       
+
+    #     today = timezone.now().date()
+
+    #     if filter_type == 'today':
+    #         bookings = bookings.filter(created_at__date=today)
+
+    #     elif filter_type == 'last_week':
+    #         last_week_start = today - timedelta(days=7)
+    #         bookings = bookings.filter(
+    #             created_at__date__gte=last_week_start, created_at__date__lte=today)
+
+    #     elif filter_type == 'last_month':
+    #         last_month = today - timedelta(days=30)
+    #         bookings = bookings.filter(
+    #             created_at__date__gte=last_month, created_at__date__lte=today)
+
+    #     elif filter_type == 'custom':
+    #         if start_date and end_date:
+    #             try:
+    #                 start_date = timezone.datetime.strptime(start_date, '%Y-%m-%d').date()
+    #                 end_date = timezone.datetime.strptime(end_date, '%Y-%m-%d').date()
+    #                 bookings = bookings.filter(
+    #                     created_at__date__gte=start_date, created_at__date__lte=end_date)
+    #             except ValueError:
+    #                 return Response({"error": "Invalid date format. Please use YYYY-MM-DD."}, status=400)
+    #         else:
+    #             return Response({"error": "Please provide start_date and end_date for custom filter."}, status=400)
+
+    #     total_revenue = BusBooking.objects.filter(bus__in=vendor_buses).aggregate(total=Sum('total_amount'))['total'] or 0
+
+    #     first_day_of_month = today.replace(day=1)
+    #     monthly_revenue = BusBooking.objects.filter(
+    #         bus__in=vendor_buses, created_at__date__gte=first_day_of_month
+    #     ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+    #     serializer = BusBookingBasicSerializer(bookings, many=True)
+
+    #     return Response({
+    #         "earnings": serializer.data,
+    #         "total_revenue": total_revenue,
+    #         "monthly_revenue": monthly_revenue,
+    #         "sample":"hello"
+    #     })
+
+
     def get(self, request):
         vendor = request.user.vendor
         vendor_buses = Bus.objects.filter(vendor=vendor)
-        # vendor_buses = Bus.objects.filter(bus__vendor=vendor) 
         bookings = BusBooking.objects.filter(bus__in=vendor_buses).order_by('-created_at')
 
-        filter_type = request.query_params.get('filter')   
-        start_date = request.query_params.get('start_date')   
-        end_date = request.query_params.get('end_date')       
+        filter_type = request.query_params.get('filter')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
 
         today = timezone.now().date()
+        now = timezone.now()
 
         if filter_type == 'today':
-            bookings = bookings.filter(created_at__date=today)
+            start = make_aware(datetime.combine(today, datetime.min.time()))
+            end = make_aware(datetime.combine(today, datetime.max.time()))
+            bookings = bookings.filter(created_at__range=(start, end))
 
         elif filter_type == 'last_week':
-            last_week_start = today - timedelta(days=7)
-            bookings = bookings.filter(
-                created_at__date__gte=last_week_start, created_at__date__lte=today)
+            start = make_aware(datetime.combine(today - timedelta(days=7), datetime.min.time()))
+            end = make_aware(datetime.combine(today, datetime.max.time()))
+            bookings = bookings.filter(created_at__range=(start, end))
 
         elif filter_type == 'last_month':
-            last_month = today - timedelta(days=30)
-            bookings = bookings.filter(
-                created_at__date__gte=last_month, created_at__date__lte=today)
+            start = make_aware(datetime.combine(today - timedelta(days=30), datetime.min.time()))
+            end = make_aware(datetime.combine(today, datetime.max.time()))
+            bookings = bookings.filter(created_at__range=(start, end))
 
         elif filter_type == 'custom':
             if start_date and end_date:
                 try:
-                    start_date = timezone.datetime.strptime(start_date, '%Y-%m-%d').date()
-                    end_date = timezone.datetime.strptime(end_date, '%Y-%m-%d').date()
-                    bookings = bookings.filter(
-                        created_at__date__gte=start_date, created_at__date__lte=end_date)
+                    start = make_aware(datetime.combine(datetime.strptime(start_date, '%Y-%m-%d').date(), datetime.min.time()))
+                    end = make_aware(datetime.combine(datetime.strptime(end_date, '%Y-%m-%d').date(), datetime.max.time()))
+                    bookings = bookings.filter(created_at__range=(start, end))
                 except ValueError:
                     return Response({"error": "Invalid date format. Please use YYYY-MM-DD."}, status=400)
             else:
                 return Response({"error": "Please provide start_date and end_date for custom filter."}, status=400)
 
-        total_revenue = BusBooking.objects.filter(bus__in=vendor_buses).aggregate(total=Sum('total_amount'))['total'] or 0
+        # Revenue calculations
+        total_revenue = BusBooking.objects.filter(bus__in=vendor_buses).aggregate(
+            total=Sum('total_amount'))['total'] or 0
 
         first_day_of_month = today.replace(day=1)
+        month_start = make_aware(datetime.combine(first_day_of_month, datetime.min.time()))
         monthly_revenue = BusBooking.objects.filter(
-            bus__in=vendor_buses, created_at__date__gte=first_day_of_month
+            bus__in=vendor_buses, created_at__gte=month_start
         ).aggregate(total=Sum('total_amount'))['total'] or 0
 
         serializer = BusBookingBasicSerializer(bookings, many=True)
@@ -1745,10 +1856,8 @@ class BusBookingEarningsHistoryFilterView(APIView):
         return Response({
             "earnings": serializer.data,
             "total_revenue": total_revenue,
-            "monthly_revenue": monthly_revenue,
-            "sample":"hello"
+            "monthly_revenue": monthly_revenue
         })
-
 
 
 
