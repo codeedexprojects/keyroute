@@ -77,5 +77,24 @@ urlpatterns = [
 
     # 
     path('api/admin/vendor-summary/', AdminVendorOverview.as_view(), name='admin-vendor-summary'),
+
+
+
+    # RECENT USERS
+    path('api/admin/recent-users/', RecentUsersAPIView.as_view(), name='recent-users'),
+
+    # TOP VENDORS
+    path('api/admin/top-vendors/', TopVendorsAPIView.as_view(), name='top-vendors'),
+
+    #USER SINGLE DATA
+    path('api/admin/user/<int:user_id>/', SingleUserAPIView.as_view(), name='single-user')
+
+
+
+
+
+
+
+
     
 ] 
