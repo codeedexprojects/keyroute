@@ -1785,11 +1785,41 @@ class BusBookingEarningsHistoryFilterView(APIView):
 
 
 
+# class LatestCanceledBookingView(APIView):
+#     permission_classes = [IsAuthenticated]
+#     authentication_classes = [JWTAuthentication]
+
+    
+#     def get(self, request):
+#         vendor = Vendor.objects.filter(user=request.user).first()
+#         if not vendor:
+#             return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+#         latest_cancelled_bus = BusBooking.objects.filter(
+#             bus__vendor=vendor, trip_status='cancelled'
+#         ).order_by('-created_at').first()
+
+#         latest_cancelled_package = PackageBooking.objects.filter(
+#             package__vendor=vendor, trip_status='cancelled'
+#         ).order_by('-created_at').first()
+
+#         latest = max(
+#             filter(None, [latest_cancelled_bus, latest_cancelled_package]),
+#             key=lambda x: x.created_at,
+#             default=None
+#         )
+
+#         if not latest:
+#             return Response({"message": "No cancelled bookings found."}, status=status.HTTP_204_NO_CONTENT)
+
+#         serializer = CombinedBookingSerializer(latest)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class LatestCanceledBookingView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    
     def get(self, request):
         vendor = Vendor.objects.filter(user=request.user).first()
         if not vendor:
@@ -1810,12 +1840,16 @@ class LatestCanceledBookingView(APIView):
         )
 
         if not latest:
-            return Response({"message": "No cancelled bookings found."}, status=status.HTTP_204_NO_CONTENT)
+            return Response({
+                "message": "No cancelled bookings found.",
+                "data": {}
+            }, status=status.HTTP_200_OK)
 
         serializer = CombinedBookingSerializer(latest)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
+        return Response({
+            "message": "Latest cancelled booking retrieved successfully.",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
 
 
 
@@ -2344,30 +2378,42 @@ class PackageBookingRequestView(APIView):
 
 
 
+# class VendorLatestSingleBookingHistoryView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+
+  
+
+#     def get(self, request):
+#         vendor = Vendor.objects.filter(user=request.user).first()
+#         if not vendor:
+#             return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+#         latest_completed_bus = BusBooking.objects.filter(
+#             bus__vendor=vendor, trip_status='completed'
+#         ).order_by('-created_at').first()
+
+#         latest_completed_package = PackageBooking.objects.filter(
+#             package__vendor=vendor, trip_status='completed'
+#         ).order_by('-created_at').first()
+
+#         latest = max(
+#             filter(None, [latest_completed_bus, latest_completed_package]),
+#             key=lambda x: x.created_at,
+#             default=None
+#         )
+
+#         if not latest:
+#             return Response({"message": "No completed bookings found."}, status=status.HTTP_204_NO_CONTENT)
+
+#         serializer = CombinedBookingSerializer(latest)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+
 class VendorLatestSingleBookingHistoryView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
-
-    # def get(self, request):
-    #     vendor = Vendor.objects.filter(user=request.user).first()
-    #     if not vendor:
-    #         return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
-
-    #     latest_bus = BusBooking.objects.filter(bus__vendor=vendor).order_by('-created_at').first()
-    #     latest_package = PackageBooking.objects.filter(package__vendor=vendor).order_by('-created_at').first()
-
-    #     latest = max(
-    #         filter(None, [latest_bus, latest_package]),
-    #         key=lambda x: x.created_at,
-    #         default=None
-    #     )
-
-    #     if not latest:
-    #         return Response({"message": "No bookings found."}, status=status.HTTP_204_NO_CONTENT)
-
-    #     serializer = CombinedBookingSerializer(latest)
-    #     return Response(serializer.data, status=status.HTTP_200_OK)
-
 
     def get(self, request):
         vendor = Vendor.objects.filter(user=request.user).first()
@@ -2389,11 +2435,17 @@ class VendorLatestSingleBookingHistoryView(APIView):
         )
 
         if not latest:
-            return Response({"message": "No completed bookings found."}, status=status.HTTP_204_NO_CONTENT)
+            return Response({
+                "message": "No completed bookings found.",
+                "data": {}
+            }, status=status.HTTP_200_OK)
 
         serializer = CombinedBookingSerializer(latest)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    
+        return Response({
+            "message": "Latest completed booking retrieved successfully.",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+
 
 
 
