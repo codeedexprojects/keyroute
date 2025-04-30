@@ -22,6 +22,7 @@ from django.db.models import Sum
 from collections import defaultdict
 from datetime import date
 from django.core.paginator import Paginator
+from django.db.models import Count
 
 # Create your views here.
 
@@ -152,15 +153,66 @@ class AdminBusListAPIView(APIView):
             "buses": serializer.data
         }, status=status.HTTP_200_OK)
 
+    # def get(self, request, user_id=None):
+    #     if user_id:
+    #         try:
+    #             user = User.objects.get(id=user_id, role=User.USER)
+    #             serializer = UserSerializer(user)
+    #             return Response(serializer.data, status=status.HTTP_200_OK)
+    #         except User.DoesNotExist:
+    #             return Response({"error": "User not found or not a normal user."}, status=status.HTTP_404_NOT_FOUND)
+    #     else:
+    #         # Check if there are any users with role 'USER'
+    #         total_users = User.objects.filter(role=User.USER)
+    #         print(total_users,'users')
+
+    #         if total_users.exists():  # Ensure users exist before proceeding
+    #             # Booked users count (those who have made a booking)
+    #             booked_users = User.objects.filter(role=User.USER, id__in=BaseBooking.objects.values('user_id').distinct())
+
+    #             # Active users count
+    #             active_users = User.objects.filter(role=User.USER, is_active=True)
+    #             print(active_users,'actgive')
+
+    #             # Inactive users count
+    #             inactive_users = User.objects.filter(role=User.USER, is_active=False)
+    #             print(inactive_users,'actgive')
 
 
+    #             # Serialize the users
+    #             serializer = UserSerializer(total_users, many=True)
 
-
+    #             return Response({
+    #                 "total_users_count": total_users.count(),
+    #                 "booked_users_count": booked_users.count(),
+    #                 "active_users_count": active_users.count(),
+    #                 "inactive_users_count": inactive_users.count(),
+    #                 "users": serializer.data
+    #             }, status=status.HTTP_200_OK)
+    #         else:
+    #             return Response({"message": "No users found."}, status=status.HTTP_404_NOT_FOUND)
 
 
 class AllUsersAPIView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+
+    # def get(self, request, user_id=None):
+    #     if user_id:
+    #         try:
+    #             user = User.objects.get(id=user_id, role=User.USER)
+    #             serializer = UserSerializer(user)
+    #             return Response(serializer.data, status=status.HTTP_200_OK)
+    #         except User.DoesNotExist:
+    #             return Response({"error": "User not found or not a normal user."}, status=status.HTTP_404_NOT_FOUND)
+    #     else:
+    #         users = User.objects.filter(role=User.USER)
+    #         serializer = UserSerializer(users, many=True)
+    #         return Response({
+    #             "total_users": users.count(),
+    #             "users": serializer.data
+    #         }, status=status.HTTP_200_OK)
+
     def get(self, request, user_id=None):
         if user_id:
             try:
@@ -171,11 +223,36 @@ class AllUsersAPIView(APIView):
                 return Response({"error": "User not found or not a normal user."}, status=status.HTTP_404_NOT_FOUND)
         else:
             users = User.objects.filter(role=User.USER)
+
+            booked_users_bus = BusBooking.objects.values('user_id')
+            booked_users_package = PackageBooking.objects.values('user_id')
+
+            booked_user_ids = set([user['user_id'] for user in booked_users_bus] + [user['user_id'] for user in booked_users_package])
+            booked_users = User.objects.filter(id__in=booked_user_ids, role=User.USER)
+
+            active_users = User.objects.filter(role=User.USER, is_active=True)
+
+            inactive_users = User.objects.filter(role=User.USER, is_active=False)
+
             serializer = UserSerializer(users, many=True)
+
             return Response({
                 "total_users": users.count(),
+                "booked_users_count": booked_users.count(),
+                "active_users_count": active_users.count(),
+                "inactive_users_count": inactive_users.count(),
                 "users": serializer.data
             }, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -683,3 +760,109 @@ class AdminVendorOverview(APIView):
             'previous_page': page_obj.previous_page_number() if page_obj.has_previous() else None   
         })
 
+
+
+
+
+
+
+
+
+class RecentUsersAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAdminUser]   
+
+    def get(self, request):
+        recent_users = User.objects.filter(role=User.USER).order_by('-created_at')[:10]  
+        serializer = RecentUserSerializer(recent_users, many=True)
+        return Response(serializer.data)
+
+
+
+
+
+
+
+
+class TopVendorsAPIView(APIView):
+    def get(self, request):
+        bus_booking_counts = (
+            BusBooking.objects
+            .values('bus__vendor')
+            .annotate(count=Count('id'))
+        )
+        bus_counts_map = {item['bus__vendor']: item['count'] for item in bus_booking_counts}
+
+        package_booking_counts = (
+            PackageBooking.objects
+            .values('package__vendor')
+            .annotate(count=Count('id'))
+        )
+        package_counts_map = {item['package__vendor']: item['count'] for item in package_booking_counts}
+
+        total_counts = {}
+        for vendor_id, count in bus_counts_map.items():
+            total_counts[vendor_id] = total_counts.get(vendor_id, 0) + count
+        for vendor_id, count in package_counts_map.items():
+            total_counts[vendor_id] = total_counts.get(vendor_id, 0) + count
+
+        vendors = Vendor.objects.filter(user__id__in=total_counts.keys())
+
+        vendor_data = []
+        for vendor in vendors:
+            vendor_data.append({
+                "name": vendor.full_name,
+                "place": vendor.city,
+                "total_booking_count": total_counts.get(vendor.user.id, 0)
+            })
+
+        vendor_data.sort(key=lambda x: x['total_booking_count'], reverse=True)
+
+        serializer = TopVendorSerializer(vendor_data, many=True)
+        return Response(serializer.data)
+
+
+
+
+
+class SingleUserAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+   
+
+    def get(self, request, user_id=None):
+        try:
+            user = User.objects.get(id=user_id, role=User.USER)
+
+            personal_info = {
+                'name': user.name,
+                'phone_number': user.mobile,
+                'email': user.email,
+                'location': user.city,
+                'address': user.address if hasattr(user, 'address') else "Not available"
+            }
+
+            bus_bookings = BusBooking.objects.filter(user=user)
+            package_bookings = PackageBooking.objects.filter(user=user)
+
+            all_bookings = list(bus_bookings) + list(package_bookings)
+
+            rewards_count = user.rewards.count() if hasattr(user, 'rewards') else 0  
+
+            total_booking_count = len(all_bookings)
+
+            bus_booking_serializer = BusBookingSerializer08(bus_bookings, many=True)
+            package_booking_serializer = PackageBookingSerializer08(package_bookings, many=True)
+
+            combined_bookings = bus_booking_serializer.data + package_booking_serializer.data
+
+            return Response({
+                'personal_info': personal_info,
+                'total_booking_count': total_booking_count,
+                'rewards_count': rewards_count,
+                'bookings': combined_bookings
+            }, status=status.HTTP_200_OK)
+
+        except User.DoesNotExist:
+            return Response({"error": "User not found or not a normal user."}, status=status.HTTP_404_NOT_FOUND)
