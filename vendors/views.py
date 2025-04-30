@@ -1726,9 +1726,6 @@ from django.utils.timezone import make_aware
 class BusBookingEarningsHistoryFilterView(APIView):
     permission_classes = [IsAuthenticated]
 
-
-   
-    
    
 
     def get(self, request):
@@ -1828,32 +1825,6 @@ class LatestCanceledBookingView(APIView):
 
 class CanceledBusBookingView(APIView):
     permission_classes = [IsAuthenticated]
-
-    # def get(self, request, booking_id=None):
-    #     vendor = request.user.vendor
-        
-    #     if booking_id:
-    #         try:
-    #             canceled_booking = BusBooking.objects.get(
-    #                 id=booking_id, 
-    #                 payment_status='cancelled',
-    #                 bus__vendor=vendor
-    #             )
-    #             serializer = BusBookingDetailSerializer(canceled_booking)
-    #             return Response(serializer.data, status=status.HTTP_200_OK)
-    #         except BusBooking.DoesNotExist:
-    #             return Response({"error": "Canceled bus booking not found"}, status=status.HTTP_404_NOT_FOUND)
-    #     else:
-    #         canceled_bookings = BusBooking.objects.filter(
-    #             payment_status='cancelled',
-    #             bus__vendor=vendor
-    #         ).order_by('-created_at')   
-
-    #         if canceled_bookings.exists():
-    #             serializer = BusBookingBasicSerializer(canceled_bookings, many=True)
-    #             return Response({"canceled_bus_bookings": serializer.data}, status=status.HTTP_200_OK)
-    #         else:
-    #             return Response({"message": "No canceled bus bookings found for this vendor."}, status=status.HTTP_404_NOT_FOUND)
 
 
     def get(self, request, booking_id=None):
