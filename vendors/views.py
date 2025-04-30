@@ -1727,63 +1727,9 @@ class BusBookingEarningsHistoryFilterView(APIView):
     permission_classes = [IsAuthenticated]
 
 
-
    
-
     
-    # def get(self, request):
-    #     vendor = request.user.vendor
-    #     vendor_buses = Bus.objects.filter(vendor=vendor)
-    #     # vendor_buses = Bus.objects.filter(bus__vendor=vendor) 
-    #     bookings = BusBooking.objects.filter(bus__in=vendor_buses).order_by('-created_at')
-
-    #     filter_type = request.query_params.get('filter')   
-    #     start_date = request.query_params.get('start_date')   
-    #     end_date = request.query_params.get('end_date')       
-
-    #     today = timezone.now().date()
-
-    #     if filter_type == 'today':
-    #         bookings = bookings.filter(created_at__date=today)
-
-    #     elif filter_type == 'last_week':
-    #         last_week_start = today - timedelta(days=7)
-    #         bookings = bookings.filter(
-    #             created_at__date__gte=last_week_start, created_at__date__lte=today)
-
-    #     elif filter_type == 'last_month':
-    #         last_month = today - timedelta(days=30)
-    #         bookings = bookings.filter(
-    #             created_at__date__gte=last_month, created_at__date__lte=today)
-
-    #     elif filter_type == 'custom':
-    #         if start_date and end_date:
-    #             try:
-    #                 start_date = timezone.datetime.strptime(start_date, '%Y-%m-%d').date()
-    #                 end_date = timezone.datetime.strptime(end_date, '%Y-%m-%d').date()
-    #                 bookings = bookings.filter(
-    #                     created_at__date__gte=start_date, created_at__date__lte=end_date)
-    #             except ValueError:
-    #                 return Response({"error": "Invalid date format. Please use YYYY-MM-DD."}, status=400)
-    #         else:
-    #             return Response({"error": "Please provide start_date and end_date for custom filter."}, status=400)
-
-    #     total_revenue = BusBooking.objects.filter(bus__in=vendor_buses).aggregate(total=Sum('total_amount'))['total'] or 0
-
-    #     first_day_of_month = today.replace(day=1)
-    #     monthly_revenue = BusBooking.objects.filter(
-    #         bus__in=vendor_buses, created_at__date__gte=first_day_of_month
-    #     ).aggregate(total=Sum('total_amount'))['total'] or 0
-
-    #     serializer = BusBookingBasicSerializer(bookings, many=True)
-
-    #     return Response({
-    #         "earnings": serializer.data,
-    #         "total_revenue": total_revenue,
-    #         "monthly_revenue": monthly_revenue,
-    #         "sample":"hello"
-    #     })
-
+   
 
     def get(self, request):
         vendor = request.user.vendor
@@ -1823,7 +1769,6 @@ class BusBookingEarningsHistoryFilterView(APIView):
             else:
                 return Response({"error": "Please provide start_date and end_date for custom filter."}, status=400)
 
-        # Revenue calculations
         total_revenue = BusBooking.objects.filter(bus__in=vendor_buses).aggregate(
             total=Sum('total_amount'))['total'] or 0
 
