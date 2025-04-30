@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 from bookings.models import *
 from django.db.models import Sum, Count, F
 from django.utils.timezone import now
-
+from .serializers import PackageBasicSerializer
 from admin_panel.models import *
 
 # Create your views here.
@@ -1817,6 +1817,7 @@ class LatestCanceledBookingView(APIView):
 
         serializer = CombinedBookingSerializer(latest)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 
 
