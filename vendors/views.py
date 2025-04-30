@@ -1258,6 +1258,7 @@ class BusBookingEarningsHistoryView(APIView):
 
 
 class SingleBusBookingDetailView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, booking_id):
@@ -1279,13 +1280,6 @@ class SingleBusBookingDetailView(APIView):
 
 
 
-# class PackageBookingBasicHistoryView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request):
-#         package_bookings = PackageBooking.objects.filter(user=request.user).order_by('-start_date')
-#         serializer = PackageBookingBasicSerializer(package_bookings, many=True)
-#         return Response({"history": serializer.data})
 
 
 
@@ -1324,16 +1318,6 @@ class PackageBookingEarningsView(APIView):
 class PackageBookingListView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
-
-    # def get(self, request):
-    #     user = request.user
-    #     vendor = user.vendor   
-        
-    #     package_bookings = PackageBooking.objects.filter(user__vendor=vendor)
-        
-    #     serializer = PackageBookingDetailSerializer(package_bookings, many=True)
-        
-    #     return Response({"package_bookings": serializer.data}, status=200)
 
 
 
@@ -1591,7 +1575,6 @@ class PackageBookingEarningsFilterView(APIView):
             else:
                 return Response({"error": "Please provide start_date and end_date for custom filter."}, status=400)
 
-        # Revenue calculations
         total_revenue = all_bookings.aggregate(total=Sum('total_amount'))['total'] or 0
 
         first_day = today.replace(day=1)
@@ -1679,7 +1662,6 @@ class VendorBusyDateCreateView(APIView):
                 serializer = VendorBusyDateSerializer(busy_date)
                 return Response({"busy_date": serializer.data}, status=status.HTTP_200_OK)
 
-            # Return all busy dates if no specific date is passed
             busy_dates = VendorBusyDate.objects.filter(vendor=vendor).order_by('date', 'from_time')
             serializer = VendorBusyDateSerializer(busy_dates, many=True)
             return Response({"busy_dates": serializer.data}, status=status.HTTP_200_OK)
@@ -1746,52 +1728,7 @@ class BusBookingEarningsHistoryFilterView(APIView):
 
 
 
-    # def get(self, request):
-    #     vendor = request.user.vendor
-    #     vendor_buses = Bus.objects.filter(vendor=vendor)
-    #     bookings = BusBooking.objects.filter(bus__in=vendor_buses).order_by('-start_date')
-
-    #     # Get params
-    #     filter_type = request.query_params.get('filter')   
-    #     start_date = request.query_params.get('start_date')   
-    #     end_date = request.query_params.get('end_date')       
-
-    #     today = timezone.now().date()
-
-    #     if filter_type == 'today':
-    #         bookings = bookings.filter(created_at__date=today)
-
-    #     elif filter_type == 'last_week':
-    #         last_week_start = today - timedelta(days=7)
-    #         bookings = bookings.filter(
-    #             created_at__date__gte=last_week_start, created_at__date__lte=today)
-
-    #     elif filter_type == 'last_month':
-    #         last_month = today - timedelta(days=30)
-    #         bookings = bookings.filter(
-    #             created_at__date__gte=last_month, created_at__date__lte=today)
-
-    #     elif filter_type == 'custom':
-    #         if start_date and end_date:
-    #             try:
-    #                 start_date = timezone.datetime.strptime(start_date, '%Y-%m-%d').date()
-    #                 end_date = timezone.datetime.strptime(end_date, '%Y-%m-%d').date()
-    #                 bookings = bookings.filter(
-    #                     created_at__date__gte=start_date, created_at__date__lte=end_date)
-    #             except ValueError:
-    #                 return Response({"error": "Invalid date format. Please use YYYY-MM-DD."}, status=400)
-    #         else:
-    #             return Response({"error": "Please provide start_date and end_date for custom filter."}, status=400)
-
-    #     serializer = BusBookingBasicSerializer(bookings, many=True)
-    #     total_revenue = bookings.aggregate(total=Sum('total_amount'))['total'] or 0
-
-    #     return Response({
-    #         "history": serializer.data,
-    #         "total_revenue": total_revenue
-    #     })
-
-
+   
 
     
     # def get(self, request):
@@ -1908,39 +1845,39 @@ class BusBookingEarningsHistoryFilterView(APIView):
 
 class LatestCanceledBookingView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
+    
     def get(self, request):
-        try:
-            vendor = request.user.vendor   
-            
-            latest_bus_canceled = BusBooking.objects.filter(
-                payment_status='cancelled',
-                bus__vendor=vendor   
-            ).order_by('-created_at').first()
+        vendor = Vendor.objects.filter(user=request.user).first()
+        if not vendor:
+            return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
-            latest_package_canceled = PackageBooking.objects.filter(
-                payment_status='cancelled',
-                package__vendor=vendor   
-            ).order_by('-created_at').first()
+        latest_cancelled_bus = BusBooking.objects.filter(
+            bus__vendor=vendor, trip_status='cancelled'
+        ).order_by('-created_at').first()
 
-            response_data = {}
+        latest_cancelled_package = PackageBooking.objects.filter(
+            package__vendor=vendor, trip_status='cancelled'
+        ).order_by('-created_at').first()
 
-            if latest_bus_canceled and latest_package_canceled:
-                if latest_bus_canceled.created_at > latest_package_canceled.created_at:
-                    response_data = BusBookingBasicSerializer(latest_bus_canceled).data
-                else:
-                    response_data = PackageBasicSerializer(latest_package_canceled).data
-            elif latest_bus_canceled:
-                response_data = BusBookingBasicSerializer(latest_bus_canceled).data
-            elif latest_package_canceled:
-                response_data = PackageBasicSerializer(latest_package_canceled).data
-            else:
-                return Response({"message": "No canceled bookings found for this vendor."}, status=404)
+        latest = max(
+            filter(None, [latest_cancelled_bus, latest_cancelled_package]),
+            key=lambda x: x.created_at,
+            default=None
+        )
 
-            return Response({"latest_canceled_booking": response_data})
+        if not latest:
+            return Response({"message": "No cancelled bookings found."}, status=status.HTTP_204_NO_CONTENT)
 
-        except Exception as e:
-            return Response({"error": str(e)}, status=400)
+        serializer = CombinedBookingSerializer(latest)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
+
+
 
 
 
@@ -2483,5 +2420,102 @@ class PackageBookingRequestView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+class VendorLatestSingleBookingHistoryView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    # def get(self, request):
+    #     vendor = Vendor.objects.filter(user=request.user).first()
+    #     if not vendor:
+    #         return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    #     latest_bus = BusBooking.objects.filter(bus__vendor=vendor).order_by('-created_at').first()
+    #     latest_package = PackageBooking.objects.filter(package__vendor=vendor).order_by('-created_at').first()
+
+    #     latest = max(
+    #         filter(None, [latest_bus, latest_package]),
+    #         key=lambda x: x.created_at,
+    #         default=None
+    #     )
+
+    #     if not latest:
+    #         return Response({"message": "No bookings found."}, status=status.HTTP_204_NO_CONTENT)
+
+    #     serializer = CombinedBookingSerializer(latest)
+    #     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+    def get(self, request):
+        vendor = Vendor.objects.filter(user=request.user).first()
+        if not vendor:
+            return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        latest_completed_bus = BusBooking.objects.filter(
+            bus__vendor=vendor, trip_status='completed'
+        ).order_by('-created_at').first()
+
+        latest_completed_package = PackageBooking.objects.filter(
+            package__vendor=vendor, trip_status='completed'
+        ).order_by('-created_at').first()
+
+        latest = max(
+            filter(None, [latest_completed_bus, latest_completed_package]),
+            key=lambda x: x.created_at,
+            default=None
+        )
+
+        if not latest:
+            return Response({"message": "No completed bookings found."}, status=status.HTTP_204_NO_CONTENT)
+
+        serializer = CombinedBookingSerializer(latest)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+
+
+
+class VendorLatestCancelledBookingView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        vendor = Vendor.objects.filter(user=request.user).first()
+        if not vendor:
+            return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        latest_cancelled_bus = BusBooking.objects.filter(
+            bus__vendor=vendor, trip_status='cancelled'
+        ).order_by('-created_at').first()
+
+        latest_cancelled_package = PackageBooking.objects.filter(
+            package__vendor=vendor, trip_status='cancelled'
+        ).order_by('-created_at').first()
+
+        latest = max(
+            filter(None, [latest_cancelled_bus, latest_cancelled_package]),
+            key=lambda x: x.created_at,
+            default=None
+        )
+
+        if not latest:
+            return Response({"message": "No cancelled bookings found."}, status=status.HTTP_204_NO_CONTENT)
+
+        serializer = CombinedBookingSerializer(latest)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
 
 
