@@ -49,6 +49,12 @@ class BusFeature(models.Model):
         return self.name
 
 class Bus(models.Model):
+
+    STATUS_CHOICES = (
+        ('available', 'Available'),
+        ('booked', 'Booked'),
+        ('maintenance', 'Under Maintenance'),
+    )
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE)
     bus_name = models.CharField(max_length=255)
     bus_number = models.CharField(max_length=20, unique=True)
@@ -67,6 +73,7 @@ class Bus(models.Model):
     features = models.ManyToManyField(BusFeature, related_name='buses', blank=True)
 
     minimum_fare = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
 
     
 
@@ -117,6 +124,14 @@ class PackageSubCategory(models.Model):
 
 
 class Package(models.Model):
+
+    STATUS_CHOICES = (
+        ('available', 'Available'),
+        ('booked', 'Booked'),
+        ('expired', 'Expired'),
+    )
+
+
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE)
     sub_category = models.ForeignKey(PackageSubCategory, on_delete=models.CASCADE, related_name="packages")
     header_image = models.ImageField(
@@ -135,6 +150,7 @@ class Package(models.Model):
     bus_location = models.CharField(max_length=255, blank=True, null=True)
     price_per_person = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     extra_charge_per_km = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
 
 
     def __str__(self):
