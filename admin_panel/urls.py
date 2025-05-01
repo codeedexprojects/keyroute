@@ -78,6 +78,8 @@ urlpatterns = [
     # 
     path('api/admin/vendor-summary/', AdminVendorOverview.as_view(), name='admin-vendor-summary'),
 
+    path('api/admin/bookings/',AllBookingsAPI.as_view(),name='allbookings'),
+    path('api/admin/booking-detail/<str:booking_type>/<int:booking_id>/',BookingDetails.as_view(),name='allbookings'),
 
 
     # RECENT USERS
@@ -94,10 +96,7 @@ urlpatterns = [
     path('api/admin/dashbord-count', DashboardStatsAPIView.as_view(), name='dashboard-count'),
 
     # RECENT APPROVED BOOKING
-    path('api/admin/recent-approved-booking', RecentApprovedBookingsAPIView.as_view(), name='recent-approved'),
-
-
-
 
     
+    path('api/admin/reviews/', ListAllReviewsAPIView.as_view(), name='list-all-reviews'),
 ] 

@@ -49,10 +49,12 @@ class BusBookingSerializer(BaseBookingSerializer):
     def create(self, validated_data):
         total_amount = validated_data.get('total_amount')
 
+        # Advance amount is still calculated from total_amount
         advance_percent, advance_amount = get_advance_amount_from_db(total_amount)
         validated_data['advance_amount'] = advance_amount
 
-        commission_percent, revenue = get_admin_commission_from_db(advance_amount)
+        # Commission is now calculated from total_amount
+        commission_percent, revenue = get_admin_commission_from_db(total_amount)
 
         booking = super().create(validated_data)
 
@@ -89,10 +91,12 @@ class PackageBookingSerializer(BaseBookingSerializer):
     def create(self, validated_data):
         total_amount = validated_data.get('total_amount')
 
+        # Advance amount still based on total_amount
         advance_percent, advance_amount = get_advance_amount_from_db(total_amount)
         validated_data['advance_amount'] = advance_amount
 
-        commission_percent, revenue = get_admin_commission_from_db(advance_amount)
+        # Commission now based on total_amount
+        commission_percent, revenue = get_admin_commission_from_db(total_amount)
 
         booking = super().create(validated_data)
 
