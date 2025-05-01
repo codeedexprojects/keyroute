@@ -24,14 +24,14 @@ def verify_otp(mobile, otp):
 
 
 
-def get_admin_commission_from_db(advance_amount):
+def get_admin_commission_from_db(total_amount):
     slab = AdminCommissionSlab.objects.filter(
-        min_amount__lte=advance_amount,
-        max_amount__gte=advance_amount
+        min_amount__lte=total_amount,
+        max_amount__gte=total_amount
     ).first()
 
     if slab:
-        revenue = round(advance_amount * (slab.commission_percentage / 100), 2)
+        revenue = round(total_amount * (slab.commission_percentage / 100), 2)
         return slab.commission_percentage, revenue
 
     return 0, 0
