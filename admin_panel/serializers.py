@@ -5,7 +5,7 @@ from vendors.serializers import *
 from .models import AdminCommissionSlab, AdminCommission
 from bookings.models import *
 from .models import *
-
+from reviews.models import BusReview
 class VendorSerializer1(serializers.ModelSerializer):
     class Meta:
         model = Vendor
@@ -400,6 +400,55 @@ class AdminCommissionSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class BaseBookingSerializer(serializers.ModelSerializer):
+    balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    
+    class Meta:
+        abstract = True
+        fields = ['id','booking_status', 'user', 'start_date', 'total_amount', 'advance_amount', 
+                 'payment_status', 'created_at', 'balance_amount','cancelation_reason','from_location', 'to_location', 'total_travelers']
+        read_only_fields = ['id', 'created_at', 'balance_amount','male','female','children']
+        extra_kwargs = {
+            'user': {'write_only': True, 'required': False},
+            'advance_amount': {'write_only': False, 'required': False},
+        }
+
+class BusBookingSerializer(BaseBookingSerializer):
+    travelers = TravelerSerializer(many=True, required=False, read_only=True)
+    bus_details = serializers.SerializerMethodField(read_only=True)
+    
+    class Meta:
+        model = BusBooking
+        fields = BaseBookingSerializer.Meta.fields + [
+            'bus', 'bus_details', 'one_way','travelers'
+        ]
+        extra_kwargs = {
+            'user': {'write_only': True, 'required': False},
+            'advance_amount': {'write_only': False, 'required': False},
+        }
+
+class PackageBookingSerializer(BaseBookingSerializer):
+    travelers = TravelerSerializer(many=True, required=False, read_only=True)
+    package_details = serializers.SerializerMethodField(read_only=True)
+    
+    class Meta:
+        model = PackageBooking
+        fields = BaseBookingSerializer.Meta.fields + [
+            'package', 'package_details', 'travelers'
+        ]
+        read_only_fields = BaseBookingSerializer.Meta.read_only_fields + ['total_travelers']
+        extra_kwargs = {
+            'user': {'write_only': True, 'required': False},
+            'advance_amount': {'write_only': True, 'required': False},
+        }
+
+class BusReviewSerializer(serializers.ModelSerializer):
+    user_name = serializers.CharField(source="user.username", read_only=True)
+    bus_name = serializers.CharField(source="bus.bus_name", read_only=True)  # Include bus name
+
+    class Meta:
+        model = BusReview
+        fields = ["user_name", "bus_name", "rating", "comment", "created_at"]
 
 
 
@@ -486,15 +535,5 @@ class BookingDisplaySerializer(serializers.Serializer):
         if traveler:
             return f"{traveler.first_name} {traveler.last_name or ''}".strip()
         return f"Traveler {obj.id}"
-
-
-
-
-
-
-
-
-
-
 
 
