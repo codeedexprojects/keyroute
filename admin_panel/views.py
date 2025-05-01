@@ -23,6 +23,8 @@ from collections import defaultdict
 from datetime import date
 from django.core.paginator import Paginator
 from django.db.models import Count
+from itertools import chain
+from operator import attrgetter
 
 # Create your views here.
 
@@ -908,10 +910,22 @@ class DashboardStatsAPIView(APIView):
 
 
 
+class RecentApprovedBookingsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
+    def get(self, request):
+        bus_bookings = BusBooking.objects.filter(booking_status='accepted').order_by('-created_at')[:5]
+        package_bookings = PackageBooking.objects.filter(booking_status='accepted').order_by('-created_at')[:5]
 
+        combined_bookings = sorted(
+            chain(bus_bookings, package_bookings),
+            key=attrgetter('created_at'),
+            reverse=True
+        )[:5]
 
-
+        serializer = BookingDisplaySerializer(combined_bookings, many=True)
+        return Response(serializer.data)
 
 
 

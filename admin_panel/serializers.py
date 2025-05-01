@@ -452,3 +452,49 @@ class PackageBookingSerializer08(serializers.ModelSerializer):
         model = PackageBooking
         fields = ['id', 'start_date', 'total_amount', 'booking_status', 'trip_status']
 
+
+
+
+
+
+
+
+
+class BookingDisplaySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    created_at = serializers.DateTimeField()
+    start_date = serializers.DateField()
+    booking_status = serializers.CharField()
+    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    from_location = serializers.CharField()
+    to_location = serializers.CharField()
+    booking_type = serializers.SerializerMethodField()
+    user = serializers.StringRelatedField()
+    total_members = serializers.SerializerMethodField()
+    default_member_name = serializers.SerializerMethodField()
+
+    def get_booking_type(self, obj):
+        return 'Bus' if hasattr(obj, 'bus') else 'Package'
+    
+
+
+    def get_total_members(self, obj):
+        return obj.male + obj.female + obj.children
+
+    def get_default_member_name(self, obj):
+        traveler = obj.travelers.first()
+        if traveler:
+            return f"{traveler.first_name} {traveler.last_name or ''}".strip()
+        return f"Traveler {obj.id}"
+
+
+
+
+
+
+
+
+
+
+
+
