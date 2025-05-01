@@ -413,7 +413,7 @@ class BaseBookingSerializer(serializers.ModelSerializer):
             'advance_amount': {'write_only': False, 'required': False},
         }
 
-class BusBookingSerializer(BaseBookingSerializer):
+class AdminBusBookingSerializer(BaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     bus_details = serializers.SerializerMethodField(read_only=True)
     
@@ -427,7 +427,7 @@ class BusBookingSerializer(BaseBookingSerializer):
             'advance_amount': {'write_only': False, 'required': False},
         }
 
-class PackageBookingSerializer(BaseBookingSerializer):
+class AdminPackageBookingSerializer(BaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
     
@@ -442,7 +442,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
             'advance_amount': {'write_only': True, 'required': False},
         }
 
-class BusReviewSerializer(serializers.ModelSerializer):
+class AdminBusReviewSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source="user.username", read_only=True)
     bus_name = serializers.CharField(source="bus.bus_name", read_only=True)  # Include bus name
 
