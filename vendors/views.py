@@ -1537,7 +1537,7 @@ class PackageBookingEarningsFilterView(APIView):
         first_day = today.replace(day=1)
         start_of_month = make_aware(datetime.combine(first_day, datetime.min.time()))
         monthly_revenue = all_bookings.filter(created_at__gte=start_of_month).aggregate(total=Sum('total_amount'))['total'] or 0
-        
+
         monthly_revenue = float(monthly_revenue)
 
         serializer = PackageBookingEarnigsSerializer(package_bookings, many=True)

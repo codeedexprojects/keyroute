@@ -1139,6 +1139,7 @@ class CombinedBookingSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField()
     members_count = serializers.SerializerMethodField()
     phone_number = serializers.SerializerMethodField() 
+    cancelation_reason = serializers.CharField()
 
     def get_type(self, obj):
         return "bus" if isinstance(obj, BusBooking) else "package"
