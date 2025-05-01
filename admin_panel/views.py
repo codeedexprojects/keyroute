@@ -866,3 +866,54 @@ class SingleUserAPIView(APIView):
 
         except User.DoesNotExist:
             return Response({"error": "User not found or not a normal user."}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+
+
+
+
+
+class DashboardStatsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        today = date.today()
+
+        # Total bookings from both models
+        total_bus_bookings = BusBooking.objects.count()
+        total_package_bookings = PackageBooking.objects.count()
+        total_bookings = total_bus_bookings + total_package_bookings
+
+        # Today's bookings
+        today_bus_bookings = BusBooking.objects.filter(created_at__date=today).count()
+        today_package_bookings = PackageBooking.objects.filter(created_at__date=today).count()
+        today_bookings = today_bus_bookings + today_package_bookings
+
+        # Total vendors and users
+        total_vendors = Vendor.objects.count()
+        total_users = User.objects.filter(role=User.USER).count()
+
+        return Response({
+            "total_bookings": total_bookings,
+            "today_bookings": today_bookings,
+            "total_vendors": total_vendors,
+            "total_users": total_users
+        })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
