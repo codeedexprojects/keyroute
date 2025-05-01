@@ -96,7 +96,7 @@ urlpatterns = [
     path('api/admin/dashbord-count', DashboardStatsAPIView.as_view(), name='dashboard-count'),
 
     # RECENT APPROVED BOOKING
-    path('api/admin/recent-approved-booking', RecentApprovedBookingsAPIView.as_view(), name='recent-approved')
+    path('api/admin/recent-approved-booking', RecentApprovedBookingsAPIView.as_view(), name='recent-approved'),
     
     path('api/admin/reviews/', ListAllReviewsAPIView.as_view(), name='list-all-reviews'),
 ] 
