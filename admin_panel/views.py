@@ -22,6 +22,8 @@ from django.db.models import Sum
 from collections import defaultdict
 from datetime import date
 from django.core.paginator import Paginator
+from rest_framework import status as http_status
+from itertools import chain
 
 # Create your views here.
 
@@ -683,3 +685,59 @@ class AdminVendorOverview(APIView):
             'previous_page': page_obj.previous_page_number() if page_obj.has_previous() else None   
         })
 
+
+
+class AllBookingsAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, status_filter):
+        user = request.user
+        package_bookings = PackageBooking.objects.filter(payment_status=status_filter, user=user)
+        bus_bookings = BusBooking.objects.filter(payment_status=status_filter, user=user)
+
+        package_serializer = PackageBookingSerializer(package_bookings, many=True)
+        bus_serializer = BusBookingSerializer(bus_bookings, many=True)
+
+        for item in package_serializer.data:
+            item['booking_type'] = 'package'
+        
+        for item in bus_serializer.data:
+            item['booking_type'] = 'bus'
+
+        combined_data = list(chain(package_serializer.data, bus_serializer.data))
+
+        sorted_combined_data = sorted(combined_data, key=lambda x: x['created_at'], reverse=True)
+
+        return Response(sorted_combined_data)
+    
+class BookingDetails(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, booking_type, booking_id):
+        if booking_type == 'bus':
+            booking = get_object_or_404(BusBooking, id=booking_id)
+            serializer = BusBookingSerializer(booking)
+        
+        elif booking_type == 'package':
+            booking = get_object_or_404(PackageBooking, id=booking_id)
+            serializer = PackageBookingSerializer(booking)
+        
+        else:
+            return Response({'error': 'Invalid booking type.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+class ListAllReviewsAPIView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        """
+        Returns all bus reviews for admin view.
+        """
+        reviews = BusReview.objects.select_related('user', 'bus').order_by('-created_at')
+        serializer = BusReviewSerializer(reviews, many=True)
+
+        return Response({
+            "total_reviews": reviews.count(),
+            "reviews": serializer.data
+        }, status=status.HTTP_200_OK)
