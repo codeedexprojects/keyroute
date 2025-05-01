@@ -87,10 +87,14 @@ urlpatterns = [
     path('api/admin/top-vendors/', TopVendorsAPIView.as_view(), name='top-vendors'),
 
     #USER SINGLE DATA
-    path('api/admin/user/<int:user_id>/', SingleUserAPIView.as_view(), name='single-user')
+    path('api/admin/user/<int:user_id>/', SingleUserAPIView.as_view(), name='single-user'),
 
 
 
+    path('api/admin/dashbord-count', DashboardStatsAPIView.as_view(), name='dashboard-count'),
+
+    # RECENT APPROVED BOOKING
+    path('api/admin/recent-approved-booking', RecentApprovedBookingsAPIView.as_view(), name='recent-approved')
 
 
 
