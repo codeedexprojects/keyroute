@@ -1347,6 +1347,7 @@ class PackageBookingListView(APIView):
 
 
 
+
 class SinglePackageBookingDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
