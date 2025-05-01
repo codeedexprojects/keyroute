@@ -23,6 +23,8 @@ from collections import defaultdict
 from datetime import date
 from django.core.paginator import Paginator
 from django.db.models import Count
+from itertools import chain
+from operator import attrgetter
 
 # Create your views here.
 
@@ -866,3 +868,63 @@ class SingleUserAPIView(APIView):
 
         except User.DoesNotExist:
             return Response({"error": "User not found or not a normal user."}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+
+
+
+
+
+class DashboardStatsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        today = date.today()
+
+        total_bus_bookings = BusBooking.objects.count()
+        total_package_bookings = PackageBooking.objects.count()
+        total_bookings = total_bus_bookings + total_package_bookings
+
+        today_bus_bookings = BusBooking.objects.filter(created_at__date=today).count()
+        today_package_bookings = PackageBooking.objects.filter(created_at__date=today).count()
+        today_bookings = today_bus_bookings + today_package_bookings
+
+        total_vendors = Vendor.objects.count()
+        total_users = User.objects.filter(role=User.USER).count()
+
+        return Response({
+            "total_bookings": total_bookings,
+            "today_bookings": today_bookings,
+            "total_vendors": total_vendors,
+            "total_users": total_users
+        })
+
+
+
+
+
+
+class RecentApprovedBookingsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        bus_bookings = BusBooking.objects.filter(booking_status='accepted').order_by('-created_at')[:5]
+        package_bookings = PackageBooking.objects.filter(booking_status='accepted').order_by('-created_at')[:5]
+
+        combined_bookings = sorted(
+            chain(bus_bookings, package_bookings),
+            key=attrgetter('created_at'),
+            reverse=True
+        )[:5]
+
+        serializer = BookingDisplaySerializer(combined_bookings, many=True)
+        return Response(serializer.data)
+
+
+
+
+
