@@ -281,10 +281,27 @@ class AdminCreateUserSerializer(serializers.ModelSerializer):
 
 
 
+# class UserSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = User
+#         fields = ['id', 'name', 'email', 'mobile', ]
+
+
+
 class UserSerializer(serializers.ModelSerializer):
+    place = serializers.CharField(source='city')  # Using 'city' as 'place'
+
     class Meta:
         model = User
-        fields = ['id', 'name', 'email', 'mobile', ]
+        fields = ['id', 'name', 'email', 'mobile', 'place', 'is_active']
+
+
+
+
+
+
+
+
 
 
 # --------------------------------- Advertisement-----------------
@@ -364,7 +381,7 @@ class AdminBookingSerializer(serializers.Serializer):
         if isinstance(obj, BusBooking):
             return f"{obj.from_location} to {obj.to_location}"
         elif isinstance(obj, PackageBooking):
-            return f"{obj.package.places}"  # Assuming places is a string
+            return f"{obj.package.places}"   
         return ""
 
 
@@ -432,3 +449,91 @@ class BusReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = BusReview
         fields = ["user_name", "bus_name", "rating", "comment", "created_at"]
+
+
+
+
+class RecentUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'name', 'email', 'created_at']
+
+
+
+
+class TopVendorSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    place = serializers.CharField()
+    total_booking_count = serializers.IntegerField()
+
+
+
+
+
+
+
+
+class UserBookingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BaseBooking  
+        fields = ['id', 'start_date', 'total_amount', 'booking_status', 'trip_status']
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        
+        if isinstance(instance, BusBooking):
+            representation['item_type'] = 'Bus'
+        elif isinstance(instance, PackageBooking):
+            representation['item_type'] = 'Package'
+        
+        return representation
+
+
+
+
+class BusBookingSerializer08(serializers.ModelSerializer):
+    class Meta:
+        model = BusBooking
+        fields = ['id', 'start_date', 'total_amount', 'booking_status', 'trip_status']
+
+class PackageBookingSerializer08(serializers.ModelSerializer):
+    class Meta:
+        model = PackageBooking
+        fields = ['id', 'start_date', 'total_amount', 'booking_status', 'trip_status']
+
+
+
+
+
+
+
+
+
+class BookingDisplaySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    created_at = serializers.DateTimeField()
+    start_date = serializers.DateField()
+    booking_status = serializers.CharField()
+    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    from_location = serializers.CharField()
+    to_location = serializers.CharField()
+    booking_type = serializers.SerializerMethodField()
+    user = serializers.StringRelatedField()
+    total_members = serializers.SerializerMethodField()
+    default_member_name = serializers.SerializerMethodField()
+
+    def get_booking_type(self, obj):
+        return 'Bus' if hasattr(obj, 'bus') else 'Package'
+    
+
+
+    def get_total_members(self, obj):
+        return obj.male + obj.female + obj.children
+
+    def get_default_member_name(self, obj):
+        traveler = obj.travelers.first()
+        if traveler:
+            return f"{traveler.first_name} {traveler.last_name or ''}".strip()
+        return f"Traveler {obj.id}"
+
+

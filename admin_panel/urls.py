@@ -80,6 +80,23 @@ urlpatterns = [
 
     path('api/admin/bookings/',AllBookingsAPI.as_view(),name='allbookings'),
     path('api/admin/booking-detail/<str:booking_type>/<int:booking_id>/',BookingDetails.as_view(),name='allbookings'),
+
+
+    # RECENT USERS
+    path('api/admin/recent-users/', RecentUsersAPIView.as_view(), name='recent-users'),
+
+    # TOP VENDORS
+    path('api/admin/top-vendors/', TopVendorsAPIView.as_view(), name='top-vendors'),
+
+    #USER SINGLE DATA
+    path('api/admin/user/<int:user_id>/', SingleUserAPIView.as_view(), name='single-user'),
+
+
+
+    path('api/admin/dashbord-count', DashboardStatsAPIView.as_view(), name='dashboard-count'),
+
+    # RECENT APPROVED BOOKING
+    path('api/admin/recent-approved-booking', RecentApprovedBookingsAPIView.as_view(), name='recent-approved')
     
     path('api/admin/reviews/', ListAllReviewsAPIView.as_view(), name='list-all-reviews'),
 ] 
