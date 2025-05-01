@@ -1258,12 +1258,18 @@ class BusBookingEarningsHistoryView(APIView):
         now = timezone.now()
         monthly_bookings = bookings.filter(created_at__year=now.year, created_at__month=now.month)
         monthly_revenue = monthly_bookings.aggregate(total=Sum('total_amount'))['total'] or 0
+        monthly_revenue = float(monthly_revenue)
 
 
 
 
         return Response({"earnings": serializer.data,"total_revenue": total_revenue,
             "monthly_revenue": monthly_revenue,})
+
+
+
+
+
 
 
 
