@@ -1336,6 +1336,7 @@ class LatestPackageBookingDetailView(APIView):
 
 class BusBookingEarningsHistoryView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request):
         vendor = request.user.vendor    
@@ -1464,6 +1465,7 @@ class PackageBookingListView(APIView):
 
 class SinglePackageBookingDetailView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request, booking_id):
         try:
@@ -1479,6 +1481,7 @@ class SinglePackageBookingDetailView(APIView):
 
 class PackageBookingHistoryFilterView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     # def get(self, request):
     #     print('helllo')
@@ -1598,7 +1601,8 @@ class PackageBookingHistoryFilterView(APIView):
 
 
 class PackageBookingEarningsFilterView(APIView):
-    permission_classes = [IsAuthenticated]   
+    permission_classes = [IsAuthenticated]  
+    authentication_classes = [JWTAuthentication] 
 
   
 
@@ -1802,6 +1806,7 @@ from django.utils.timezone import make_aware
 
 class BusBookingEarningsHistoryFilterView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
 
 
@@ -2003,6 +2008,7 @@ class LatestCanceledBookingView(APIView):
 
 class CanceledBusBookingView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     # def get(self, request, booking_id=None):
     #     vendor = request.user.vendor
@@ -2097,6 +2103,7 @@ class CanceledBusBookingView(APIView):
 
 class CanceledPackageBookingView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
   
     def get(self, request, booking_id=None):
@@ -2161,6 +2168,7 @@ class CanceledPackageBookingView(APIView):
 
 class AcceptedBusBookingListView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request):
         try:
@@ -2185,6 +2193,7 @@ class AcceptedBusBookingListView(APIView):
 
 class DeclinedBusBookingListView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request):
         try:
@@ -2211,6 +2220,7 @@ class DeclinedBusBookingListView(APIView):
 
 class AcceptBusBookingView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def post(self, request, booking_id):
         try:
@@ -2270,6 +2280,7 @@ class AcceptedBusBookingDetailView(APIView):
 
 class AcceptPackageBookingView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def post(self, request, booking_id):
         print('is working',booking_id)
@@ -2321,6 +2332,7 @@ class AcceptPackageBookingView(APIView):
 
 class AcceptedPackageBookingDetailView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request, booking_id):
         try:
@@ -2375,6 +2387,7 @@ class AcceptedPackageBookingListView(APIView):
 
 class DeclinePackageBookingView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request):
         try:
@@ -2400,6 +2413,7 @@ class DeclinePackageBookingView(APIView):
 
 class DeclineBusBookingView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def post(self, request, booking_id):
         try:
@@ -2437,6 +2451,7 @@ class DeclineBusBookingView(APIView):
 
 class DeclinePackageBookingView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def post(self, request, booking_id):
         try:
@@ -2471,6 +2486,7 @@ class DeclinePackageBookingView(APIView):
 
 class BusBookingRequestListView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request):
         try:
@@ -2505,6 +2521,7 @@ class BusBookingRequestListView(APIView):
 
 class PackageBookingRequestView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
     def get(self, request):
         try:
