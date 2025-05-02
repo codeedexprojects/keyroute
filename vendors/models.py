@@ -191,6 +191,9 @@ class Stay(models.Model):
     day_plan = models.OneToOneField(DayPlan, on_delete=models.CASCADE, related_name='stay')
     hotel_name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
+    location = models.CharField(max_length=255, blank=True, null=True)  
+    is_ac = models.BooleanField(default=False, blank=True, null=True)  
+    has_breakfast = models.BooleanField(default=False, blank=True, null=True) 
 
 
 class StayImage(models.Model):
@@ -203,6 +206,9 @@ class Meal(models.Model):
     day_plan = models.ForeignKey(DayPlan, on_delete=models.CASCADE, related_name='meals')
     type = models.CharField(max_length=50, choices=[('breakfast', 'Breakfast'), ('lunch', 'Lunch'), ('dinner', 'Dinner')])
     description = models.TextField(blank=True, null=True)
+    restaurant_name = models.CharField(max_length=255, blank=True, null=True)
+    location = models.CharField(max_length=255, blank=True, null=True)
+    time = models.TimeField(blank=True, null=True)
 
 
 
@@ -215,6 +221,8 @@ class Activity(models.Model):
     day_plan = models.ForeignKey(DayPlan, on_delete=models.CASCADE, related_name='activities')
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
+    time = models.TimeField(blank=True, null=True)
+    location = models.CharField(max_length=255, blank=True, null=True)
 
 class ActivityImage(models.Model):
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name='images')

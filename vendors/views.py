@@ -590,13 +590,96 @@ class BasicPackageAPIView(APIView):
 
 
 
+# class DayPlanCreateAPIView(APIView):
+#     parser_classes = [MultiPartParser, JSONParser]
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+
+  
+    
+#     def post(self, request, package_id):
+#         try:
+#             data = request.data.dict()
+#             files = request.FILES
+
+#             try:
+#                 day_plans = json.loads(data.get("day_plans", "[]"))
+#             except json.JSONDecodeError:
+#                 return Response({"error": "Invalid day_plans JSON format"}, status=400)
+
+#             grouped_images = defaultdict(list)
+#             for key in files:
+#                 parts = key.split('_')
+#                 if parts[0] in ['places', 'meals', 'activities'] and len(parts) == 3:
+#                     section, day_idx, item_idx = parts[0], int(parts[1][3:]), int(parts[2])
+#                     grouped_images[(day_idx, section, item_idx)].extend(request.FILES.getlist(key))
+#                 elif parts[0] == 'stay' and len(parts) == 2:
+#                     day_idx = int(parts[1][3:])
+#                     grouped_images[(day_idx, 'stay', 0)].extend(request.FILES.getlist(key))
+
+#             print("\n--- DEBUG: Grouped Day Plans with Images ---")
+#             for i, day in enumerate(day_plans):
+#                 print(f"Day {i + 1}:")
+#                 for section in ['places', 'meals', 'activities']:
+#                     for idx, item in enumerate(day.get(section, [])):
+#                         imgs = grouped_images.get((i, section, idx), [])
+#                         item['images'] = [{"image": img} for img in imgs]
+#                         print(f"  {section.capitalize()}[{idx}]: {item.get('name', '') or item.get('type', '')}")
+#                         print(f"    Images: {[img.name for img in imgs]}")
+#                 if 'stay' in day:
+#                     imgs = grouped_images.get((i, 'stay', 0), [])
+#                     day['stay']['images'] = [{"image": img} for img in imgs]
+#                     print(f"  Stay:\n    Images: {[img.name for img in imgs]}")
+#             print("--- End Debug ---\n")
+
+#             package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
+#             if not package:
+#                 return Response({"error": "Package not found"}, status=404)
+
+#             with transaction.atomic():
+#                 for day in day_plans:
+#                     places = day.pop("places", [])
+#                     meals = day.pop("meals", [])
+#                     activities = day.pop("activities", [])
+#                     stay = day.pop("stay", None)
+
+#                     day_instance = DayPlan.objects.create(package=package, **day)
+
+#                     for place in places:
+#                         images = place.pop("images", [])
+#                         p = Place.objects.create(day_plan=day_instance, **place)
+#                         for img in images:
+#                             PlaceImage.objects.create(place=p, image=img["image"])
+
+#                     if stay:
+#                         images = stay.pop("images", [])
+#                         s = Stay.objects.create(day_plan=day_instance, **stay)
+#                         for img in images:
+#                             StayImage.objects.create(stay=s, image=img["image"])
+
+#                     for meal in meals:
+#                         images = meal.pop("images", [])
+#                         m = Meal.objects.create(day_plan=day_instance, **meal)
+#                         for img in images:
+#                             MealImage.objects.create(meal=m, image=img["image"])
+
+#                     for activity in activities:
+#                         images = activity.pop("images", [])
+#                         a = Activity.objects.create(day_plan=day_instance, **activity)
+#                         for img in images:
+#                             ActivityImage.objects.create(activity=a, image=img["image"])
+
+#             return Response({"message": "Day plans added successfully."}, status=201)
+
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=500)
+
+
 class DayPlanCreateAPIView(APIView):
     parser_classes = [MultiPartParser, JSONParser]
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-  
-    
     def post(self, request, package_id):
         try:
             data = request.data.dict()
@@ -614,30 +697,15 @@ class DayPlanCreateAPIView(APIView):
                     section, day_idx, item_idx = parts[0], int(parts[1][3:]), int(parts[2])
                     grouped_images[(day_idx, section, item_idx)].extend(request.FILES.getlist(key))
                 elif parts[0] == 'stay' and len(parts) == 2:
-                    day_idx = int(parts[1][3:])
+                    day_idx = int(parts[1][3:])  # stay_day1
                     grouped_images[(day_idx, 'stay', 0)].extend(request.FILES.getlist(key))
-
-            print("\n--- DEBUG: Grouped Day Plans with Images ---")
-            for i, day in enumerate(day_plans):
-                print(f"Day {i + 1}:")
-                for section in ['places', 'meals', 'activities']:
-                    for idx, item in enumerate(day.get(section, [])):
-                        imgs = grouped_images.get((i, section, idx), [])
-                        item['images'] = [{"image": img} for img in imgs]
-                        print(f"  {section.capitalize()}[{idx}]: {item.get('name', '') or item.get('type', '')}")
-                        print(f"    Images: {[img.name for img in imgs]}")
-                if 'stay' in day:
-                    imgs = grouped_images.get((i, 'stay', 0), [])
-                    day['stay']['images'] = [{"image": img} for img in imgs]
-                    print(f"  Stay:\n    Images: {[img.name for img in imgs]}")
-            print("--- End Debug ---\n")
 
             package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
             if not package:
                 return Response({"error": "Package not found"}, status=404)
 
             with transaction.atomic():
-                for day in day_plans:
+                for idx, day in enumerate(day_plans):
                     places = day.pop("places", [])
                     meals = day.pop("meals", [])
                     activities = day.pop("activities", [])
@@ -645,36 +713,54 @@ class DayPlanCreateAPIView(APIView):
 
                     day_instance = DayPlan.objects.create(package=package, **day)
 
-                    for place in places:
+                    for p_idx, place in enumerate(places):
                         images = place.pop("images", [])
                         p = Place.objects.create(day_plan=day_instance, **place)
-                        for img in images:
-                            PlaceImage.objects.create(place=p, image=img["image"])
+                        for img in grouped_images.get((idx, 'places', p_idx), []):
+                            PlaceImage.objects.create(place=p, image=img)
 
                     if stay:
                         images = stay.pop("images", [])
-                        s = Stay.objects.create(day_plan=day_instance, **stay)
-                        for img in images:
-                            StayImage.objects.create(stay=s, image=img["image"])
+                        stay_fields = {
+                            "hotel_name": stay.get("hotel_name"),
+                            "description": stay.get("description"),
+                            "location": stay.get("location"),
+                            "is_ac": stay.get("ac", False),
+                            "has_breakfast": stay.get("breakfast", False),
+                        }
+                        s = Stay.objects.create(day_plan=day_instance, **stay_fields)
+                        for img in grouped_images.get((idx, 'stay', 0), []):
+                            StayImage.objects.create(stay=s, image=img)
 
-                    for meal in meals:
+                    for m_idx, meal in enumerate(meals):
                         images = meal.pop("images", [])
-                        m = Meal.objects.create(day_plan=day_instance, **meal)
-                        for img in images:
-                            MealImage.objects.create(meal=m, image=img["image"])
+                        meal_fields = {
+                            "type": meal.get("type"),
+                            "description": meal.get("description"),
+                            "restaurant_name": meal.get("restaurant_name"),
+                            "location": meal.get("location"),
+                            "time": meal.get("time"),
+                        }
+                        m = Meal.objects.create(day_plan=day_instance, **meal_fields)
+                        for img in grouped_images.get((idx, 'meals', m_idx), []):
+                            MealImage.objects.create(meal=m, image=img)
 
-                    for activity in activities:
+                    for a_idx, activity in enumerate(activities):
                         images = activity.pop("images", [])
-                        a = Activity.objects.create(day_plan=day_instance, **activity)
-                        for img in images:
-                            ActivityImage.objects.create(activity=a, image=img["image"])
+                        activity_fields = {
+                            "name": activity.get("name"),
+                            "description": activity.get("description"),
+                            "location": activity.get("location"),
+                            "time": activity.get("time"),
+                        }
+                        a = Activity.objects.create(day_plan=day_instance, **activity_fields)
+                        for img in grouped_images.get((idx, 'activities', a_idx), []):
+                            ActivityImage.objects.create(activity=a, image=img)
 
             return Response({"message": "Day plans added successfully."}, status=201)
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
-
-
 
 
 
