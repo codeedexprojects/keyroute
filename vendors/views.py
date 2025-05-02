@@ -25,6 +25,7 @@ from django.db.models import Sum, Count, F
 from django.utils.timezone import now
 from .serializers import PackageBasicSerializer
 from admin_panel.models import *
+from calendar import monthrange
 
 # Create your views here.
 
@@ -1095,32 +1096,6 @@ class VendorBusBookingListView(APIView):
     permission_classes = [IsAuthenticated]
     """API View to get the current vendor's bus bookings"""
 
- 
-
-    # def get(self, request, format=None):
-    #     try:
-    #         vendor = Vendor.objects.get(user=request.user)
-    #     except Vendor.DoesNotExist:
-    #         return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
-        
-    #     current_year = datetime.now().year
-    #     current_month = datetime.now().month
-        
-    #     bookings = BusBooking.objects.filter(bus__vendor=vendor)
-        
-    #     monthly_revenue = bookings.filter(
-    #         created_at__year=current_year,
-    #         created_at__month=current_month
-    #     ).aggregate(total=Sum('total_amount'))['total'] or 0
-        
-    #     serializer = BusBookingDetailSerializer(bookings, many=True)
-        
-    #     return Response({
-    #         "bookings": serializer.data,
-    #         "monthly_revenue": monthly_revenue
-    #     }, status=status.HTTP_200_OK)
-
-
     def get(self, request, format=None):
         try:
             vendor = Vendor.objects.get(user=request.user)
@@ -1201,20 +1176,7 @@ class BusHistoryFilterView(APIView):
 
     # def get(self, request):
     #     try:
-    #         vendor = Vendor.objects.get(user=request.user)
-    #     except Vendor.DoesNotExist:
-    #         return Response({"error": "Vendor not found."}, status=404)
-
-    #     date_filter = request.query_params.get('filter', 'today')
-
-    #     start_date = None
-    #     end_date = None
-
-    #     if date_filter == 'today':
-    #         start_date = datetime.now().date()
-    #         end_date = start_date
-
-    #     elif date_filter == 'last_week':
+    #if date_filter == 'last_week':
     #         start_date = (datetime.now() - timedelta(weeks=1)).date()
     #         end_date = datetime.now().date()
 
@@ -1240,7 +1202,20 @@ class BusHistoryFilterView(APIView):
     #         return Response({"error": "Invalid filter."}, status=400)
 
     #     serializer = BusBookingDetailSerializer(bookings, many=True)
-    #     return Response({"bus_bookings": serializer.data})
+    #     return Response({"bus_bookings": serializer.data})         vendor = Vendor.objects.get(user=request.user)
+    #     except Vendor.DoesNotExist:
+    #         return Response({"error": "Vendor not found."}, status=404)
+
+    #     date_filter = request.query_params.get('filter', 'today')
+
+    #     start_date = None
+    #     end_date = None
+
+    #     if date_filter == 'today':
+    #         start_date = datetime.now().date()
+    #         end_date = start_date
+
+    #     el
 
     def get(self, request):
         try:
@@ -1433,32 +1408,32 @@ class PackageBookingListView(APIView):
 
 
 
-    def get(self, request):
-        user = request.user
-        vendor = user.vendor   
+    def get(self, request, format=None):
+        try:
+            vendor = Vendor.objects.get(user=request.user)
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor not found."}, status=404)
 
-        current_month = datetime.now().month
-        current_year = datetime.now().year
+        current_date = datetime.now()
+        current_year = current_date.year
+        current_month = current_date.month
 
-        package_bookings = PackageBooking.objects.filter(
-            user__vendor=vendor, 
-            start_date__month=current_month, 
-            start_date__year=current_year
+        bookings = PackageBooking.objects.filter(package__vendor=vendor)
+
+        monthly_bookings = bookings.filter(
+            created_at__year=current_year,
+            created_at__month=current_month
         )
 
-        # total_revenue = package_bookings.aggregate(total=Sum('total_amount'))['total'] or 0
-        total_revenue = float(package_bookings.aggregate(total=Sum('total_amount'))['total'] or 0)
+        total = monthly_bookings.aggregate(total=Sum('total_amount'))['total']
+        monthly_revenue = float(total) if total else 0.0
 
-        
-
-        serializer = PackageBookingDetailSerializer(package_bookings, many=True)
+        serializer = PackageBookingDetailSerializer(bookings, many=True)
 
         return Response({
-            "package_bookings": serializer.data,
-            "monthly_revenue": total_revenue
+            "bookings": serializer.data,
+            "monthly_revenue": monthly_revenue
         }, status=200)
-
-
 
 
 
