@@ -1184,7 +1184,6 @@ class BusHistoryFilterView(APIView):
         else:
             return Response({"error": "Invalid filter type."}, status=400)
 
-        # ✅ Filter bookings based on user-selected filter
         bookings = BusBooking.objects.filter(
             start_date__range=[start_date, end_date],
             bus__vendor=vendor
@@ -1192,16 +1191,24 @@ class BusHistoryFilterView(APIView):
 
         serializer = BusBookingDetailSerializer(bookings, many=True)
 
-        # ✅ Monthly revenue: fetch from all bookings of this vendor (NOT filtered)
         current_year = timezone.now().year
         current_month = timezone.now().month
 
         all_vendor_bookings = BusBooking.objects.filter(bus__vendor=vendor)
 
-        monthly_revenue = all_vendor_bookings.filter(
-            created_at__year=current_year,
-            created_at__month=current_month
-        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        # monthly_revenue = all_vendor_bookings.filter(
+        #     created_at__year=current_year,
+        #     created_at__month=current_month
+        # ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+
+        monthly_revenue = float(
+            all_vendor_bookings.filter(
+                created_at__year=current_year,
+                created_at__month=current_month
+            ).aggregate(total=Sum('total_amount'))['total'] or 0
+        )
+
 
         return Response({
             "bus_bookings": serializer.data,
@@ -1352,7 +1359,10 @@ class PackageBookingListView(APIView):
             start_date__year=current_year
         )
 
-        total_revenue = package_bookings.aggregate(total=Sum('total_amount'))['total'] or 0
+        # total_revenue = package_bookings.aggregate(total=Sum('total_amount'))['total'] or 0
+        total_revenue = float(package_bookings.aggregate(total=Sum('total_amount'))['total'] or 0)
+
+        
 
         serializer = PackageBookingDetailSerializer(package_bookings, many=True)
 
@@ -1477,10 +1487,18 @@ class PackageBookingHistoryFilterView(APIView):
 
         all_user_bookings = PackageBooking.objects.filter(user=user)
 
-        monthly_revenue = all_user_bookings.filter(
-            created_at__year=current_year,
-            created_at__month=current_month
-        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        # monthly_revenue = all_user_bookings.filter(
+        #     created_at__year=current_year,
+        #     created_at__month=current_month
+        # ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+        monthly_revenue = float(
+            all_user_bookings.filter(
+                created_at__year=current_year,
+                created_at__month=current_month
+            ).aggregate(total=Sum('total_amount'))['total'] or 0
+        )
+
 
         return Response({
             "package_bookings": serializer.data,
@@ -1563,6 +1581,26 @@ class VendorBusyDateCreateView(APIView):
     permission_classes = [IsAuthenticated]
     
 
+    # def post(self, request):
+    #     try:
+    #         vendor = Vendor.objects.filter(user=request.user).first()
+    #         if not vendor:
+    #             return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    #         serializer = VendorBusyDateSerializer(data=request.data)
+    #         if serializer.is_valid():
+    #             VendorBusyDate.objects.create(
+    #                 vendor=vendor,
+    #                 **serializer.validated_data
+    #             )
+    #             return Response({"message": "Busy date created successfully!"}, status=status.HTTP_201_CREATED)
+    #         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    #     except Exception as e:
+    #         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
     def post(self, request):
         try:
             vendor = Vendor.objects.filter(user=request.user).first()
@@ -1571,37 +1609,25 @@ class VendorBusyDateCreateView(APIView):
 
             serializer = VendorBusyDateSerializer(data=request.data)
             if serializer.is_valid():
+                busy_date = serializer.validated_data.get('date')
+
+                if VendorBusyDate.objects.filter(vendor=vendor, date=busy_date).exists():
+                    return Response({
+                        "message": "Busy date already exists for this day.",
+                        "data": {}
+                    }, status=status.HTTP_200_OK)
+
+
                 VendorBusyDate.objects.create(
                     vendor=vendor,
                     **serializer.validated_data
                 )
                 return Response({"message": "Busy date created successfully!"}, status=status.HTTP_201_CREATED)
+
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
-    # def get(self, request, pk=None):
-    #     try:
-    #         vendor = Vendor.objects.filter(user=request.user).first()
-    #         if not vendor:
-    #             return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
-
-    #         if pk:
-    #             busy_date = VendorBusyDate.objects.filter(id=pk, vendor=vendor).first()
-    #             if not busy_date:
-    #                 return Response({"error": "Busy date not found."}, status=status.HTTP_404_NOT_FOUND)
-
-    #             serializer = VendorBusyDateSerializer(busy_date)
-    #             return Response({"busy_date": serializer.data}, status=status.HTTP_200_OK)
-
-    #         busy_dates = VendorBusyDate.objects.filter(vendor=vendor).order_by('date', 'from_time')
-    #         serializer = VendorBusyDateSerializer(busy_dates, many=True)
-    #         return Response({"busy_dates": serializer.data}, status=status.HTTP_200_OK)
-
-    #     except Exception as e:
-    #         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -1928,10 +1954,18 @@ class CanceledBusBookingView(APIView):
 
         all_vendor_bookings = BusBooking.objects.filter(bus__vendor=vendor)
 
-        monthly_revenue = all_vendor_bookings.filter(
-            created_at__year=current_year,
-            created_at__month=current_month
-        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        # monthly_revenue = all_vendor_bookings.filter(
+        #     created_at__year=current_year,
+        #     created_at__month=current_month
+        # ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+        monthly_revenue = float(
+            all_vendor_bookings.filter(
+                created_at__year=current_year,
+                created_at__month=current_month
+            ).aggregate(total=Sum('total_amount'))['total'] or 0
+        )
+
 
         if booking_id:
             try:
@@ -1978,32 +2012,7 @@ class CanceledBusBookingView(APIView):
 class CanceledPackageBookingView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # def get(self, request, booking_id=None):
-    #     vendor = request.user.vendor
-        
-    #     if booking_id:
-    #         try:
-    #             canceled_package_booking = PackageBooking.objects.get(
-    #                 id=booking_id, 
-    #                 payment_status='cancelled',
-    #                 package__vendor=vendor
-    #             )
-    #             serializer = PackageBookingDetailSerializer(canceled_package_booking)
-    #             return Response(serializer.data, status=status.HTTP_200_OK)
-    #         except PackageBooking.DoesNotExist:
-    #             return Response({"error": "Canceled package booking not found"}, status=status.HTTP_404_NOT_FOUND)
-    #     else:
-    #         canceled_package_bookings = PackageBooking.objects.filter(
-    #             payment_status='cancelled',
-    #             package__vendor=vendor
-    #         ).order_by('-created_at')   
-
-    #         if canceled_package_bookings.exists():
-    #             serializer = PackageBookingBasicSerializer(canceled_package_bookings, many=True)
-    #             return Response({"canceled_package_bookings": serializer.data}, status=status.HTTP_200_OK)
-    #         else:
-    #             return Response({"message": "No canceled package bookings found for this vendor."}, status=status.HTTP_404_NOT_FOUND)
-
+  
     def get(self, request, booking_id=None):
         vendor = request.user.vendor
 
@@ -2013,10 +2022,18 @@ class CanceledPackageBookingView(APIView):
 
         all_vendor_package_bookings = PackageBooking.objects.filter(package__vendor=vendor)
 
-        monthly_revenue = all_vendor_package_bookings.filter(
-            created_at__year=current_year,
-            created_at__month=current_month
-        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        # monthly_revenue = all_vendor_package_bookings.filter(
+        #     created_at__year=current_year,
+        #     created_at__month=current_month
+        # ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+        monthly_revenue = float(
+            all_vendor_package_bookings.filter(
+                created_at__year=current_year,
+                created_at__month=current_month
+            ).aggregate(total=Sum('total_amount'))['total'] or 0
+        )
+
 
         if booking_id:
             try:
