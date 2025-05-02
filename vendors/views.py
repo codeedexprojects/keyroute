@@ -1434,8 +1434,7 @@ class PackageBookingListView(APIView):
 
         return Response({
             "bookings": serializer.data,
-            "monthly_revenue": monthly_revenue,
-            'todaySample':monthly_bookings
+            "monthly_revenue": monthly_revenue
         }, status=200)
 
 
