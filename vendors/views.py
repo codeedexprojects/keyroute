@@ -1410,6 +1410,7 @@ class PackageBookingListView(APIView):
 
     def get(self, request, format=None):
         try:
+            print('hello')
             vendor = Vendor.objects.get(user=request.user)
         except Vendor.DoesNotExist:
             return Response({"error": "Vendor not found."}, status=404)
@@ -1424,6 +1425,7 @@ class PackageBookingListView(APIView):
             created_at__year=current_year,
             created_at__month=current_month
         )
+        print(monthly_bookings,'bh')
 
         total = monthly_bookings.aggregate(total=Sum('total_amount'))['total']
         monthly_revenue = float(total) if total else 0.0
@@ -1432,7 +1434,8 @@ class PackageBookingListView(APIView):
 
         return Response({
             "bookings": serializer.data,
-            "monthly_revenue": monthly_revenue
+            "monthly_revenue": monthly_revenue,
+            'todaySample':monthly_bookings
         }, status=200)
 
 
