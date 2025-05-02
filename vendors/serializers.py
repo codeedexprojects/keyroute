@@ -1205,12 +1205,18 @@ class BusDriverDetailSerializer(serializers.ModelSerializer):
 
 class AcceptedBusBookingSerializer(serializers.ModelSerializer):
     driver_detail = BusDriverDetailSerializer(read_only=True)
+    traveler = serializers.SerializerMethodField()
 
     class Meta:
         model = BusBooking
         fields = ['id', 'start_date', 'total_amount', 'advance_amount', 'payment_status', 'booking_status', 
                   'from_location', 'to_location', 'created_at', 'total_travelers', 'male', 'female', 'children', 
-                  'cancelation_reason', 'driver_detail'] 
+                  'cancelation_reason', 'driver_detail','traveler'] 
+        
+
+    def get_traveler(self, obj):
+        traveler = obj.travelers.first()
+        return TravelerSerializer(traveler).data if traveler else None
 
 
 
@@ -1223,12 +1229,17 @@ class PackageDriverDetailSerializer(serializers.ModelSerializer):
 
 class AcceptedPackageBookingSerializer(serializers.ModelSerializer):
     driver_detail = PackageDriverDetailSerializer(read_only=True)
+    traveler = serializers.SerializerMethodField()
 
     class Meta:
         model = PackageBooking
         fields = ['id', 'start_date', 'total_amount', 'advance_amount', 'payment_status', 'booking_status', 
                   'from_location', 'to_location', 'created_at', 'total_travelers', 'male', 'female', 'children', 
-                  'cancelation_reason', 'driver_detail']
+                  'cancelation_reason', 'driver_detail','traveler']
+        
+    def get_traveler(self, obj):
+        traveler = obj.travelers.first()
+        return TravelerSerializer(traveler).data if traveler else None
 
 
 
