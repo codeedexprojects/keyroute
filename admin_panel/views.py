@@ -769,10 +769,9 @@ class AdminVendorOverview(APIView):
 class AllBookingsAPI(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, status_filter):
-        user = request.user
-        package_bookings = PackageBooking.objects.filter(payment_status=status_filter, user=user)
-        bus_bookings = BusBooking.objects.filter(payment_status=status_filter, user=user)
+    def get(self, request):
+        package_bookings = PackageBooking.objects.get().all()
+        bus_bookings = BusBooking.objects.get().all()
 
         package_serializer = AdminPackageBookingSerializer(package_bookings, many=True)
         bus_serializer = AdminBusBookingSerializer(bus_bookings, many=True)
