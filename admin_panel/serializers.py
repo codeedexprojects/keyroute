@@ -426,11 +426,15 @@ class AdminBusBookingSerializer(AdminBaseBookingSerializer):
             'user': {'write_only': True, 'required': False},
             'advance_amount': {'write_only': False, 'required': False},
         }
+    
+    def get_bus_details(self, obj):
+        from vendors.serializers import BusSerializer
+        return BusSerializer(obj.bus).data
 
 class AdminPackageBookingSerializer(AdminBaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
-
+    
     class Meta:
         model = PackageBooking
         fields = AdminBaseBookingSerializer.Meta.fields + [
@@ -441,14 +445,10 @@ class AdminPackageBookingSerializer(AdminBaseBookingSerializer):
             'user': {'write_only': True, 'required': False},
             'advance_amount': {'write_only': True, 'required': False},
         }
-
+    
     def get_package_details(self, obj):
-        return {
-            "id": obj.package.id,
-            "title": obj.package.title,
-            "description": obj.package.description,
-            "price": str(obj.package.price),
-        }
+        from vendors.serializers import PackageSerializer
+        return PackageSerializer(obj.package).data
 
 
 class AdminBusReviewSerializer(serializers.ModelSerializer):
