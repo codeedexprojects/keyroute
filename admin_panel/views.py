@@ -278,7 +278,7 @@ class AdminCreateVendorAPIView(APIView):
         vendors = Vendor.objects.all()
         serializer = VendorFullSerializer(vendors, many=True)
         return Response({
-            "message": "List of all vendors",
+            "message": "List of all vendors1",
             "data": serializer.data
         }, status=status.HTTP_200_OK)
 
