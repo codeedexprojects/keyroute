@@ -1009,17 +1009,30 @@ class VendorBusBookingListView(APIView):
     permission_classes = [IsAuthenticated]
     """API View to get the current vendor's bus bookings"""
 
+ 
+
     # def get(self, request, format=None):
     #     try:
-    #         # Assuming Vendor model has a OneToOne relation with User
     #         vendor = Vendor.objects.get(user=request.user)
     #     except Vendor.DoesNotExist:
     #         return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
         
-    #     # Filter bookings where bus.vendor matches the current vendor
+    #     current_year = datetime.now().year
+    #     current_month = datetime.now().month
+        
     #     bookings = BusBooking.objects.filter(bus__vendor=vendor)
+        
+    #     monthly_revenue = bookings.filter(
+    #         created_at__year=current_year,
+    #         created_at__month=current_month
+    #     ).aggregate(total=Sum('total_amount'))['total'] or 0
+        
     #     serializer = BusBookingDetailSerializer(bookings, many=True)
-    #     return Response(serializer.data, status=status.HTTP_200_OK)
+        
+    #     return Response({
+    #         "bookings": serializer.data,
+    #         "monthly_revenue": monthly_revenue
+    #     }, status=status.HTTP_200_OK)
 
 
     def get(self, request, format=None):
@@ -1033,20 +1046,19 @@ class VendorBusBookingListView(APIView):
         
         bookings = BusBooking.objects.filter(bus__vendor=vendor)
         
-        monthly_revenue = bookings.filter(
+        total = bookings.filter(
             created_at__year=current_year,
             created_at__month=current_month
-        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        ).aggregate(total=Sum('total_amount'))['total']
         
+        monthly_revenue = float(total) if total else 0.0
+
         serializer = BusBookingDetailSerializer(bookings, many=True)
         
         return Response({
             "bookings": serializer.data,
             "monthly_revenue": monthly_revenue
         }, status=status.HTTP_200_OK)
-
-
-
 
 
 class BusBookingDetailView(APIView):
@@ -1246,12 +1258,18 @@ class BusBookingEarningsHistoryView(APIView):
         now = timezone.now()
         monthly_bookings = bookings.filter(created_at__year=now.year, created_at__month=now.month)
         monthly_revenue = monthly_bookings.aggregate(total=Sum('total_amount'))['total'] or 0
+        monthly_revenue = float(monthly_revenue)
 
 
 
 
         return Response({"earnings": serializer.data,"total_revenue": total_revenue,
             "monthly_revenue": monthly_revenue,})
+
+
+
+
+
 
 
 
@@ -1480,62 +1498,6 @@ class PackageBookingEarningsFilterView(APIView):
 
   
 
-    # def get(self, request):
-    #     vendor = request.user.vendor
-
-    #     all_bookings = PackageBooking.objects.filter(package__vendor=vendor) 
-    #     package_bookings = all_bookings.order_by('-created_at')
-
-    #     filter_type = request.query_params.get('filter', None)
-    #     start_date = request.query_params.get('start_date', None)
-    #     end_date = request.query_params.get('end_date', None)
-
-    #     today = timezone.now().date()
-
-    #     if filter_type == 'today':
-    #         print('today is working')
-
-    #         package_bookings = package_bookings.filter(created_at__date=today)
-    #         print(package_bookings)
-            
-
-    #     elif filter_type == 'last_week':
-    #         last_week_start = today - timedelta(days=7)
-    #         package_bookings = package_bookings.filter(
-    #             created_at__date__gte=last_week_start, created_at__date__lte=today)
-
-    #     elif filter_type == 'last_month':
-    #         last_month = today - timedelta(days=30)
-    #         package_bookings = package_bookings.filter(
-    #             created_at__date__gte=last_month, created_at__date__lte=today)
-
-    #     elif filter_type == 'custom':
-    #         if start_date and end_date:
-    #             try:
-    #                 start_date = timezone.datetime.strptime(start_date, '%Y-%m-%d').date()
-    #                 end_date = timezone.datetime.strptime(end_date, '%Y-%m-%d').date()
-    #                 package_bookings = package_bookings.filter(
-    #                     created_at__date__gte=start_date, created_at__date__lte=end_date)
-    #             except ValueError:
-    #                 return Response({"error": "Invalid date format. Please use YYYY-MM-DD."}, status=400)
-    #         else:
-    #             return Response({"error": "Please provide start_date and end_date for custom filter."}, status=400)
-
-    #     total_revenue = all_bookings.aggregate(total=Sum('total_amount'))['total'] or 0
-
-    #     first_day_of_month = today.replace(day=1)
-    #     monthly_revenue = all_bookings.filter(
-    #         created_at__date__gte=first_day_of_month
-    #     ).aggregate(total=Sum('total_amount'))['total'] or 0
-
-    #     serializer = PackageBookingEarnigsSerializer(package_bookings, many=True)
-
-    #     return Response({
-    #         "earnings": serializer.data,
-    #         "total_revenue": total_revenue,
-    #         "monthly_revenue": monthly_revenue
-    #     })
-
 
 
     def get(self, request):
@@ -1581,6 +1543,8 @@ class PackageBookingEarningsFilterView(APIView):
         first_day = today.replace(day=1)
         start_of_month = make_aware(datetime.combine(first_day, datetime.min.time()))
         monthly_revenue = all_bookings.filter(created_at__gte=start_of_month).aggregate(total=Sum('total_amount'))['total'] or 0
+
+        monthly_revenue = float(monthly_revenue)
 
         serializer = PackageBookingEarnigsSerializer(package_bookings, many=True)
 
@@ -1833,6 +1797,8 @@ class BusBookingEarningsHistoryFilterView(APIView):
         monthly_revenue = BusBooking.objects.filter(
             bus__in=vendor_buses, created_at__gte=month_start
         ).aggregate(total=Sum('total_amount'))['total'] or 0
+
+        monthly_revenue = float(monthly_revenue)
 
         serializer = BusBookingBasicSerializer(bookings, many=True)
 
