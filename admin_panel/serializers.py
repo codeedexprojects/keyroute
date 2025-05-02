@@ -400,7 +400,7 @@ class AdminCommissionSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class BaseBookingSerializer(serializers.ModelSerializer):
+class AdminBaseBookingSerializer(serializers.ModelSerializer):
     balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     
     class Meta:
@@ -413,13 +413,13 @@ class BaseBookingSerializer(serializers.ModelSerializer):
             'advance_amount': {'write_only': False, 'required': False},
         }
 
-class AdminBusBookingSerializer(BaseBookingSerializer):
+class AdminBusBookingSerializer(AdminBaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     bus_details = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = BusBooking
-        fields = BaseBookingSerializer.Meta.fields + [
+        fields = AdminBaseBookingSerializer.Meta.fields + [
             'bus', 'bus_details', 'one_way','travelers'
         ]
         extra_kwargs = {
@@ -427,16 +427,16 @@ class AdminBusBookingSerializer(BaseBookingSerializer):
             'advance_amount': {'write_only': False, 'required': False},
         }
 
-class AdminPackageBookingSerializer(BaseBookingSerializer):
+class AdminPackageBookingSerializer(AdminBaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = PackageBooking
-        fields = BaseBookingSerializer.Meta.fields + [
+        fields = AdminBaseBookingSerializer.Meta.fields + [
             'package', 'package_details', 'travelers'
         ]
-        read_only_fields = BaseBookingSerializer.Meta.read_only_fields + ['total_travelers']
+        read_only_fields = AdminBaseBookingSerializer.Meta.read_only_fields + ['total_travelers']
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
             'advance_amount': {'write_only': True, 'required': False},
