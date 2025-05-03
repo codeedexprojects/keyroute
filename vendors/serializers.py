@@ -1093,13 +1093,8 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
             'total_travelers', 'from_location', 'to_location', 'travelers','main_traveler_name','booking_status','bus_numbers','trip_status'
         ]
 
-    # def get_travelers(self, obj):
-    #     travelers = Travelers.objects.filter(package_booking=obj)
-    #     return [{"name": f"{traveler.first_name} {traveler.last_name}",
-    #              "gender": traveler.get_gender_display(),
-    #              "email": traveler.email,
-    #              "mobile": traveler.mobile} for traveler in travelers]
-    
+
+
 
     def get_travelers(self, obj):
         travelers = Travelers.objects.filter(package_booking=obj)
