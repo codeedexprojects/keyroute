@@ -1081,6 +1081,8 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
     payment_status = serializers.CharField()
     travelers = serializers.SerializerMethodField()
     main_traveler_name = serializers.SerializerMethodField() 
+    bus_numbers = serializers.SerializerMethodField()
+    # trip_status = serializers.SerializerMethodField()
 
  
     class Meta:
@@ -1088,7 +1090,7 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'package_name', 'start_date', 'total_amount', 'advance_amount', 'balance_amount',
             'payment_status',  'created_at', 'cancelation_reason',
-            'total_travelers', 'from_location', 'to_location', 'travelers','main_traveler_name','booking_status',
+            'total_travelers', 'from_location', 'to_location', 'travelers','main_traveler_name','booking_status','bus_numbers','trip_status'
         ]
 
     # def get_travelers(self, obj):
@@ -1118,6 +1120,8 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
             }
             for traveler in travelers
         ]
+    
+    
 
 
 
@@ -1126,6 +1130,11 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
         if traveler:
             return f"{traveler.first_name} {traveler.last_name}"
         return None
+    
+    def get_bus_numbers(self, obj):
+        return list(obj.package.buses.values_list('bus_number', flat=True))
+
+
 
 
 class CombinedBookingSerializer(serializers.Serializer):
