@@ -61,7 +61,7 @@ class Bus(models.Model):
     capacity = models.IntegerField()
     vehicle_description = models.TextField()
     vehicle_rc_number = models.CharField(max_length=50)
-    travels_logo = models.ImageField(upload_to='travels_logos/', null=True, blank=True)  # Moved here
+    travels_logo = models.ImageField(upload_to='travels_logos/', null=True, blank=True)   
     rc_certificate = models.FileField(upload_to='rc_certificates/')
     license = models.FileField(upload_to='licenses/')
     contract_carriage_permit = models.FileField(upload_to='permits/')
