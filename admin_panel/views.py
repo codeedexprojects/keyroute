@@ -274,11 +274,19 @@ class AdminCreateVendorAPIView(APIView):
     
 
 
+    # def get(self, request):
+    #     vendors = Vendor.objects.all()
+    #     serializer = VendorFullSerializer(vendors, many=True)
+    #     return Response({
+    #         "message": "List of all vendors1",
+    #         "data": serializer.data
+    #     }, status=status.HTTP_200_OK)
+
     def get(self, request):
-        vendors = Vendor.objects.all()
+        vendors = Vendor.objects.all().order_by('-created_at')
         serializer = VendorFullSerializer(vendors, many=True)
         return Response({
-            "message": "List of all vendors1",
+            "message": "List of all vendors",
             "data": serializer.data
         }, status=status.HTTP_200_OK)
 
