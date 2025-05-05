@@ -2,9 +2,9 @@ import requests
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
-from .models import Favourite
+from .models import Favourite, Review
 from admin_panel.utils import send_otp
-from users.models import Review
+from vendors.models import Bus, Package
 
 User = get_user_model()
 
@@ -106,24 +106,61 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return instance
 
 class ReviewSerializer(serializers.ModelSerializer):
+    user_name = serializers.SerializerMethodField(read_only=True)
+    
     class Meta:
         model = Review
-        fields = ['rating', 'comment']
-
+        fields = ['id', 'user', 'rating', 'comment', 'created_at', 'user_name']
+        read_only_fields = ['id', 'created_at', 'user_name']
+        extra_kwargs = {
+            'user': {'write_only': True, 'required': False},
+        }
+        
+    def get_user_name(self, obj):
+        return obj.user.name if obj.user.name else obj.user.mobile
+    
     def create(self, validated_data):
         user = self.context['request'].user
-        return Review.objects.create(user=user, **validated_data)
-    
+        validated_data['user'] = user
+        return Review.objects.create(**validated_data)
 
 class FavouriteSerializer(serializers.ModelSerializer):
+    bus_details = serializers.SerializerMethodField(read_only=True)
+    package_details = serializers.SerializerMethodField(read_only=True)
+    
     class Meta:
         model = Favourite
-        fields = ['user', 'bus','package']
+        fields = ['id', 'user', 'bus', 'package', 'bus_details', 'package_details']
+        extra_kwargs = {
+            'user': {'write_only': True, 'required': False},
+        }
+
+    def get_bus_details(self, obj):
+        if obj.bus:
+            from vendors.serializers import BusSerializer
+            return BusSerializer(obj.bus).data
+        return None
+        
+    def get_package_details(self, obj):
+        if obj.package:
+            from vendors.serializers import PackageSerializer
+            return PackageSerializer(obj.package).data
+        return None
 
     def create(self, validated_data):
-        user = validated_data.get('user')
+        user = self.context['request'].user if 'request' in self.context else validated_data.get('user')
+        if not user and 'user' not in validated_data:
+            raise serializers.ValidationError("User is required")
+            
+        validated_data['user'] = user
         bus = validated_data.get('bus')
         package = validated_data.get('package')
+
+        if bus and package:
+            raise serializers.ValidationError("Cannot favorite both bus and package at the same time")
+            
+        if not bus and not package:
+            raise serializers.ValidationError("Either bus or package must be provided")
 
         if bus:
             favourite, created = Favourite.objects.get_or_create(user=user, bus=bus)
