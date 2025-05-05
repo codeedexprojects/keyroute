@@ -71,16 +71,11 @@ urlpatterns = [
     path('api/admin/commission-slabs/<int:pk>/', AdminCommissionSlabDetailAPIView.as_view(), name='slab-detail'),
     path('api/admin/commissions/', TotalAdminCommission.as_view(), name='commission-list'),
 
-
-
-
-
     # 
     path('api/admin/vendor-summary/', AdminVendorOverview.as_view(), name='admin-vendor-summary'),
 
     path('api/admin/bookings/',AllBookingsAPI.as_view(),name='allbookings'),
     path('api/admin/booking-detail/<str:booking_type>/<int:booking_id>/',BookingDetails.as_view(),name='allbookings'),
-
 
     # RECENT USERS
     path('api/admin/recent-users/', RecentUsersAPIView.as_view(), name='recent-users'),
@@ -91,8 +86,6 @@ urlpatterns = [
     #USER SINGLE DATA
     path('api/admin/user/<int:user_id>/', SingleUserAPIView.as_view(), name='single-user'),
 
-
-
     path('api/admin/dashbord-count', DashboardStatsAPIView.as_view(), name='dashboard-count'),
 
     # RECENT APPROVED BOOKING
@@ -100,9 +93,6 @@ urlpatterns = [
 
     # DASHBOARD REVENUE
     path('api/admin/dashboard/revenu', RevenueGraphView.as_view(), name='DASHBOARD-REVENUE'),
-
-
-
     
     path('api/admin/reviews/', ListAllReviewsAPIView.as_view(), name='list-all-reviews'),
 ] 
