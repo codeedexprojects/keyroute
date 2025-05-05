@@ -158,44 +158,6 @@ class AdminBusListAPIView(APIView):
             "buses": serializer.data
         }, status=status.HTTP_200_OK)
 
-    # def get(self, request, user_id=None):
-    #     if user_id:
-    #         try:
-    #             user = User.objects.get(id=user_id, role=User.USER)
-    #             serializer = UserSerializer(user)
-    #             return Response(serializer.data, status=status.HTTP_200_OK)
-    #         except User.DoesNotExist:
-    #             return Response({"error": "User not found or not a normal user."}, status=status.HTTP_404_NOT_FOUND)
-    #     else:
-    #         # Check if there are any users with role 'USER'
-    #         total_users = User.objects.filter(role=User.USER)
-    #         print(total_users,'users')
-
-    #         if total_users.exists():  # Ensure users exist before proceeding
-    #             # Booked users count (those who have made a booking)
-    #             booked_users = User.objects.filter(role=User.USER, id__in=BaseBooking.objects.values('user_id').distinct())
-
-    #             # Active users count
-    #             active_users = User.objects.filter(role=User.USER, is_active=True)
-    #             print(active_users,'actgive')
-
-    #             # Inactive users count
-    #             inactive_users = User.objects.filter(role=User.USER, is_active=False)
-    #             print(inactive_users,'actgive')
-
-
-    #             # Serialize the users
-    #             serializer = UserSerializer(total_users, many=True)
-
-    #             return Response({
-    #                 "total_users_count": total_users.count(),
-    #                 "booked_users_count": booked_users.count(),
-    #                 "active_users_count": active_users.count(),
-    #                 "inactive_users_count": inactive_users.count(),
-    #                 "users": serializer.data
-    #             }, status=status.HTTP_200_OK)
-    #         else:
-    #             return Response({"message": "No users found."}, status=status.HTTP_404_NOT_FOUND)
 
 
 class AllUsersAPIView(APIView):
@@ -263,6 +225,8 @@ class AllUsersAPIView(APIView):
 
 # VENDOR CREATING AND LISTING
 class AdminCreateVendorAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     def post(self, request):
         serializer = AdminVendorSerializer(data=request.data)
         if serializer.is_valid():
@@ -294,6 +258,8 @@ class AdminCreateVendorAPIView(APIView):
 
 # VENDOR DETAILS
 class AdminVendorDetailAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     def get(self, request, vendor_id):
         try:
             vendor = Vendor.objects.get(pk=vendor_id)
@@ -309,6 +275,8 @@ class AdminVendorDetailAPIView(APIView):
 
 # ADMIN BUS LISTING
 class AdminVendorBusListAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     def get(self, request, vendor_id):
         try:
             vendor = Vendor.objects.get(pk=vendor_id)
@@ -327,6 +295,8 @@ class AdminVendorBusListAPIView(APIView):
 
 # ADMIN BUS DETAILS
 class AdminBusDetailAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     def get(self, request, bus_id):
         try:
             bus = Bus.objects.get(pk=bus_id)
@@ -847,6 +817,7 @@ class AdminVendorOverview(APIView):
 
 
 class AllBookingsAPI(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, status_filter):
@@ -870,6 +841,7 @@ class AllBookingsAPI(APIView):
         return Response(sorted_combined_data)
     
 class BookingDetails(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, booking_type, booking_id):
@@ -887,6 +859,7 @@ class BookingDetails(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 class ListAllReviewsAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminUser]
 
     def get(self, request):
@@ -923,6 +896,10 @@ class RecentUsersAPIView(APIView):
 
 
 class TopVendorsAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+
     def get(self, request):
         bus_booking_counts = (
             BusBooking.objects
@@ -1069,14 +1046,15 @@ class RecentApprovedBookingsAPIView(APIView):
 
 
 class RevenueGraphView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
-        # Combine bookings
         bus_bookings = BusBooking.objects.all()
         package_bookings = PackageBooking.objects.all()
 
         all_bookings = list(bus_bookings) + list(package_bookings)
 
-        # Monthly revenue
         bus_revenue = bus_bookings.annotate(month=TruncMonth('created_at')) \
                                   .values('month') \
                                   .annotate(total_amount=Sum('total_amount'))
@@ -1093,7 +1071,6 @@ class RevenueGraphView(APIView):
 
         monthly_revenue = [{"month": k, "total_amount": v} for k, v in sorted(monthly_data.items())]
 
-        # All bookings
         def serialize_booking(b, booking_type):
             return {
                 "id": b.id,
