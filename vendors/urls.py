@@ -162,7 +162,7 @@ urlpatterns = [
 
 
 
-    #BOOKING VIEW
+    # Latest BOOKING VIEW
     path('api/vendor/booking/detail/<int:booking_id>/', UnifiedBookingDetailView.as_view(), name='unified_booking_detail'),
 
 
