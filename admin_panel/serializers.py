@@ -319,14 +319,25 @@ class LimitedDealImageSerializer(serializers.ModelSerializer):
 
 
 class LimitedDealSerializer(serializers.ModelSerializer):
-    images = serializers.ListField(
-        child=serializers.ImageField(),
-        write_only=True
-    )
+    # images = serializers.ListField(
+    #     child=serializers.ImageField(),
+    #     write_only=True,
+    #     required=False 
+    # )
+    images = LimitedDealImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = LimitedDeal
         fields = ['title', 'description', 'images']
+
+    def create(self, validated_data):
+        images = validated_data.pop('images', [])   
+        limited_deal = LimitedDeal.objects.create(**validated_data)
+
+        for img in images:
+            LimitedDealImage.objects.create(deal=limited_deal, image=img)
+
+        return limited_deal
 
 
 class FooterSectionSerializer(serializers.ModelSerializer):

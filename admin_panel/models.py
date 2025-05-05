@@ -126,7 +126,7 @@ class FooterSection(models.Model):
         return f"Footer Section - {self.title}"
 
 
-
+ 
 
 
 class Sight(models.Model):
