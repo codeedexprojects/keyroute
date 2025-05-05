@@ -820,13 +820,12 @@ class AllBookingsAPI(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, status_filter):
-        user = request.user
-        package_bookings = PackageBooking.objects.filter(payment_status=status_filter, user=user)
-        bus_bookings = BusBooking.objects.filter(payment_status=status_filter, user=user)
+    def get(self, request):
+        package_bookings = PackageBooking.objects.get().all()
+        bus_bookings = BusBooking.objects.get().all()
 
-        package_serializer = PackageBookingSerializer(package_bookings, many=True)
-        bus_serializer = BusBookingSerializer(bus_bookings, many=True)
+        package_serializer = AdminPackageBookingSerializer(package_bookings, many=True)
+        bus_serializer = AdminBusBookingSerializer(bus_bookings, many=True)
 
         for item in package_serializer.data:
             item['booking_type'] = 'package'
@@ -847,11 +846,11 @@ class BookingDetails(APIView):
     def get(self, request, booking_type, booking_id):
         if booking_type == 'bus':
             booking = get_object_or_404(BusBooking, id=booking_id)
-            serializer = BusBookingSerializer(booking)
+            serializer = AdminBusBookingSerializer(booking)
         
         elif booking_type == 'package':
             booking = get_object_or_404(PackageBooking, id=booking_id)
-            serializer = PackageBookingSerializer(booking)
+            serializer = AdminPackageBookingSerializer(booking)
         
         else:
             return Response({'error': 'Invalid booking type.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -867,7 +866,7 @@ class ListAllReviewsAPIView(APIView):
         Returns all bus reviews for admin view.
         """
         reviews = BusReview.objects.select_related('user', 'bus').order_by('-created_at')
-        serializer = BusReviewSerializer(reviews, many=True)
+        serializer = AdminBusReviewSerializer(reviews, many=True)
 
         return Response({
             "total_reviews": reviews.count(),

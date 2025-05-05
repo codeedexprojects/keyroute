@@ -411,49 +411,60 @@ class AdminCommissionSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class BaseBookingSerializer(serializers.ModelSerializer):
+class AdminBaseBookingSerializer(serializers.ModelSerializer):
     balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     
     class Meta:
         abstract = True
-        fields = ['id','booking_status', 'user', 'start_date', 'total_amount', 'advance_amount', 
-                 'payment_status', 'created_at', 'balance_amount','cancelation_reason','from_location', 'to_location', 'total_travelers']
-        read_only_fields = ['id', 'created_at', 'balance_amount','male','female','children']
+        fields = ['id', 'user', 'start_date', 'total_amount', 'advance_amount', 
+                 'payment_status', 'booking_status', 'trip_status', 'created_at', 
+                 'balance_amount', 'cancelation_reason', 'total_travelers', 
+                 'male', 'female', 'children', 'from_location', 'to_location']
+        read_only_fields = ['id', 'created_at', 'balance_amount']
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
             'advance_amount': {'write_only': False, 'required': False},
         }
 
-class BusBookingSerializer(BaseBookingSerializer):
+class AdminBusBookingSerializer(AdminBaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     bus_details = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = BusBooking
-        fields = BaseBookingSerializer.Meta.fields + [
-            'bus', 'bus_details', 'one_way','travelers'
+        fields = AdminBaseBookingSerializer.Meta.fields + [
+            'bus', 'bus_details', 'one_way', 'travelers', 'driver_detail'
         ]
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
             'advance_amount': {'write_only': False, 'required': False},
         }
+    
+    def get_bus_details(self, obj):
+        from vendors.serializers import BusSerializer
+        return BusSerializer(obj.bus).data
 
-class PackageBookingSerializer(BaseBookingSerializer):
+class AdminPackageBookingSerializer(AdminBaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
     
     class Meta:
         model = PackageBooking
-        fields = BaseBookingSerializer.Meta.fields + [
-            'package', 'package_details', 'travelers'
+        fields = AdminBaseBookingSerializer.Meta.fields + [
+            'package', 'package_details', 'travelers', 'driver_detail'
         ]
-        read_only_fields = BaseBookingSerializer.Meta.read_only_fields + ['total_travelers']
+        read_only_fields = AdminBaseBookingSerializer.Meta.read_only_fields
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
-            'advance_amount': {'write_only': True, 'required': False},
+            'advance_amount': {'write_only': False, 'required': False},
         }
+    
+    def get_package_details(self, obj):
+        from vendors.serializers import PackageSerializer
+        return PackageSerializer(obj.package).data
 
-class BusReviewSerializer(serializers.ModelSerializer):
+
+class AdminBusReviewSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source="user.username", read_only=True)
     bus_name = serializers.CharField(source="bus.bus_name", read_only=True)  # Include bus name
 
