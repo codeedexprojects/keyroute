@@ -27,6 +27,7 @@ from itertools import chain
 from django.db.models import Count
 from itertools import chain
 from operator import attrgetter
+from django.db.models.functions import TruncMonth
 
 # Create your views here.
 
@@ -344,6 +345,8 @@ class AdminBusDetailAPIView(APIView):
 
 # VENDOR PACKAGE LISTING
 class AdminVendorPackageListAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     def get(self, request, vendor_id):
         try:
             vendor = Vendor.objects.get(user=vendor_id)
@@ -359,6 +362,8 @@ class AdminVendorPackageListAPIView(APIView):
 
 # VENDOR PACKAGE DETAILS
 class AdminPackageDetailAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     def get(self, request, package_id):
         try:
             package = Package.objects.get(pk=package_id)
@@ -375,6 +380,8 @@ class AdminPackageDetailAPIView(APIView):
 
 
 class PackageCategoryListAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     def get(self, request):
         categories = PackageCategory.objects.all()
         serializer = PackageCategoryListSerializer(categories, many=True)
@@ -408,38 +415,100 @@ class AdminCreateUserView(APIView):
 
 # ADVERTISMENT CREATION
 class AllSectionsCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
     parser_classes = [MultiPartParser, FormParser]
 
+ 
+
     def post(self, request, *args, **kwargs):
-        ads_data = request.data.getlist('advertisements')
-        deals_data = request.data.getlist('limited_deals')
-        footers_data = request.data.getlist('footer_sections')
+       
+        
+        try:
+            ads_data = []
+            for i in range(len(request.data.getlist('advertisements-0-title'))):
+                ad = {
+                    'title': request.data.getlist(f'advertisements-{i}-title')[0],
+                    'description': request.data.getlist(f'advertisements-{i}-description')[0],
+                    'image': request.FILES.get(f'advertisements-{i}-image') if f'advertisements-{i}-image' in request.FILES else None
+                }
+                ads_data.append(ad)
+
+            deals_data = []
+            for i in range(len(request.data.getlist('limited_deals-0-title'))):
+                deal = {
+                    'title': request.data.getlist(f'limited_deals-{i}-title')[0],
+                    'description': request.data.getlist(f'limited_deals-{i}-description')[0],
+                    'images': request.FILES.getlist(f'limited_deals-{i}-images') if f'limited_deals-{i}-images' in request.FILES else []
+                }
+                deals_data.append(deal)
+
+            footers_data = []
+            for i in range(len(request.data.getlist('footer_sections-0-title'))):
+                footer = {
+                    'title': request.data.getlist(f'footer_sections-{i}-title')[0],
+                    'description': request.data.getlist(f'footer_sections-{i}-description')[0],
+                    'image': request.FILES.get(f'footer_sections-{i}-image') if f'footer_sections-{i}-image' in request.FILES else None
+                }
+                footers_data.append(footer)
+
+          
+            
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            return Response({"error": "Invalid data format."}, status=400)
 
         for ad in ads_data:
+            print(f"Processing Advertisement: {ad}")
             serializer = AdvertisementSerializer(data=ad)
             if serializer.is_valid():
                 serializer.save()
             else:
+                print(f"Advertisement serializer errors: {serializer.errors}")
                 return Response({'error': serializer.errors}, status=400)
 
         for deal in deals_data:
+            print(f"Processing Limited Deal: {deal}")
             images = deal.pop('images', [])
             deal_serializer = LimitedDealSerializer(data=deal)
             if deal_serializer.is_valid():
                 limited_deal = deal_serializer.save()
                 for img in images:
+                    print(f"Processing image for deal: {img}")
                     LimitedDealImage.objects.create(deal=limited_deal, image=img)
             else:
+                print(f"Limited Deal serializer errors: {deal_serializer.errors}")
                 return Response({'error': deal_serializer.errors}, status=400)
 
         for footer in footers_data:
-            serializer = FooterSectionSerializer(data=footer)
-            if serializer.is_valid():
-                serializer.save()
+            print(f"Processing Footer Section: {footer}")
+            footer_serializer = FooterSectionSerializer(data=footer)
+            if footer_serializer.is_valid():
+                footer_serializer.save()
             else:
-                return Response({'error': serializer.errors}, status=400)
+                print(f"Footer Section serializer errors: {footer_serializer.errors}")
+                return Response({'error': footer_serializer.errors}, status=400)
 
+        print("All data saved successfully!")
         return Response({"message": "All data saved successfully!"}, status=201)
+
+
+
+    def get(self, request, *args, **kwargs):
+        ads = Advertisement.objects.all()
+        deals = LimitedDeal.objects.all()
+        footers = FooterSection.objects.all()
+
+        ads_serialized = AdvertisementSerializer(ads, many=True).data
+        deals_serialized = LimitedDealSerializer(deals, many=True).data
+        footers_serialized = FooterSectionSerializer(footers, many=True).data
+
+        return Response({
+            "advertisements": ads_serialized,
+            "limited_deals": deals_serialized,
+            "footer_sections": footers_serialized
+        }, status=200)
+
 
 
 
@@ -450,6 +519,8 @@ class AllSectionsCreateView(APIView):
 
 #EXPLROE CREATING
 class ExploreSectionCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request, *args, **kwargs):
@@ -491,6 +562,8 @@ class ExploreSectionCreateView(APIView):
 
 #EXPLORE LISTING
 class ExploreSectionListView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
     def get(self, request):
         sights = Sight.objects.all().order_by('-id')
         serializer = SightListSerializer(sights, many=True)
@@ -502,7 +575,6 @@ class ExploreSectionListView(APIView):
 
 
 class AdminBookingListView(APIView):
-    # permission_classes = [IsAdminUser]
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
@@ -987,4 +1059,77 @@ class RecentApprovedBookingsAPIView(APIView):
 
         serializer = BookingDisplaySerializer(combined_bookings, many=True)
         return Response(serializer.data)
+
+
+
+
+
+
+
+
+
+class RevenueGraphView(APIView):
+    def get(self, request):
+        # Combine bookings
+        bus_bookings = BusBooking.objects.all()
+        package_bookings = PackageBooking.objects.all()
+
+        all_bookings = list(bus_bookings) + list(package_bookings)
+
+        # Monthly revenue
+        bus_revenue = bus_bookings.annotate(month=TruncMonth('created_at')) \
+                                  .values('month') \
+                                  .annotate(total_amount=Sum('total_amount'))
+
+        package_revenue = package_bookings.annotate(month=TruncMonth('created_at')) \
+                                          .values('month') \
+                                          .annotate(total_amount=Sum('total_amount'))
+
+        monthly_data = {}
+
+        for entry in list(bus_revenue) + list(package_revenue):
+            month_str = entry['month'].strftime("%Y-%m")
+            monthly_data[month_str] = monthly_data.get(month_str, 0) + float(entry['total_amount'])
+
+        monthly_revenue = [{"month": k, "total_amount": v} for k, v in sorted(monthly_data.items())]
+
+        # All bookings
+        def serialize_booking(b, booking_type):
+            return {
+                "id": b.id,
+                "type": booking_type,
+                "user": str(b.user),
+                "start_date": b.start_date,
+                "created_at": b.created_at,
+                "total_amount": b.total_amount,
+                "advance_amount": b.advance_amount,
+                "payment_status": b.payment_status,
+                "booking_status": b.booking_status,
+                "trip_status": b.trip_status,
+                "from_location": b.from_location,
+                "to_location": b.to_location,
+                "total_travelers": b.total_travelers
+            }
+
+        bookings_serialized = (
+            [serialize_booking(b, "bus") for b in bus_bookings] +
+            [serialize_booking(p, "package") for p in package_bookings]
+        )
+
+        return Response({
+            "monthly_revenue": monthly_revenue,
+            "all_bookings": bookings_serialized
+        }, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+
+
 

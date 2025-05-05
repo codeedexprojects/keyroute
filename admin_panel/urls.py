@@ -46,8 +46,8 @@ urlpatterns = [
     # NORMAL USER CREATING
     path('api/admin/create-user/', AdminCreateUserView.as_view(), name='admin-create-user'),
 
-    #Advertisement
-    path('api/admin/sections/create/', AllSectionsCreateView.as_view(), name='create-sections'),
+    #Advertisement CREATING AND LISTING
+    path('api/admin/sections/', AllSectionsCreateView.as_view(), name='create-sections'),
 
     # EXPLORE
     path('api/admin/explore/create/', ExploreSectionCreateView.as_view(), name='create-explore-section'),
@@ -98,7 +98,8 @@ urlpatterns = [
     # RECENT APPROVED BOOKING
     path('api/admin/recent-approved-booking', RecentApprovedBookingsAPIView.as_view(), name='recent-approved'),
 
-
+    # DASHBOARD REVENUE
+    path('api/admin/dashboard/revenu', RevenueGraphView.as_view(), name='DASHBOARD-REVENUE'),
 
 
 
