@@ -8,6 +8,11 @@ from vendors.models import Bus, Package
 
 User = get_user_model()
 
+class ReferralCodeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['referral_code']
+
 class UserSignupSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
     mobile = serializers.CharField(max_length=15)
@@ -80,7 +85,7 @@ class SendOTPSerializer(serializers.Serializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'name', 'email', 'mobile', 'role']
+        fields = ['id', 'name', 'email', 'mobile', 'role','profile_image']
         extra_kwargs = {
             'mobile': {'read_only': True},
             'email': {'required': False},
