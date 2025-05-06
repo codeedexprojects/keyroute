@@ -80,15 +80,14 @@ class BusBookingSerializer(BaseBookingSerializer):
 
     def create(self, validated_data):
         total_amount = validated_data.get('total_amount')
+        
         referral_code = validated_data.pop('referral_code', None)
-
+        
         user = self.context['request'].user
 
-        # Advance amount is still calculated from total_amount
         advance_percent, advance_amount = get_advance_amount_from_db(total_amount)
         validated_data['advance_amount'] = advance_amount
 
-        # Commission is now calculated from total_amount
         commission_percent, revenue = get_admin_commission_from_db(total_amount)
 
         booking = super().create(validated_data)
@@ -104,11 +103,8 @@ class BusBookingSerializer(BaseBookingSerializer):
         if referral_code:
             try:
                 referrer = User.objects.get(referral_code=referral_code)
-                # Create a referral transaction (pending status)
                 from decimal import Decimal
-                from django.conf import settings
                 
-                # Get referral amount from settings or use default
                 referral_amount = 100.00
                 
                 ReferralTransaction.objects.create(
@@ -170,15 +166,14 @@ class PackageBookingSerializer(BaseBookingSerializer):
 
     def create(self, validated_data):
         total_amount = validated_data.get('total_amount')
+        
         referral_code = validated_data.pop('referral_code', None)
-
+        
         user = self.context['request'].user
 
-        # Advance amount still based on total_amount
         advance_percent, advance_amount = get_advance_amount_from_db(total_amount)
         validated_data['advance_amount'] = advance_amount
 
-        # Commission now based on total_amount
         commission_percent, revenue = get_admin_commission_from_db(total_amount)
 
         booking = super().create(validated_data)
@@ -194,12 +189,9 @@ class PackageBookingSerializer(BaseBookingSerializer):
         if referral_code:
             try:
                 referrer = User.objects.get(referral_code=referral_code)
-                # Create a referral transaction (pending status)
                 from decimal import Decimal
-                from django.conf import settings
                 
-                # Get referral amount from settings or use default
-                referral_amount = 150.0
+                referral_amount = 100.00 
                 
                 ReferralTransaction.objects.create(
                     user=referrer,
