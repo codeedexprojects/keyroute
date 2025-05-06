@@ -2908,53 +2908,121 @@ class UnifiedBookingDetailView(APIView):
     authentication_classes = [JWTAuthentication]
 
   
+    # def get(self, request, booking_id):
+    #     try:
+    #         vendor = request.user.vendor  
+
+    #         bus_booking = BusBooking.objects.filter(
+    #             id=booking_id,
+    #             bus__vendor=vendor  
+    #         ).first()
+
+    #         if bus_booking:
+    #             data = {
+    #                 "booking_type": "bus",
+    #                 "from_location": bus_booking.from_location,
+    #                 "to_location": bus_booking.to_location,
+    #                 "start_date": bus_booking.start_date,
+    #                 "way": bus_booking.way if hasattr(bus_booking, 'way') else "one-way",   
+    #                 "total_travelers": bus_booking.total_travelers,
+    #                 "total_amount": package_booking.total_amount,
+    #                 "advance_amount": package_booking.advance_amount,
+    #                 "balance_amount": package_booking.balance_amount,
+    #                 "male": bus_booking.male,
+    #                 "female": bus_booking.female,
+    #                 "children": bus_booking.children,
+    #                 "traveler": TravelerSerializer(bus_booking.travelers.first()).data if bus_booking.travelers.exists() else None
+    #             }
+    #             return Response(data, status=status.HTTP_200_OK)
+
+    #         package_booking = PackageBooking.objects.filter(
+    #             id=booking_id,
+    #             package__vendor=vendor   
+    #         ).first()
+
+    #         if package_booking:
+    #             data = {
+    #                 "booking_type": "package",
+    #                 "from_location": package_booking.from_location,
+    #                 "to_location": package_booking.to_location,
+    #                 "start_date": package_booking.start_date,
+    #                 "way": package_booking.way if hasattr(package_booking, 'way') else "round-trip",   
+    #                 "total_travelers": package_booking.total_travelers,
+    #                 "male": package_booking.male,
+    #                 "total_amount": package_booking.total_amount,
+    #                 "advance_amount": package_booking.advance_amount,
+    #                 "balance_amount": package_booking.balance_amount,
+    #                 "female": package_booking.female,
+    #                 "children": package_booking.children,
+    #                 "traveler": TravelerSerializer(package_booking.travelers.first()).data if package_booking.travelers.exists() else None
+    #             }
+    #             return Response(data, status=status.HTTP_200_OK)
+
+    #         return Response({"message": "Booking not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    #     except Exception as e:
+    #         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
     def get(self, request, booking_id):
         try:
             vendor = request.user.vendor  
 
             bus_booking = BusBooking.objects.filter(
                 id=booking_id,
-                bus__vendor=vendor  
+                bus__vendor=vendor
             ).first()
 
             if bus_booking:
+                driver_detail = None
+                if hasattr(bus_booking, 'driver_detail'):
+                    driver_detail = BusDriverDetailSerializer(bus_booking.driver_detail).data
+
                 data = {
                     "booking_type": "bus",
                     "from_location": bus_booking.from_location,
                     "to_location": bus_booking.to_location,
                     "start_date": bus_booking.start_date,
-                    "way": bus_booking.way if hasattr(bus_booking, 'way') else "one-way",   
+                    "way": getattr(bus_booking, 'way', "one-way"),
                     "total_travelers": bus_booking.total_travelers,
-                    "total_amount": package_booking.total_amount,
-                    "advance_amount": package_booking.advance_amount,
-                    "balance_amount": package_booking.balance_amount,
+                    "total_amount": bus_booking.total_amount,
+                    "advance_amount": bus_booking.advance_amount,
+                    "balance_amount": bus_booking.balance_amount,
                     "male": bus_booking.male,
                     "female": bus_booking.female,
                     "children": bus_booking.children,
-                    "traveler": TravelerSerializer(bus_booking.travelers.first()).data if bus_booking.travelers.exists() else None
+                    "traveler": TravelerSerializer(bus_booking.travelers.first()).data if bus_booking.travelers.exists() else None,
+                    "driver_detail": driver_detail
                 }
                 return Response(data, status=status.HTTP_200_OK)
 
             package_booking = PackageBooking.objects.filter(
                 id=booking_id,
-                package__vendor=vendor   
+                package__vendor=vendor
             ).first()
 
             if package_booking:
+                driver_detail = None
+                if hasattr(package_booking, 'driver_detail'):
+                    driver_detail = PackageDriverDetailSerializer(package_booking.driver_detail).data
+
                 data = {
                     "booking_type": "package",
                     "from_location": package_booking.from_location,
                     "to_location": package_booking.to_location,
                     "start_date": package_booking.start_date,
-                    "way": package_booking.way if hasattr(package_booking, 'way') else "round-trip",   
+                    "way": getattr(package_booking, 'way', "round-trip"),
                     "total_travelers": package_booking.total_travelers,
                     "male": package_booking.male,
+                    "female": package_booking.female,
+                    "children": package_booking.children,
                     "total_amount": package_booking.total_amount,
                     "advance_amount": package_booking.advance_amount,
                     "balance_amount": package_booking.balance_amount,
-                    "female": package_booking.female,
-                    "children": package_booking.children,
-                    "traveler": TravelerSerializer(package_booking.travelers.first()).data if package_booking.travelers.exists() else None
+                    "traveler": TravelerSerializer(package_booking.travelers.first()).data if package_booking.travelers.exists() else None,
+                    "driver_detail": driver_detail
                 }
                 return Response(data, status=status.HTTP_200_OK)
 
@@ -2962,12 +3030,4 @@ class UnifiedBookingDetailView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-
-
-
-
-
 
