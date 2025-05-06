@@ -547,7 +547,6 @@ class PackageSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
-        print('helllo')
         vendor = self.context['vendor']
         day_plans_data = validated_data.pop('day_plans')
         buses_data = validated_data.pop('buses') 
@@ -924,7 +923,6 @@ class BusBookingDetailSerializer(serializers.ModelSerializer):
 
 
 class PackageBookingDetailSerializer(serializers.ModelSerializer):
-    print('2')
     """Serializer for the full package booking details"""
     user = serializers.StringRelatedField()   
     package = serializers.StringRelatedField()   
