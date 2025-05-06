@@ -1006,7 +1006,7 @@ class BusInfoSerializer(serializers.ModelSerializer):
         fields = ['bus_number', 'bus_name', 'capacity']
 
 
-class BusBookingDetailSerializer(serializers.ModelSerializer):
+class BusBookingDetailSerializer222(serializers.ModelSerializer):
     travelers = TravelerSerializer(many=True, read_only=True)
     user = serializers.StringRelatedField()
     bus = BusInfoSerializer()
