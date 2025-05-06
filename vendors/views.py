@@ -2902,7 +2902,7 @@ class VendorLatestCancelledBookingView(APIView):
 
 
 
-# BOOKING VIEW DETAILS  
+# BOOKED VIEW DETAILS  BUS AND PACKAGE
 class UnifiedBookingDetailView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -3030,4 +3030,77 @@ class UnifiedBookingDetailView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+class PreAcceptPackageBookingDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request, booking_id):
+        try:
+            vendor = request.user.vendor
+
+            # Try BusBooking first
+            bus_booking = BusBooking.objects.filter(
+                id=booking_id,
+                bus__vendor=vendor,
+                booking_status='pending'  # pending = not accepted yet
+            ).first()
+
+            if bus_booking:
+                data = {
+                    "booking_type": "bus",
+                    "from_location": bus_booking.from_location,
+                    "to_location": bus_booking.to_location,
+                    "start_date": bus_booking.start_date,
+                    "total_travelers": bus_booking.total_travelers,
+                    "male": bus_booking.male,
+                    "female": bus_booking.female,
+                    "children": bus_booking.children,
+                    "travelers": TravelerSerializer(bus_booking.travelers.all(), many=True).data
+                }
+                return Response(data, status=status.HTTP_200_OK)
+
+            # Then try PackageBooking
+            package_booking = PackageBooking.objects.filter(
+                id=booking_id,
+                package__vendor=vendor,
+                booking_status='pending'
+            ).first()
+
+            if package_booking:
+                data = {
+                    "booking_type": "package",
+                    "from_location": package_booking.from_location,
+                    "to_location": package_booking.to_location,
+                    "start_date": package_booking.start_date,
+                    "total_travelers": package_booking.total_travelers,
+                    "male": package_booking.male,
+                    "female": package_booking.female,
+                    "children": package_booking.children,
+                    "travelers": TravelerSerializer(package_booking.travelers.all(), many=True).data
+                }
+                return Response(data, status=status.HTTP_200_OK)
+
+            return Response({"message": "No pending booking found for this vendor with given ID."},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+
 
