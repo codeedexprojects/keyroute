@@ -140,7 +140,8 @@ class PackageReviewView(APIView):
         review_serializer = PackageReviewSerializer(reviews, many=True)
 
         response_data = {
-            "package_name": package,
+            "package_name": package.places,
+#             "package_name": package,
             "average_rating": round(average_rating, 1),
             "total_reviews": reviews.count(),
             "rating_breakdown": rating_summary,

@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import *
 from bookings.views import VendorBusBookingAPI,VendorPackageBookingAPI,VendorBusBookingByStatusAPI,VendorPackageBookingByStatusAPI,BookingFilterByDate
-
+from reviews.views import BusReviewView,PackageReviewView
 urlpatterns = [
    path('api/vendor/signup/', VendorSignupAPIView.as_view(), name='vendor-signup'),
    path('api/vendor/login/', LoginAPIView.as_view(), name='vendor_login'),
@@ -166,6 +166,14 @@ urlpatterns = [
     path('api/vendor/booking/detail/<int:booking_id>/', UnifiedBookingDetailView.as_view(), name='unified_booking_detail'),
 
 
+    path('api/vendor/reviews/package/<int:package_id>/', PackageReviewView.as_view(), name='get_package_reviews'),
+    path('api/vendor/reviews/bus/<int:bus_id>/', BusReviewView.as_view(), name='get_bus_reviews'),
 
+
+
+    
 
 ]
+
+
+
