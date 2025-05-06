@@ -6,7 +6,7 @@ from django.contrib.auth import login
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import generics, permissions
 from admin_panel.utils import send_otp, verify_otp
-from .serializers import ReviewSerializer, SendOTPSerializer, UserLoginSerializer, UserProfileSerializer, UserSignupSerializer,FavouriteSerializer
+from .serializers import ReviewSerializer,  ReferralCodeSerializer, UserProfileSerializer, UserSignupSerializer,FavouriteSerializer
 from google.auth.transport import requests
 from google.oauth2 import id_token
 from django.conf import settings
@@ -269,3 +269,11 @@ class ListFavourites(APIView):
 
         serializer = FavouriteSerializer(favourites, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+class GetReferralCodeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        serializer = ReferralCodeSerializer(user)
+        return Response(serializer.data)
