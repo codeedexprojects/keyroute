@@ -2067,7 +2067,7 @@ class CanceledBusBookingView(APIView):
                 canceled_booking = BusBooking.objects.get(
                     Q(id=booking_id) & Q(bus__vendor=vendor) & cancel_filter
                 )
-                serializer = BusBookingDetailSerializer(canceled_booking)
+                serializer = BusBookingDetailSerializer222(canceled_booking)
                 return Response({
                     "canceled_bus_booking": serializer.data,
                     "monthly_revenue": monthly_revenue
@@ -2083,7 +2083,7 @@ class CanceledBusBookingView(APIView):
             ).order_by('-created_at')
 
             if canceled_bookings.exists():
-                serializer = BusBookingBasicSerializer(canceled_bookings, many=True)
+                serializer = BusBookingDetailSerializer222(canceled_bookings, many=True)
                 return Response({
                     "canceled_bus_bookings": serializer.data,
                     "monthly_revenue": monthly_revenue
@@ -2136,7 +2136,7 @@ class CanceledBusBookingFilterView(APIView):
                 canceled_booking = BusBooking.objects.get(
                     Q(id=booking_id) & Q(bus__vendor=vendor) & cancel_filter
                 )
-                serializer = BusBookingDetailSerializer(canceled_booking)
+                serializer = BusBookingDetailSerializer222(canceled_booking)
                 return Response({
                     "canceled_bus_booking": serializer.data,
                     "monthly_revenue": monthly_revenue
@@ -2180,7 +2180,7 @@ class CanceledBusBookingFilterView(APIView):
 
         # Serialize and return
         if canceled_bookings.exists():
-            serializer = BusBookingBasicSerializer(canceled_bookings.order_by('-created_at'), many=True)
+            serializer = BusBookingDetailSerializer222(canceled_bookings.order_by('-created_at'), many=True)
             return Response({
                 "canceled_bus_bookings": serializer.data,
                 "monthly_revenue": monthly_revenue
@@ -2303,7 +2303,7 @@ class CanceledPackageBookingFilterView(APIView):
                 canceled_booking = PackageBooking.objects.get(
                     Q(id=booking_id) & cancel_conditions & Q(package__vendor=vendor)
                 )
-                serializer = PackageBookingDetailSerializer(canceled_booking)
+                serializer = PackageBookingDetailSerializer222(canceled_booking)
                 return Response({
                     "canceled_package_booking": serializer.data,
                     "monthly_revenue": monthly_revenue
@@ -2342,7 +2342,7 @@ class CanceledPackageBookingFilterView(APIView):
         queryset = queryset.order_by('-created_at')
 
         if queryset.exists():
-            serializer = PackageBookingBasicSerializer(queryset, many=True)
+            serializer = PackageBookingDetailSerializer222(queryset, many=True)
             return Response({
                 "canceled_package_bookings": serializer.data,
                 "monthly_revenue": monthly_revenue
