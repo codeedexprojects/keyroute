@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import CreateReviewView, NormalUserLoginView, NormalUserSignupView, UserLogoutView, UserProfileUpdateView,  VerifyLoginOTPView, VerifySignupOTPView,FavouriteAPIView,ListFavourites
+from .views import CreateReviewView, NormalUserLoginView, NormalUserSignupView, UserLogoutView, UserProfileUpdateView,  VerifyLoginOTPView, VerifySignupOTPView,FavouriteAPIView,ListFavourites, GetReferralCodeView
 
 urlpatterns = [
     path("signup/", NormalUserSignupView.as_view(), name="user-signup"),
@@ -16,5 +16,7 @@ urlpatterns = [
 
     path('favourites/', FavouriteAPIView.as_view(), name='favourite-api'),
 
-    path('list-favourite/<str:bus_or_package>/',ListFavourites.as_view(),name='list-favourite')
+    path('list-favourite/<str:bus_or_package>/',ListFavourites.as_view(),name='list-favourite'),
+
+    path('get-referral-code/', GetReferralCodeView.as_view(), name='get-referral-code'),
 ]
