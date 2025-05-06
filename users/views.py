@@ -6,14 +6,15 @@ from django.contrib.auth import login
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import generics, permissions
 from admin_panel.utils import send_otp, verify_otp
-from .serializers import ReviewSerializer, SendOTPSerializer, UserLoginSerializer, UserProfileSerializer, UserSignupSerializer,FavouriteSerializer
+from .serializers import  ReferralCodeSerializer, UserProfileSerializer, UserSignupSerializer,FavouriteSerializer,UserWalletSerializer, OngoingReferralSerializer, ReferralHistorySerializer
 from google.auth.transport import requests
 from google.oauth2 import id_token
 from django.conf import settings
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from vendors.models import Bus,Package
-from .models import Favourite
+from .models import Favourite,UserWallet, ReferralTransaction
+from django.db.models import Q
 
 User = get_user_model()
 
@@ -198,15 +199,15 @@ class UserProfileUpdateView(generics.RetrieveUpdateAPIView):
         })
 
 
-class CreateReviewView(APIView):
-    permission_classes = [IsAuthenticated]
+# class CreateReviewView(APIView):
+#     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        serializer = ReviewSerializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "Review submitted successfully!"}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#     def post(self, request):
+#         serializer = ReviewSerializer(data=request.data, context={'request': request})
+#         if serializer.is_valid():
+#             serializer.save()
+#             return Response({"message": "Review submitted successfully!"}, status=status.HTTP_201_CREATED)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
 
@@ -269,3 +270,67 @@ class ListFavourites(APIView):
 
         serializer = FavouriteSerializer(favourites, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+class GetReferralCodeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        serializer = ReferralCodeSerializer(user)
+        return Response(serializer.data)
+    
+# wallet and refrel
+
+class WalletDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        wallet, created = UserWallet.objects.get_or_create(user=request.user)
+        serializer = UserWalletSerializer(wallet)
+        
+        ongoing_referrals = ReferralTransaction.objects.filter(
+            user=request.user,
+            status='pending'
+        ).order_by('-created_at')
+        ongoing_serializer = OngoingReferralSerializer(ongoing_referrals, many=True)
+        
+        referral_history = ReferralTransaction.objects.filter(
+            user=request.user,
+            status='completed'
+        ).order_by('-completed_at')
+        history_serializer = ReferralHistorySerializer(referral_history, many=True)
+        
+        return Response({
+            'wallet': serializer.data,
+            'ongoing_referrals': ongoing_serializer.data,
+            'referral_history': history_serializer.data,
+            'referral_code': request.user.referral_code
+        })
+
+class ReferralDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        referral_code = request.user.referral_code
+        
+        total_referrals = ReferralTransaction.objects.filter(
+            user=request.user
+        ).count()
+        
+        completed_referrals = ReferralTransaction.objects.filter(
+            user=request.user,
+            status='completed'
+        ).count()
+        
+        from django.db.models import Sum
+        total_earnings = ReferralTransaction.objects.filter(
+            user=request.user,
+            status='completed'
+        ).aggregate(Sum('amount'))['amount__sum'] or 0
+        
+        return Response({
+            'referral_code': referral_code,
+            'total_referrals': total_referrals,
+            'completed_referrals': completed_referrals,
+            'total_earnings': total_earnings
+        })

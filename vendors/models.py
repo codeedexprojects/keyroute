@@ -1,6 +1,6 @@
 from django.db import models
 from django.core.validators import FileExtensionValidator
-
+from django.db.models import Avg
 # Create your models here.
 
 from django.utils import timezone
@@ -75,7 +75,17 @@ class Bus(models.Model):
     minimum_fare = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
 
+    @property
+    def average_rating(self):
+        avg = self.bus_reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(avg, 1) if avg else 0.0
     
+    @property
+    def total_reviews(self):
+        return self.bus_reviews.count()
+    
+    def __str__(self):
+        return self.bus_name
 
     def __str__(self):
         return self.bus_name
@@ -152,6 +162,18 @@ class Package(models.Model):
     extra_charge_per_km = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
 
+
+    @property
+    def average_rating(self):
+        avg = self.package_reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(avg, 1) if avg else 0.0
+    
+    @property
+    def total_reviews(self):
+        return self.package_reviews.count()
+    
+    def __str__(self):
+        return self.name
 
     def __str__(self):
         return f"{self.sub_category.name} - {self.places}"
@@ -282,8 +304,8 @@ class VendorBusyDate(models.Model):
 
     def __str__(self):
         if self.from_time and self.to_time:
-            return f"{self.vendor.user.username} - {self.date} ({self.from_time} to {self.to_time})"
-        return f"{self.vendor.user.username} - {self.date} (Full Day)"
+            return f"{self.vendor.user.name} - {self.date} ({self.from_time} to {self.to_time})"
+        return f"{self.vendor.user.name} - {self.date} (Full Day)"
 
 
 
