@@ -6,7 +6,7 @@ from django.contrib.auth import login
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import generics, permissions
 from admin_panel.utils import send_otp, verify_otp
-from .serializers import ReviewSerializer,  ReferralCodeSerializer, UserProfileSerializer, UserSignupSerializer,FavouriteSerializer
+from .serializers import  ReferralCodeSerializer, UserProfileSerializer, UserSignupSerializer,FavouriteSerializer
 from google.auth.transport import requests
 from google.oauth2 import id_token
 from django.conf import settings
@@ -198,15 +198,15 @@ class UserProfileUpdateView(generics.RetrieveUpdateAPIView):
         })
 
 
-class CreateReviewView(APIView):
-    permission_classes = [IsAuthenticated]
+# class CreateReviewView(APIView):
+#     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        serializer = ReviewSerializer(data=request.data, context={'request': request})
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "Review submitted successfully!"}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+#     def post(self, request):
+#         serializer = ReviewSerializer(data=request.data, context={'request': request})
+#         if serializer.is_valid():
+#             serializer.save()
+#             return Response({"message": "Review submitted successfully!"}, status=status.HTTP_201_CREATED)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
 
