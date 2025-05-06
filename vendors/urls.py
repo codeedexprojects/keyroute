@@ -70,6 +70,8 @@ urlpatterns = [
 
     # LATEST BOOKING 
     path('api/vendor/latest/', LatestSingleBookingView.as_view(), name='latest-bus-bookings'),
+    # LATEST BOOKING DETAILS VIEW
+    path('api/booking-detail/<int:booking_id>/', BookingDetailByIdView.as_view()),
 
     # LASTEST BOOKING COMPLETED HISTORY SINGLE
     path('api/vendor/latest/booking-history/', VendorLatestSingleBookingHistoryView.as_view(), name='latest-bookings-history'),
@@ -160,18 +162,23 @@ urlpatterns = [
     path('api/vendor/request-list-bus-bookings/', BusBookingRequestListView.as_view(), name='reqst-list-bus-bookings'),
     path('api/vendor/request-list-package-bookings/', PackageBookingRequestView.as_view(), name='reqst-list-package-bookings'),
 
+    # PRE ACCEPTING BOOKING VIEW
+    path('api/vendor/prerequest-view/<int:booking_id>/', PreAcceptPackageBookingDetailView.as_view(), name='pre-requst'),
+
 
 
     # Latest BOOKING VIEW
     path('api/vendor/booking/detail/<int:booking_id>/', UnifiedBookingDetailView.as_view(), name='unified_booking_detail'),
 
-
+    # REVIEWS
     path('api/vendor/reviews/package/<int:package_id>/', PackageReviewView.as_view(), name='get_package_reviews'),
     path('api/vendor/reviews/bus/<int:bus_id>/', BusReviewView.as_view(), name='get_bus_reviews'),
 
-
-
     
+
+
+
+
 
 ]
 
