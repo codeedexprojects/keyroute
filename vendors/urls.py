@@ -160,6 +160,9 @@ urlpatterns = [
     path('api/vendor/request-list-bus-bookings/', BusBookingRequestListView.as_view(), name='reqst-list-bus-bookings'),
     path('api/vendor/request-list-package-bookings/', PackageBookingRequestView.as_view(), name='reqst-list-package-bookings'),
 
+    # PRE ACCEPTING BOOKING VIEW
+    path('api/vendor/prerequest-view/<int:booking_id>/', PreAcceptPackageBookingDetailView.as_view(), name='pre-requst'),
+
 
 
     # Latest BOOKING VIEW
@@ -171,7 +174,7 @@ urlpatterns = [
 
 
 
-    
+
 
 ]
 
