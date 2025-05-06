@@ -43,14 +43,14 @@ class BusListAPIView(APIView):
 
 class PackageBookingListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
-    
+
     def get(self, request):
         bookings = PackageBooking.objects.filter(user=request.user)
         serializer = PackageBookingSerializer(bookings, many=True)
         return Response(serializer.data)
-    
+
     def post(self, request):
-        serializer = PackageBookingSerializer(data=request.data)
+        serializer = PackageBookingSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             package = serializer.validated_data['package']
             vendor = package.vendor
@@ -60,7 +60,7 @@ class PackageBookingListCreateAPIView(APIView):
                 return Response({"error": "Vendor is busy on the selected date."}, status=status.HTTP_400_BAD_REQUEST)
 
             booking = serializer.save(user=request.user)
-            
+
             traveler_data = {
                 "first_name": request.user.name,
                 "last_name": '',
@@ -74,17 +74,17 @@ class PackageBookingListCreateAPIView(APIView):
                 "booking_type": "package",
                 "booking_id": booking.id
             }
-            
+
             travelerSerializer = TravelerCreateSerializer(data=traveler_data)
             if travelerSerializer.is_valid():
                 travelerSerializer.save()
-                
+
                 package_name = booking.package.name if hasattr(booking.package, 'name') else "Tour package"
                 send_notification(
                     user=request.user,
                     message=f"Your booking for {package_name} has been successfully created! Booking ID: {booking.id}"
                 )
-                
+
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             else:
                 booking.delete()
@@ -121,15 +121,14 @@ class PackageBookingDetailAPIView(APIView):
 
 class BusBookingListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
-    
+
     def get(self, request):
         bookings = BusBooking.objects.filter(user=request.user)
         serializer = BusBookingSerializer(bookings, many=True)
         return Response(serializer.data)
-    
+
     def post(self, request):
-        serializer = BusBookingSerializer(data=request.data)
-        print(request.user,'user')
+        serializer = BusBookingSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             bus = serializer.validated_data['bus']
             vendor = bus.vendor
@@ -139,7 +138,7 @@ class BusBookingListCreateAPIView(APIView):
                 return Response({"error": "Vendor is busy on the selected date."}, status=status.HTTP_400_BAD_REQUEST)
 
             booking = serializer.save(user=request.user)
-            
+
             traveler_data = {
                 "first_name": request.user.name,
                 "last_name": '',
@@ -153,19 +152,19 @@ class BusBookingListCreateAPIView(APIView):
                 "booking_type": "bus",
                 "booking_id": booking.id
             }
-            
+
             travelerSerializer = TravelerCreateSerializer(data=traveler_data)
             if travelerSerializer.is_valid():
                 travelerSerializer.save()
-                
+
                 bus_name = booking.bus.name if hasattr(booking.bus, 'name') else "Bus"
                 route_info = f"from {booking.bus.from_location} to {booking.bus.to_location}" if hasattr(booking.bus, 'from_location') and hasattr(booking.bus, 'to_location') else ""
-                
+
                 send_notification(
                     user=request.user,
                     message=f"Your bus booking for {bus_name} {route_info} has been confirmed! Booking ID: {booking.id}"
                 )
-                
+
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             else:
                 booking.delete()

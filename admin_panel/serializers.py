@@ -454,7 +454,7 @@ class AdminPackageBookingSerializer(AdminBaseBookingSerializer):
 
 
 class AdminBusReviewSerializer(serializers.ModelSerializer):
-    user_name = serializers.CharField(source="user.username", read_only=True)
+    user_name = serializers.CharField(source="user.name", read_only=True)
     bus_name = serializers.CharField(source="bus.bus_name", read_only=True)  # Include bus name
 
     class Meta:
