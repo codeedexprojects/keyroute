@@ -2,7 +2,7 @@ import requests
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
-from .models import Favourite, Review
+from .models import Favourite
 from admin_panel.utils import send_otp
 from vendors.models import Bus, Package
 
@@ -110,24 +110,24 @@ class UserProfileSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-class ReviewSerializer(serializers.ModelSerializer):
-    user_name = serializers.SerializerMethodField(read_only=True)
+# class ReviewSerializer(serializers.ModelSerializer):
+#     user_name = serializers.SerializerMethodField(read_only=True)
     
-    class Meta:
-        model = Review
-        fields = ['id', 'user', 'rating', 'comment', 'created_at', 'user_name']
-        read_only_fields = ['id', 'created_at', 'user_name']
-        extra_kwargs = {
-            'user': {'write_only': True, 'required': False},
-        }
+#     class Meta:
+#         model = Review
+#         fields = ['id', 'user', 'rating', 'comment', 'created_at', 'user_name']
+#         read_only_fields = ['id', 'created_at', 'user_name']
+#         extra_kwargs = {
+#             'user': {'write_only': True, 'required': False},
+#         }
         
-    def get_user_name(self, obj):
-        return obj.user.name if obj.user.name else obj.user.mobile
+#     def get_user_name(self, obj):
+#         return obj.user.name if obj.user.name else obj.user.mobile
     
-    def create(self, validated_data):
-        user = self.context['request'].user
-        validated_data['user'] = user
-        return Review.objects.create(**validated_data)
+#     def create(self, validated_data):
+#         user = self.context['request'].user
+#         validated_data['user'] = user
+#         return Review.objects.create(**validated_data)
 
 class FavouriteSerializer(serializers.ModelSerializer):
     bus_details = serializers.SerializerMethodField(read_only=True)
