@@ -920,6 +920,7 @@ class BusBookingDetailSerializer(serializers.ModelSerializer):
 
 
 class PackageBookingDetailSerializer(serializers.ModelSerializer):
+    print('2')
     """Serializer for the full package booking details"""
     user = serializers.StringRelatedField()   
     package = serializers.StringRelatedField()   
@@ -928,11 +929,12 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
     balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     travelers = TravelerSerializer(many=True)   
 
+
     class Meta:
         model = PackageBooking
         fields = [
             'id', 'start_date', 'total_travelers', 'total_amount', 'advance_amount', 
-            'balance_amount', 'payment_status', 'user', 'package', 'travelers'
+            'balance_amount', 'payment_status', 'user', 'package', 'travelers',
         ]
 
 
@@ -1074,7 +1076,8 @@ class PackageBookingEarnigsSerializer(serializers.ModelSerializer):
 
 
 
-class PackageBookingDetailSerializer(serializers.ModelSerializer):
+class PackageBookingDetailSerializer222(serializers.ModelSerializer):
+    print('ifrst')
     package_name = serializers.CharField(source='package.places')
     start_date = serializers.DateField()
     total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
@@ -1082,6 +1085,7 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
     travelers = serializers.SerializerMethodField()
     main_traveler_name = serializers.SerializerMethodField() 
     bus_numbers = serializers.SerializerMethodField()
+    print('good')
     # trip_status = serializers.SerializerMethodField()
 
  
