@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from .models import Favourite
 from admin_panel.utils import send_otp
 from vendors.models import Bus, Package
+from .models import UserWallet, ReferralTransaction
 
 User = get_user_model()
 
@@ -172,3 +173,92 @@ class FavouriteSerializer(serializers.ModelSerializer):
         else:
             favourite, created = Favourite.objects.get_or_create(user=user, package=package)
         return favourite
+
+
+class UserWalletSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserWallet
+        fields = ['balance']
+        read_only_fields = ['balance']
+
+class OngoingReferralSerializer(serializers.ModelSerializer):
+    referred_user_name = serializers.SerializerMethodField()
+    booking_details = serializers.SerializerMethodField()
+    date = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ReferralTransaction
+        fields = ['id', 'referred_user_name', 'booking_type', 'booking_id', 
+                 'amount', 'status', 'date', 'booking_details']
+        read_only_fields = fields
+
+    def get_referred_user_name(self, obj):
+        return obj.referred_user.name if hasattr(obj.referred_user, 'name') else str(obj.referred_user)
+    
+    def get_date(self, obj):
+        return obj.created_at
+    
+    def get_booking_details(self, obj):
+        if obj.booking_type == 'bus':
+            try:
+                from bookings.models import BusBooking
+                booking = BusBooking.objects.get(id=obj.booking_id)
+                return {
+                    'from': booking.from_location,
+                    'to': booking.to_location,
+                    'date': booking.start_date
+                }
+            except:
+                return {}
+        elif obj.booking_type == 'package':
+            try:
+                from bookings.models import PackageBooking
+                booking = PackageBooking.objects.get(id=obj.booking_id)
+                return {
+                    'package_name': booking.package.name if hasattr(booking.package, 'name') else "",
+                    'date': booking.start_date
+                }
+            except:
+                return {}
+        return {}
+
+class ReferralHistorySerializer(serializers.ModelSerializer):
+    referred_user_name = serializers.SerializerMethodField()
+    booking_details = serializers.SerializerMethodField()
+    date = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ReferralTransaction
+        fields = ['id', 'referred_user_name', 'booking_type', 'booking_id', 
+                 'amount', 'transaction_type', 'date', 'booking_details']
+        read_only_fields = fields
+
+    def get_referred_user_name(self, obj):
+        return obj.referred_user.name if hasattr(obj.referred_user, 'name') else str(obj.referred_user)
+    
+    def get_date(self, obj):
+        return obj.completed_at or obj.created_at
+    
+    def get_booking_details(self, obj):
+        if obj.booking_type == 'bus':
+            try:
+                from bookings.models import BusBooking
+                booking = BusBooking.objects.get(id=obj.booking_id)
+                return {
+                    'from': booking.from_location,
+                    'to': booking.to_location,
+                    'date': booking.start_date
+                }
+            except:
+                return {}
+        elif obj.booking_type == 'package':
+            try:
+                from bookings.models import PackageBooking
+                booking = PackageBooking.objects.get(id=obj.booking_id)
+                return {
+                    'package_name': booking.package.name if hasattr(booking.package, 'name') else "",
+                    'date': booking.start_date
+                }
+            except:
+                return {}
+        return {}

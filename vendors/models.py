@@ -304,8 +304,8 @@ class VendorBusyDate(models.Model):
 
     def __str__(self):
         if self.from_time and self.to_time:
-            return f"{self.vendor.user.username} - {self.date} ({self.from_time} to {self.to_time})"
-        return f"{self.vendor.user.username} - {self.date} (Full Day)"
+            return f"{self.vendor.user.name} - {self.date} ({self.from_time} to {self.to_time})"
+        return f"{self.vendor.user.name} - {self.date} (Full Day)"
 
 
 
