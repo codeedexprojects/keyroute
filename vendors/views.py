@@ -2210,65 +2210,11 @@ class CanceledBusBookingFilterView(APIView):
 class CanceledPackageBookingView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
-
-  
-    # def get(self, request, booking_id=None):
-    #     vendor = request.user.vendor
-
-    #     now = timezone.now()
-    #     current_year = now.year
-    #     current_month = now.month
-
-    #     all_vendor_package_bookings = PackageBooking.objects.filter(package__vendor=vendor)
-
-       
-
-    #     monthly_revenue = float(
-    #         all_vendor_package_bookings.filter(
-    #             created_at__year=current_year,
-    #             created_at__month=current_month
-    #         ).aggregate(total=Sum('total_amount'))['total'] or 0
-    #     )
-
-
-    #     if booking_id:
-    #         try:
-    #             canceled_package_booking = PackageBooking.objects.get(
-    #                 id=booking_id, 
-    #                 payment_status='cancelled',
-    #                 package__vendor=vendor
-    #             )
-    #             serializer = PackageBookingDetailSerializer(canceled_package_booking)
-    #             return Response({
-    #                 "canceled_package_booking": serializer.data,
-    #                 "monthly_revenue": monthly_revenue
-    #             }, status=status.HTTP_200_OK)
-    #         except PackageBooking.DoesNotExist:
-    #             return Response({
-    #                 "error": "Canceled package booking not found",
-    #                 "monthly_revenue": monthly_revenue
-    #             }, status=status.HTTP_404_NOT_FOUND)
-    #     else:
-    #         canceled_package_bookings = PackageBooking.objects.filter(
-    #             payment_status='cancelled',
-    #             package__vendor=vendor
-    #         ).order_by('-created_at')
-
-    #         if canceled_package_bookings.exists():
-    #             serializer = PackageBookingBasicSerializer(canceled_package_bookings, many=True)
-    #             return Response({
-    #                 "canceled_package_bookings": serializer.data,
-    #                 "monthly_revenue": monthly_revenue
-    #             }, status=status.HTTP_200_OK)
-    #         else:
-    #             return Response({
-    #                 "message": "No canceled package bookings found for this vendor.",
-    #                 "monthly_revenue": monthly_revenue
-    #             }, status=status.HTTP_404_NOT_FOUND)
-
+   
 
     def get(self, request, booking_id=None):
         vendor = request.user.vendor
+        print('hai')
 
         now = timezone.now()
         current_year = now.year
@@ -2290,7 +2236,7 @@ class CanceledPackageBookingView(APIView):
                 canceled_package_booking = PackageBooking.objects.get(
                     Q(id=booking_id) & cancel_conditions & Q(package__vendor=vendor)
                 )
-                serializer = PackageBookingDetailSerializer(canceled_package_booking)
+                serializer = PackageBookingDetailSerializer222(canceled_package_booking)
                 return Response({
                     "canceled_package_booking": serializer.data,
                     "monthly_revenue": monthly_revenue
@@ -2307,7 +2253,7 @@ class CanceledPackageBookingView(APIView):
             ).order_by('-created_at')
 
             if canceled_package_bookings.exists():
-                serializer = PackageBookingBasicSerializer(canceled_package_bookings, many=True)
+                serializer = PackageBookingDetailSerializer222(canceled_package_bookings, many=True)
                 return Response({
                     "canceled_package_bookings": serializer.data,
                     "monthly_revenue": monthly_revenue
@@ -3016,6 +2962,11 @@ class UnifiedBookingDetailView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
 
 
 
