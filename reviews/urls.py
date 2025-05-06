@@ -1,7 +1,12 @@
 from django.urls import path
-from .views import bus_reviews, post_review
+from .views import BusReviewView, PackageReviewView
 
 urlpatterns = [
-    path("<int:bus_id>/reviews/", bus_reviews, name="bus-reviews"),
-    path("post-review/", post_review, name="post-review"),
+    # Bus review endpoints
+    path('reviews/bus/', BusReviewView.as_view(), name='post_bus_review'),
+    path('reviews/bus/<int:bus_id>/', BusReviewView.as_view(), name='get_bus_reviews'),
+    
+    # Package review endpoints
+    path('reviews/package/', PackageReviewView.as_view(), name='post_package_review'),
+    path('reviews/package/<int:package_id>/', PackageReviewView.as_view(), name='get_package_reviews'),
 ]

@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.utils import timezone
+import string
+import random
 
 
 # Create your models here.
@@ -30,6 +32,11 @@ class UserManager(BaseUserManager):
             raise ValueError("Superuser must have a password.")
 
         return self.create_user(mobile=mobile, email=email, password=password, **extra_fields)
+    
+
+def generate_referral_code(length=7):
+    characters = string.ascii_letters + string.digits
+    return ''.join(random.choices(characters, k=length))
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -51,6 +58,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
 
+    profile_image = models.ImageField(upload_to='profile_images/', null=True, blank=True)
+    referral_code = models.CharField(max_length=7, unique=True, null=True, blank=True)
+
     created_at = models.DateTimeField(default=timezone.now)
     city = models.CharField(max_length=255, null=True, blank=True)
 
@@ -58,6 +68,15 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     USERNAME_FIELD = "mobile"  # Default login with mobile
     REQUIRED_FIELDS = []  # No required fields
+
+    def save(self, *args, **kwargs):
+        if not self.referral_code:
+            while True:
+                code = generate_referral_code()
+                if not User.objects.filter(referral_code=code).exists():
+                    self.referral_code = code
+                    break
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.mobile if self.mobile else (self.email if self.email else "Unnamed User")
