@@ -10,4 +10,4 @@ class Notification(models.Model):
     message = models.TextField()
 
     def __str__(self):
-        return f"Notification to {self.user.username}: {self.message[:30]}"
+        return f"Notification to {self.user.name}: {self.message[:30]}"

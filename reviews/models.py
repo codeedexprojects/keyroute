@@ -14,7 +14,7 @@ class BusReview(models.Model):
         unique_together = ('user', 'bus')
 
     def __str__(self):
-        return f"Review for {self.bus.bus_name} by {self.user.username}"
+        return f"Review for {self.bus.bus_name} by {self.user.name}"
 
 
 class PackageReview(models.Model):
@@ -28,4 +28,4 @@ class PackageReview(models.Model):
         unique_together = ('user', 'package')
 
     def __str__(self):
-        return f"Review for {self.package.name} by {self.user.username}"
+        return f"Review for {self.package.name} by {self.user.name}"
