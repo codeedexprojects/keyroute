@@ -290,11 +290,11 @@ class GetWalletView(APIView):
 class OngoingReferralsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
-    def get(self, request, *args, **kwargs):
+    def get(self, request):
         referrals = ReferralRewardTransaction.objects.filter(
             referrer=request.user,
             status='pending'
-        ).order_by('-created_at')
+        )
         
         serializer = OngoingReferralSerializer(referrals, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -306,7 +306,7 @@ class ReferralHistoryView(APIView):
         referrals = ReferralRewardTransaction.objects.filter(
             referrer=request.user,
             status='credited'
-        ).order_by('-credited_at')
+        )
         
         serializer = ReferralHistorySerializer(referrals, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
