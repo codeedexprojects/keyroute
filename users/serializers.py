@@ -18,7 +18,7 @@ class UserSignupSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
     mobile = serializers.CharField(max_length=15)
     email = serializers.EmailField(required=False, allow_blank=True)
-    referral_code = serializers.CharField(max_length=10, required=False, allow_blank=True)
+    referral_code = serializers.CharField(max_length=10, required=False, allow_blank=True, allow_null=True)
 
     def validate(self, data):
         if User.objects.filter(mobile=data['mobile']).exists():
