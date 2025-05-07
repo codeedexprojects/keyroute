@@ -3,11 +3,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-
-from .models import BusReview, PackageReview
-from .serializers import BusReviewSerializer, PackageReviewSerializer
+from .models import BusReview, PackageReview,AppReview
+from .serializers import BusReviewSerializer, PackageReviewSerializer,AppReviewSerializer
 from vendors.models import Bus, Package
 from bookings.models import BusBooking, PackageBooking
+from .serializers import ReviewStatsSerializer
 
 
 class BusReviewView(APIView):
@@ -149,3 +149,36 @@ class PackageReviewView(APIView):
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
+    
+
+class AppReviewView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        serializer = AppReviewSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def get(self, request, pk=None):
+        if pk:
+            try:
+                review = AppReview.objects.get(pk=pk)
+                serializer = AppReviewSerializer(review)
+                return Response(serializer.data)
+            except AppReview.DoesNotExist:
+                return Response({"detail": "Review not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            reviews = AppReview.objects.all().order_by("-created_at")
+            total_reviews = reviews.count()
+            average_rating = reviews.aggregate(avg=Avg("rating"))["avg"] or 0.0
+            
+            stats_data = {
+                "total_reviews": total_reviews,
+                "average_rating": round(average_rating, 1),
+                "reviews": reviews
+            }
+
+            serializer = ReviewStatsSerializer(stats_data)
+            return Response(serializer.data)
