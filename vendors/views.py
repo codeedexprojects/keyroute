@@ -2132,8 +2132,8 @@ class LatestCanceledBookingView(APIView):
 
 
 class CanceledBusBookingView(APIView):
-    permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
    
 
@@ -2192,9 +2192,12 @@ class CanceledBusBookingView(APIView):
     #             }, status=status.HTTP_404_NOT_FOUND)
 
 
-    def get(self, request, booking_id=None):
+    
+
+    def get(self, request):
         print('hello')
         vendor = request.user.vendor
+        print(vendor.full_name)
 
         now = timezone.now()
         current_year = now.year
@@ -2209,49 +2212,19 @@ class CanceledBusBookingView(APIView):
             ).aggregate(total=Sum('total_amount'))['total'] or 0
         )
 
-        cancel_filter = Q(payment_status='cancelled') | Q(trip_status='cancelled') | Q(booking_status='cancelled')
+        canceled_bookings = BusBooking.objects.filter(
+            bus__vendor=vendor
+        ).filter(
+            Q(payment_status='cancelled') | Q(trip_status='cancelled')
+        ).order_by('-created_at')
 
-        if booking_id:
-            try:
-                canceled_booking = BusBooking.objects.get(
-                    # Q(id=booking_id) & Q(bus__vendor=vendor) & cancel_filter
-                    Q(id=booking_id) & Q(bus__vendor=vendor) 
-                )
-                serializer = BusBookingDetailSerializer222(canceled_booking)
-                return Response({
-                    "canceled_bus_booking": serializer.data,
-                    "monthly_revenue": monthly_revenue
-                }, status=status.HTTP_200_OK)
-            except BusBooking.DoesNotExist:
-                return Response({
-                    "error": "Canceled bus booking not found",
-                    "monthly_revenue": monthly_revenue
-                }, status=status.HTTP_404_NOT_FOUND)
-        else:
-            canceled_bookings = BusBooking.objects.filter(
-                Q(bus__vendor=vendor) & cancel_filter
-            ).order_by('-created_at')
 
-            if canceled_bookings.exists():
-                serializer = BusBookingDetailSerializer222(canceled_bookings, many=True)
-                return Response({
-                    "canceled_bus_bookings": serializer.data,
-                    "monthly_revenue": monthly_revenue
-                }, status=status.HTTP_200_OK)
-            else:
-                # return Response({
-                #     "message": "No canceled bus bookings found for this vendor.",
-                #     "monthly_revenue": monthly_revenue
-                # }, status=status.HTTP_404_NOT_FOUND)
-                return Response({
-            "canceled_bus_bookings": [],
+        serializer = BusBookingDetailSerializer222(canceled_bookings, many=True)
+
+        return Response({
+            "canceled_bus_bookings": serializer.data,
             "monthly_revenue": monthly_revenue
         }, status=status.HTTP_200_OK)
-
-
-
-
-
 
 
 
