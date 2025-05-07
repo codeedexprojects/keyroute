@@ -29,3 +29,9 @@ class PackageReview(models.Model):
 
     def __str__(self):
         return f"Review for {self.package.name} by {self.user.name}"
+    
+class AppReview(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    rating = models.FloatField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    comment = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
