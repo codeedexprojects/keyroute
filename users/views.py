@@ -6,15 +6,18 @@ from django.contrib.auth import login
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import generics, permissions
 from admin_panel.utils import send_otp, verify_otp
-from .serializers import  ReferralCodeSerializer, UserProfileSerializer, UserSignupSerializer,FavouriteSerializer,UserWalletSerializer, OngoingReferralSerializer, ReferralHistorySerializer
+from .serializers import  ReferralCodeSerializer, UserProfileSerializer, UserSignupSerializer,FavouriteSerializer,WalletSerializer
 from google.auth.transport import requests
 from google.oauth2 import id_token
 from django.conf import settings
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from vendors.models import Bus,Package
-from .models import Favourite,UserWallet, ReferralTransaction
+from .models import Favourite
 from django.db.models import Q
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
+from .models import Wallet
 
 User = get_user_model()
 
@@ -22,6 +25,7 @@ class NormalUserSignupView(APIView):
     def post(self, request):
         name = request.data.get("name")
         mobile = request.data.get("mobile")
+        referal_code = request.data.get("refrel_code")
         
         if not name or not mobile:
             return Response({"error": "Name and mobile number are required"}, status=status.HTTP_400_BAD_REQUEST)
@@ -39,7 +43,6 @@ class NormalUserSignupView(APIView):
                 "temp_data": {
                     "name": name,
                     "mobile": mobile,
-                    "email": request.data.get("email", "")
                 }
             }, status=status.HTTP_200_OK)
         
@@ -51,7 +54,7 @@ class VerifySignupOTPView(APIView):
         mobile = request.data.get("mobile")
         otp = request.data.get("otp")
         name = request.data.get("name")
-        email = request.data.get("email", "")
+        referral_code = request.data.get("referral_code")
 
         if not mobile or not otp or not name:
             return Response({"error": "Name, mobile number and OTP are required"}, status=status.HTTP_400_BAD_REQUEST)
@@ -64,7 +67,7 @@ class VerifySignupOTPView(APIView):
             user_data = {
                 "name": name,
                 "mobile": mobile,
-                "email": email
+                "referral_code":referral_code
             }
             
             serializer = UserSignupSerializer(data=user_data)
@@ -174,29 +177,22 @@ class UserLogoutView(APIView):
             return Response({"error": "Invalid token or already logged out."}, status=status.HTTP_400_BAD_REQUEST)
         
 
-class UserProfileUpdateView(generics.RetrieveUpdateAPIView):
-    serializer_class = UserProfileSerializer
+class UserProfileAPIView(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
 
-    def get_object(self):
-        return self.request.user
-    
-    def retrieve(self, request, *args, **kwargs):
-        user = self.get_object()
-        serializer = self.get_serializer(user)
-        return Response(serializer.data)
-        
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+    def get(self, request):
+        serializer = UserProfileSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request):
+        serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        
+        serializer.save()
         return Response({
             "message": "Profile updated successfully",
             "user": serializer.data
-        })
+        }, status=status.HTTP_200_OK)
 
 
 # class CreateReviewView(APIView):
@@ -279,58 +275,15 @@ class GetReferralCodeView(APIView):
         serializer = ReferralCodeSerializer(user)
         return Response(serializer.data)
     
-# wallet and refrel
-
-class WalletDetailView(APIView):
+class GetWalletView(APIView):
     permission_classes = [IsAuthenticated]
-    
-    def get(self, request):
-        wallet, created = UserWallet.objects.get_or_create(user=request.user)
-        serializer = UserWalletSerializer(wallet)
-        
-        ongoing_referrals = ReferralTransaction.objects.filter(
-            user=request.user,
-            status='pending'
-        ).order_by('-created_at')
-        ongoing_serializer = OngoingReferralSerializer(ongoing_referrals, many=True)
-        
-        referral_history = ReferralTransaction.objects.filter(
-            user=request.user,
-            status='completed'
-        ).order_by('-completed_at')
-        history_serializer = ReferralHistorySerializer(referral_history, many=True)
-        
-        return Response({
-            'wallet': serializer.data,
-            'ongoing_referrals': ongoing_serializer.data,
-            'referral_history': history_serializer.data,
-            'referral_code': request.user.referral_code
-        })
 
-class ReferralDetailView(APIView):
-    permission_classes = [IsAuthenticated]
-    
     def get(self, request):
-        referral_code = request.user.referral_code
-        
-        total_referrals = ReferralTransaction.objects.filter(
-            user=request.user
-        ).count()
-        
-        completed_referrals = ReferralTransaction.objects.filter(
-            user=request.user,
-            status='completed'
-        ).count()
-        
-        from django.db.models import Sum
-        total_earnings = ReferralTransaction.objects.filter(
-            user=request.user,
-            status='completed'
-        ).aggregate(Sum('amount'))['amount__sum'] or 0
-        
-        return Response({
-            'referral_code': referral_code,
-            'total_referrals': total_referrals,
-            'completed_referrals': completed_referrals,
-            'total_earnings': total_earnings
-        })
+        user = request.user
+        try:
+            wallet = user.wallet
+        except Wallet.DoesNotExist:
+            return Response({"error": "Wallet not found."}, status=404)
+
+        serializer = WalletSerializer(wallet)
+        return Response(serializer.data, status=200)

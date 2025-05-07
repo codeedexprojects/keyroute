@@ -50,7 +50,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         (USER, 'User'),
     ]
 
-    email = models.EmailField(unique=True, null=True, blank=True)
+    email = models.EmailField(null=True, blank=True)
     name = models.CharField(max_length=150)
     mobile = models.CharField(max_length=15, unique=True, null=True, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=USER)
