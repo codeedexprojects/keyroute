@@ -2214,7 +2214,8 @@ class CanceledBusBookingView(APIView):
         if booking_id:
             try:
                 canceled_booking = BusBooking.objects.get(
-                    Q(id=booking_id) & Q(bus__vendor=vendor) & cancel_filter
+                    # Q(id=booking_id) & Q(bus__vendor=vendor) & cancel_filter
+                    Q(id=booking_id) & Q(bus__vendor=vendor) 
                 )
                 serializer = BusBookingDetailSerializer222(canceled_booking)
                 return Response({
@@ -2772,8 +2773,8 @@ class DeclinePackageBookingView(APIView):
 
 
 class DeclineBusBookingView(APIView):
-    permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request, booking_id):
         try:
