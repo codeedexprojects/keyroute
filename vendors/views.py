@@ -2230,8 +2230,8 @@ class CanceledBusBookingView(APIView):
 
 
 class CanceledBusBookingFilterView(APIView):
-    permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, booking_id=None):
         vendor = request.user.vendor
