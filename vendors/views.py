@@ -681,93 +681,241 @@ class DayPlanCreateAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
+    # def post(self, request, package_id):
+    #     try:
+    #         data = request.data.dict()
+    #         files = request.FILES
+
+    #         try:
+    #             day_plans = json.loads(data.get("day_plans", "[]"))
+    #         except json.JSONDecodeError:
+    #             return Response({"error": "Invalid day_plans JSON format"}, status=400)
+
+    #         grouped_images = defaultdict(list)
+    #         for key in files:
+    #             parts = key.split('_')
+    #             if parts[0] in ['places', 'meals', 'activities'] and len(parts) == 3:
+    #                 section, day_idx, item_idx = parts[0], int(parts[1][3:]), int(parts[2])
+    #                 grouped_images[(day_idx, section, item_idx)].extend(request.FILES.getlist(key))
+    #             elif parts[0] == 'stay' and len(parts) == 2:
+    #                 day_idx = int(parts[1][3:])  # stay_day1
+    #                 grouped_images[(day_idx, 'stay', 0)].extend(request.FILES.getlist(key))
+
+    #         package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
+    #         if not package:
+    #             return Response({"error": "Package not found"}, status=404)
+
+    #         with transaction.atomic():
+    #             for idx, day in enumerate(day_plans):
+    #                 places = day.pop("places", [])
+    #                 meals = day.pop("meals", [])
+    #                 activities = day.pop("activities", [])
+    #                 stay = day.pop("stay", None)
+
+    #                 day_instance = DayPlan.objects.create(package=package, **day)
+
+    #                 for p_idx, place in enumerate(places):
+    #                     images = place.pop("images", [])
+    #                     p = Place.objects.create(day_plan=day_instance, **place)
+    #                     for img in grouped_images.get((idx, 'places', p_idx), []):
+    #                         PlaceImage.objects.create(place=p, image=img)
+
+    #                 if stay:
+    #                     images = stay.pop("images", [])
+    #                     stay_fields = {
+    #                         "hotel_name": stay.get("hotel_name"),
+    #                         "description": stay.get("description"),
+    #                         "location": stay.get("location"),
+    #                         "is_ac": stay.get("ac", False),
+    #                         "has_breakfast": stay.get("breakfast", False),
+    #                     }
+    #                     s = Stay.objects.create(day_plan=day_instance, **stay_fields)
+    #                     for img in grouped_images.get((idx, 'stay', 0), []):
+    #                         StayImage.objects.create(stay=s, image=img)
+
+    #                 for m_idx, meal in enumerate(meals):
+    #                     images = meal.pop("images", [])
+    #                     meal_fields = {
+    #                         "type": meal.get("type"),
+    #                         "description": meal.get("description"),
+    #                         "restaurant_name": meal.get("restaurant_name"),
+    #                         "location": meal.get("location"),
+    #                         "time": meal.get("time"),
+    #                     }
+    #                     m = Meal.objects.create(day_plan=day_instance, **meal_fields)
+    #                     for img in grouped_images.get((idx, 'meals', m_idx), []):
+    #                         MealImage.objects.create(meal=m, image=img)
+
+    #                 for a_idx, activity in enumerate(activities):
+    #                     images = activity.pop("images", [])
+    #                     activity_fields = {
+    #                         "name": activity.get("name"),
+    #                         "description": activity.get("description"),
+    #                         "location": activity.get("location"),
+    #                         "time": activity.get("time"),
+    #                     }
+    #                     a = Activity.objects.create(day_plan=day_instance, **activity_fields)
+    #                     for img in grouped_images.get((idx, 'activities', a_idx), []):
+    #                         ActivityImage.objects.create(activity=a, image=img)
+
+    #         return Response({"message": "Day plans added successfully."}, status=201)
+
+    #     except Exception as e:
+    #         return Response({"error": str(e)}, status=500)
+
+
+
+    # def post(self, request, package_id):
+    #     try:
+    #         data = request.data
+    #         files = request.FILES
+    #         day_number = int(data.get("day"))
+
+    #         package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
+    #         if not package:
+    #             return Response({"error": "Package not found"}, status=404)
+
+    #         with transaction.atomic():
+    #             day_plan = DayPlan.objects.create(package=package, day_number=day_number)
+
+    #             # PLACE
+    #             place = Place.objects.create(
+    #                 day_plan=day_plan,
+    #                 name=data.get("place_name"),
+    #                 description=data.get("place_description")
+    #             )
+    #             for i in range(1, 5):
+    #                 img = files.get(f"place_image_{i}")
+    #                 if img:
+    #                     PlaceImage.objects.create(place=place, image=img)
+
+    #             # STAY
+    #             stay = Stay.objects.create(
+    #                 day_plan=day_plan,
+    #                 hotel_name=data.get("hotel_name"),
+    #                 description=data.get("description"),
+    #                 location=data.get("location"),
+    #                 is_ac=data.get("is_ac") == "true",
+    #                 has_breakfast=data.get("has_breakfast") == "true"
+    #             )
+    #             for i in range(1, 5):
+    #                 img = files.get(f"stay_image_{i}")
+    #                 if img:
+    #                     StayImage.objects.create(stay=stay, image=img)
+
+    #             # MEAL
+    #             meal = Meal.objects.create(
+    #                 day_plan=day_plan,
+    #                 type=data.get("meal_type"),
+    #                 time=data.get("meal_time")
+    #             )
+    #             for i in range(1, 5):
+    #                 img = files.get(f"meal_image_{i}")
+    #                 if img:
+    #                     MealImage.objects.create(meal=meal, image=img)
+
+    #             # ACTIVITY
+    #             activity = Activity.objects.create(
+    #                 day_plan=day_plan,
+    #                 name=data.get("activity_name"),
+    #                 description=data.get("activity_description")
+    #             )
+    #             for i in range(1, 5):
+    #                 img = files.get(f"activity_image_{i}")
+    #                 if img:
+    #                     ActivityImage.objects.create(activity=activity, image=img)
+
+    #         return Response({"message": "Day plan added successfully."}, status=201)
+
+    #     except Exception as e:
+    #         return Response({"error": str(e)}, status=500)
+
+
     def post(self, request, package_id):
         try:
-            data = request.data.dict()
+            data = request.data
             files = request.FILES
-
-            try:
-                day_plans = json.loads(data.get("day_plans", "[]"))
-            except json.JSONDecodeError:
-                return Response({"error": "Invalid day_plans JSON format"}, status=400)
-
-            grouped_images = defaultdict(list)
-            for key in files:
-                parts = key.split('_')
-                if parts[0] in ['places', 'meals', 'activities'] and len(parts) == 3:
-                    section, day_idx, item_idx = parts[0], int(parts[1][3:]), int(parts[2])
-                    grouped_images[(day_idx, section, item_idx)].extend(request.FILES.getlist(key))
-                elif parts[0] == 'stay' and len(parts) == 2:
-                    day_idx = int(parts[1][3:])  # stay_day1
-                    grouped_images[(day_idx, 'stay', 0)].extend(request.FILES.getlist(key))
+            day_number = int(data.get("day") or 1)
 
             package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
             if not package:
                 return Response({"error": "Package not found"}, status=404)
 
             with transaction.atomic():
-                for idx, day in enumerate(day_plans):
-                    places = day.pop("places", [])
-                    meals = day.pop("meals", [])
-                    activities = day.pop("activities", [])
-                    stay = day.pop("stay", None)
+                day_plan = DayPlan.objects.create(package=package, day_number=day_number)
 
-                    day_instance = DayPlan.objects.create(package=package, **day)
+                # PLACE
+                place = Place.objects.create(
+                    day_plan=day_plan,
+                    name=data.get("place_name") or "",
+                    description=data.get("place_description") or ""
+                )
+                for i in range(1, 5):
+                    img = files.get(f"place_image_{i}")
+                    if img:
+                        PlaceImage.objects.create(place=place, image=img)
 
-                    for p_idx, place in enumerate(places):
-                        images = place.pop("images", [])
-                        p = Place.objects.create(day_plan=day_instance, **place)
-                        for img in grouped_images.get((idx, 'places', p_idx), []):
-                            PlaceImage.objects.create(place=p, image=img)
+                # STAY
+                stay = Stay.objects.create(
+                    day_plan=day_plan,
+                    hotel_name=data.get("hotel_name") or "",
+                    description=data.get("description") or "",
+                    location=data.get("location") or "",
+                    is_ac=(data.get("is_ac") or "").lower() == "true",
+                    has_breakfast=(data.get("has_breakfast") or "").lower() == "true"
+                )
+                for i in range(1, 5):
+                    img = files.get(f"stay_image_{i}")
+                    if img:
+                        StayImage.objects.create(stay=stay, image=img)
 
-                    if stay:
-                        images = stay.pop("images", [])
-                        stay_fields = {
-                            "hotel_name": stay.get("hotel_name"),
-                            "description": stay.get("description"),
-                            "location": stay.get("location"),
-                            "is_ac": stay.get("ac", False),
-                            "has_breakfast": stay.get("breakfast", False),
-                        }
-                        s = Stay.objects.create(day_plan=day_instance, **stay_fields)
-                        for img in grouped_images.get((idx, 'stay', 0), []):
-                            StayImage.objects.create(stay=s, image=img)
+                # MEAL
+                meal_time_str = data.get("meal_time") or ""
+                meal_time = None
+                if meal_time_str:
+                    try:
+                        meal_time = datetime.strptime(meal_time_str.strip(), "%H:%M").time()
+                    except ValueError:
+                        return Response({"error": "Invalid meal_time format. Use HH:MM."}, status=400)
 
-                    for m_idx, meal in enumerate(meals):
-                        images = meal.pop("images", [])
-                        meal_fields = {
-                            "type": meal.get("type"),
-                            "description": meal.get("description"),
-                            "restaurant_name": meal.get("restaurant_name"),
-                            "location": meal.get("location"),
-                            "time": meal.get("time"),
-                        }
-                        m = Meal.objects.create(day_plan=day_instance, **meal_fields)
-                        for img in grouped_images.get((idx, 'meals', m_idx), []):
-                            MealImage.objects.create(meal=m, image=img)
+                meal = Meal.objects.create(
+                    day_plan=day_plan,
+                    type=data.get("meal_type") or "breakfast",
+                    description=data.get("meal_description") or "",
+                    restaurant_name=data.get("restaurant_name") or "",
+                    location=data.get("meal_location") or "",
+                    time=meal_time
+                )
+                for i in range(1, 5):
+                    img = files.get(f"meal_image_{i}")
+                    if img:
+                        MealImage.objects.create(meal=meal, image=img)
 
-                    for a_idx, activity in enumerate(activities):
-                        images = activity.pop("images", [])
-                        activity_fields = {
-                            "name": activity.get("name"),
-                            "description": activity.get("description"),
-                            "location": activity.get("location"),
-                            "time": activity.get("time"),
-                        }
-                        a = Activity.objects.create(day_plan=day_instance, **activity_fields)
-                        for img in grouped_images.get((idx, 'activities', a_idx), []):
-                            ActivityImage.objects.create(activity=a, image=img)
+                # ACTIVITY
+                activity_time_str = data.get("activity_time") or ""
+                activity_time = None
+                if activity_time_str:
+                    try:
+                        activity_time = datetime.strptime(activity_time_str.strip(), "%H:%M").time()
+                    except ValueError:
+                        return Response({"error": "Invalid activity_time format. Use HH:MM."}, status=400)
 
-            return Response({"message": "Day plans added successfully."}, status=201)
+                activity = Activity.objects.create(
+                    day_plan=day_plan,
+                    name=data.get("activity_name") or "",
+                    description=data.get("activity_description") or "",
+                    time=activity_time,
+                    location=data.get("activity_location") or ""
+                )
+                for i in range(1, 5):
+                    img = files.get(f"activity_image_{i}")
+                    if img:
+                        ActivityImage.objects.create(activity=activity, image=img)
+
+            return Response({"message": "Day plan added successfully."}, status=201)
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
-
-
-
-
-
-
 
 
 
@@ -2045,6 +2193,7 @@ class CanceledBusBookingView(APIView):
 
 
     def get(self, request, booking_id=None):
+        print('hello')
         vendor = request.user.vendor
 
         now = timezone.now()
