@@ -8,7 +8,8 @@ from .models import BusReview, PackageReview
 from .serializers import BusReviewSerializer, PackageReviewSerializer
 from vendors.models import Bus, Package
 from bookings.models import BusBooking, PackageBooking
-
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from admin_panel.models import *
 
 class BusReviewView(APIView):
     permission_classes = [IsAuthenticated]
@@ -149,3 +150,42 @@ class PackageReviewView(APIView):
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
+    
+
+
+
+class VendorAllReviewsView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            vendor = Vendor.objects.get(user=request.user)
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        vendor_packages = Package.objects.filter(vendor=vendor)
+        vendor_buses = Bus.objects.filter(vendor=vendor)
+
+        package_reviews = PackageReview.objects.filter(package__in=vendor_packages).order_by('-created_at')
+        bus_reviews = BusReview.objects.filter(bus__in=vendor_buses).order_by('-created_at')
+
+        package_serializer = PackageReviewSerializer(package_reviews, many=True)
+        bus_serializer = BusReviewSerializer(bus_reviews, many=True)
+
+        return Response({
+            "vendor": {
+                "name": vendor.user.name,
+                "mobile": vendor.user.mobile
+            },
+            "total_package_reviews": package_reviews.count(),
+            "total_bus_reviews": bus_reviews.count(),
+            "package_reviews": package_serializer.data,
+            "bus_reviews": bus_serializer.data,
+        }, status=status.HTTP_200_OK)
+
+
+
+
+
+
