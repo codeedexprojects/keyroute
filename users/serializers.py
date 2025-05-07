@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from .models import Favourite,Wallet
 from admin_panel.utils import send_otp
 from vendors.models import Bus, Package
+from .models import ReferralRewardTransaction
 
 User = get_user_model()
 
@@ -17,21 +18,31 @@ class UserSignupSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
     mobile = serializers.CharField(max_length=15)
     email = serializers.EmailField(required=False, allow_blank=True)
-    referral_code = serializers.CharField(max_length=10)
-    
+    referral_code = serializers.CharField(max_length=10, required=False, allow_blank=True)
+
     def validate(self, data):
         if User.objects.filter(mobile=data['mobile']).exists():
             raise serializers.ValidationError({"mobile": "This mobile number is already registered."})
 
-        if data.get('email') and data['email']:
-            if User.objects.filter(email=data['email']).exists():
-                raise serializers.ValidationError({"email": "This email is already in use."})
+        if data.get('email') and User.objects.filter(email=data['email']).exists():
+            raise serializers.ValidationError({"email": "This email is already in use."})
 
+        referral_code = data.get('referral_code')
+        if referral_code:
+            try:
+                referrer = User.objects.get(referral_code=referral_code)
+                if data.get('mobile') == referrer.mobile:
+                    raise serializers.ValidationError({"referral_code": "You cannot refer yourself."})
+                data['referrer'] = referrer
+            except User.DoesNotExist:
+                raise serializers.ValidationError({"referral_code": "Invalid referral code."})
+        
         return data
 
     def create(self, validated_data):
-        referral_code = validated_data.get('referral_code', '')
-        
+        referral_code = validated_data.pop('referral_code', None)
+        referrer = validated_data.pop('referrer', None)
+
         user = User(
             name=validated_data.get('name', ''),
             mobile=validated_data['mobile'],
@@ -40,11 +51,10 @@ class UserSignupSerializer(serializers.Serializer):
         user.set_unusable_password()
         user.save()
 
-        wallet_data = {'user': user}
-        if referral_code:
-            wallet_data['referred_by'] = referral_code
-
-        Wallet.objects.create(**wallet_data)
+        Wallet.objects.create(
+            user=user,
+            referred_by=referrer
+        )
 
         return user
 
@@ -96,7 +106,7 @@ class SendOTPSerializer(serializers.Serializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'name', 'email', 'mobile', 'role', 'profile_image']
+        fields = ['id', 'name', 'email', 'mobile', 'role', 'referral_code', 'profile_image']
         extra_kwargs = {
             'mobile': {'read_only': True},
             'email': {'required': False},
@@ -191,3 +201,42 @@ class WalletSerializer(serializers.ModelSerializer):
     class Meta:
         model = Wallet
         fields = ['balance', 'referred_by', 'referral_used']
+
+
+class OngoingReferralSerializer(serializers.ModelSerializer):
+    referred_user_name = serializers.CharField(source='referred_user.name', read_only=True)
+    booking_type_display = serializers.CharField(source='get_booking_type_display', read_only=True)
+    created_at = serializers.DateTimeField(format="%d %b %Y", read_only=True)
+    
+    class Meta:
+        model = ReferralRewardTransaction
+        fields = [
+            'id', 
+            'referred_user_name', 
+            'booking_type', 
+            'booking_type_display',
+            'booking_id', 
+            'reward_amount', 
+            'status',
+            'created_at'
+        ]
+
+class ReferralHistorySerializer(serializers.ModelSerializer):
+    referred_user_name = serializers.CharField(source='referred_user.name', read_only=True)
+    booking_type_display = serializers.CharField(source='get_booking_type_display', read_only=True)
+    created_at = serializers.DateTimeField(format="%d %b %Y", read_only=True)
+    credited_at = serializers.DateTimeField(format="%d %b %Y", read_only=True)
+    
+    class Meta:
+        model = ReferralRewardTransaction
+        fields = [
+            'id', 
+            'referred_user_name', 
+            'booking_type', 
+            'booking_type_display',
+            'booking_id', 
+            'reward_amount', 
+            'status',
+            'created_at',
+            'credited_at'
+        ]
