@@ -18,6 +18,8 @@ from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from .models import Wallet
+from .models import ReferralRewardTransaction
+from .serializers import OngoingReferralSerializer, ReferralHistorySerializer
 
 User = get_user_model()
 
@@ -61,22 +63,18 @@ class VerifySignupOTPView(APIView):
 
         # Verify OTP
         response = verify_otp(mobile, otp)
-        
+
         if response.get("Status") == "Success":
-            # Create user data dictionary for serializer
             user_data = {
                 "name": name,
                 "mobile": mobile,
-                "referral_code":referral_code
+                "referral_code": referral_code,
             }
-            
+
             serializer = UserSignupSerializer(data=user_data)
             if serializer.is_valid():
                 user = serializer.save()
-                
-                # Generate tokens for the new user
                 refresh = RefreshToken.for_user(user)
-                
                 return Response({
                     "message": "Signup successful",
                     "access_token": str(refresh.access_token),
@@ -287,3 +285,28 @@ class GetWalletView(APIView):
 
         serializer = WalletSerializer(wallet)
         return Response(serializer.data, status=200)
+    
+
+class OngoingReferralsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, *args, **kwargs):
+        referrals = ReferralRewardTransaction.objects.filter(
+            referrer=request.user,
+            status='pending'
+        ).order_by('-created_at')
+        
+        serializer = OngoingReferralSerializer(referrals, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class ReferralHistoryView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request, *args, **kwargs):
+        referrals = ReferralRewardTransaction.objects.filter(
+            referrer=request.user,
+            status='credited'
+        ).order_by('-credited_at')
+        
+        serializer = ReferralHistorySerializer(referrals, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
