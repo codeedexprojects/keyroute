@@ -5,10 +5,11 @@ from django.db.models import Avg
 class BusReviewSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source="user.name", read_only=True)
     created_at_formatted = serializers.SerializerMethodField()
+    user_profile_image = serializers.ImageField(source="user.profile_image", read_only=True)
     
     class Meta:
         model = BusReview
-        fields = ["id", "user", "bus", "user_name", "rating", "comment", "created_at", "created_at_formatted"]
+        fields = ["id", "user", "bus", "user_name", "rating", "comment", "created_at", "created_at_formatted",'user_profile_image']
         read_only_fields = ["id", "created_at", "created_at_formatted"]
         extra_kwargs = {
             'user': {'write_only': True},
@@ -21,10 +22,11 @@ class BusReviewSerializer(serializers.ModelSerializer):
 class PackageReviewSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source="user.name", read_only=True)
     created_at_formatted = serializers.SerializerMethodField()
+    user_profile_image = serializers.ImageField(source="user.profile_image", read_only=True)
     
     class Meta:
         model = PackageReview
-        fields = ["id", "user", "package", "user_name", "rating", "comment", "created_at", "created_at_formatted"]
+        fields = ["id", "user", "package", "user_name", "rating", "comment", "created_at", "created_at_formatted",'user_profile_image']
         read_only_fields = ["id", "created_at", "created_at_formatted"]
         extra_kwargs = {
             'user': {'write_only': True},
