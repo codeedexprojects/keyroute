@@ -4,9 +4,13 @@ from vendors.models import Package, Bus
 from admin_panel.utils import get_admin_commission_from_db, get_advance_amount_from_db
 from admin_panel.models import AdminCommission
 from django.contrib.auth import get_user_model
-from users.models import ReferralTransaction
+from users.models import Wallet, ReferralRewardTransaction
+from decimal import Decimal
 
 User = get_user_model()
+
+# Minimum wallet amount required for using wallet balance
+MINIMUM_WALLET_AMOUNT = Decimal('1000.00')
 
 class TravelerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -22,16 +26,16 @@ class TravelerSerializer(serializers.ModelSerializer):
 
 class BaseBookingSerializer(serializers.ModelSerializer):
     balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-    referral_code = serializers.CharField(max_length=7, required=False, write_only=True)
-
+    wallet_amount_used = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     
     class Meta:
         abstract = True
         fields = ['id', 'user', 'start_date', 'total_amount', 'advance_amount', 
                  'payment_status', 'booking_status', 'trip_status', 'created_at', 
                  'balance_amount', 'cancelation_reason', 'total_travelers', 
-                 'male', 'female', 'children', 'from_location', 'to_location']
-        read_only_fields = ['id', 'created_at', 'balance_amount','referral_code']
+                 'male', 'female', 'children', 'from_location', 'to_location',
+                 'wallet_amount_used']
+        read_only_fields = ['id', 'created_at', 'balance_amount', 'wallet_amount_used']
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
             'advance_amount': {'write_only': False, 'required': False},
@@ -40,7 +44,7 @@ class BaseBookingSerializer(serializers.ModelSerializer):
 class BusBookingSerializer(BaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     bus_details = serializers.SerializerMethodField(read_only=True)
-    
+
     class Meta:
         model = BusBooking
         fields = BaseBookingSerializer.Meta.fields + [
@@ -50,41 +54,41 @@ class BusBookingSerializer(BaseBookingSerializer):
             'user': {'write_only': True, 'required': False},
             'advance_amount': {'write_only': False, 'required': False},
         }
-    
+
     def get_bus_details(self, obj):
         from vendors.serializers import BusSerializer
         return BusSerializer(obj.bus).data
-    
-    def validate_referral_code(self, value):
-        """
-        Validate that the referral code exists and hasn't been used by this user before.
-        """
-        if not value:
-            return None
-            
-        try:
-            user = self.context['request'].user
-            referrer = User.objects.get(referral_code=value)
-            
-            # Check if user is trying to use their own referral code
-            if user.id == referrer.id:
-                raise serializers.ValidationError("You cannot use your own referral code.")
-            
-            # Check if user has already used a referral code
-            if ReferralTransaction.objects.filter(referred_user=user).exists():
-                raise serializers.ValidationError("You have already used a referral code.")
-                
-            return value
-        except User.DoesNotExist:
-            raise serializers.ValidationError("Invalid referral code.")
 
     def create(self, validated_data):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         total_amount = validated_data.get('total_amount')
-        
-        referral_code = validated_data.pop('referral_code', None)
-        
         user = self.context['request'].user
-
+        
+        # Check if wallet has minimum balance and apply it to the booking
+        wallet_amount_used = Decimal('0.00')
+        try:
+            wallet = Wallet.objects.get(user=user)
+            if wallet.balance >= MINIMUM_WALLET_AMOUNT:
+                wallet_amount_used = wallet.balance
+                # Reduce total amount by wallet balance
+                total_amount = Decimal(total_amount) - wallet_amount_used
+                validated_data['total_amount'] = total_amount
+                # Add wallet_amount_used field to validated_data
+                validated_data['wallet_amount_used'] = wallet_amount_used
+                
+                # Update wallet balance
+                wallet.balance = Decimal('0.00')
+                wallet.save()
+                
+                logger.info(f"Used wallet balance of {wallet_amount_used} for bus booking. New total: {total_amount}")
+        except Wallet.DoesNotExist:
+            logger.info(f"No wallet found for user {user.id}")
+            pass
+        except Exception as e:
+            logger.error(f"Error processing wallet: {str(e)}")
+            
         advance_percent, advance_amount = get_advance_amount_from_db(total_amount)
         validated_data['advance_amount'] = advance_amount
 
@@ -100,24 +104,49 @@ class BusBookingSerializer(BaseBookingSerializer):
             revenue_to_admin=revenue
         )
 
-        if referral_code:
-            try:
-                referrer = User.objects.get(referral_code=referral_code)
-                from decimal import Decimal
+        try:
+            wallet = Wallet.objects.get(user=user)
+            
+            if wallet.referred_by and not wallet.referral_used:
+                logger.info(f"Processing referral for user {user.id}, referred by {wallet.referred_by}")
                 
-                referral_amount = 100.00
+                try:
+                    referrer = User.objects.get(mobile=wallet.referred_by)
+                except User.DoesNotExist:
+                    try:
+                        referrer = User.objects.get(email=wallet.referred_by)
+                    except User.DoesNotExist:
+                        try:
+                            referrer = User.objects.filter(mobile=wallet.referred_by).first()
+                        except:
+                            logger.warning(f"Referrer with identifier '{wallet.referred_by}' not found")
+                            return booking
                 
-                ReferralTransaction.objects.create(
-                    user=referrer,
-                    referred_user=user,
-                    booking_type='bus',
-                    booking_id=booking.id,
-                    amount=referral_amount,
-                    transaction_type='credit',
-                    status='pending'
-                )
-            except User.DoesNotExist:
-                pass
+                if referrer:
+                    reward = 300
+                    
+                    try:
+                        ReferralRewardTransaction.objects.create(
+                            referrer=referrer,
+                            referred_user=user,
+                            booking_type='bus',
+                            booking_id=booking.id,
+                            reward_amount=reward,
+                            status='pending'
+                        )
+                        
+                        wallet.referral_used = True
+                        wallet.save()
+                        
+                        logger.info(f"Created referral reward for referrer {referrer.id} from booking {booking.id}")
+                    except Exception as e:
+                        logger.error(f"Error creating referral transaction: {str(e)}")
+                else:
+                    logger.warning(f"Could not find referrer with any identifier '{wallet.referred_by}'")
+        except Wallet.DoesNotExist:
+            pass
+        except Exception as e:
+            logger.error(f"Unexpected error during referral processing: {str(e)}")
 
         return booking
 
@@ -140,36 +169,36 @@ class PackageBookingSerializer(BaseBookingSerializer):
     def get_package_details(self, obj):
         from vendors.serializers import PackageSerializer
         return PackageSerializer(obj.package).data
-    
-    def validate_referral_code(self, value):
-        """
-        Validate that the referral code exists and hasn't been used by this user before.
-        """
-        if not value:
-            return None
-            
-        try:
-            user = self.context['request'].user
-            referrer = User.objects.get(referral_code=value)
-            
-            # Check if user is trying to use their own referral code
-            if user.id == referrer.id:
-                raise serializers.ValidationError("You cannot use your own referral code.")
-            
-            # Check if user has already used a referral code
-            if ReferralTransaction.objects.filter(referred_user=user).exists():
-                raise serializers.ValidationError("You have already used a referral code.")
-                
-            return value
-        except User.DoesNotExist:
-            raise serializers.ValidationError("Invalid referral code.")
 
     def create(self, validated_data):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         total_amount = validated_data.get('total_amount')
-        
-        referral_code = validated_data.pop('referral_code', None)
-        
         user = self.context['request'].user
+        
+        # Check if wallet has minimum balance and apply it to the booking
+        wallet_amount_used = Decimal('0.00')
+        try:
+            wallet = Wallet.objects.get(user=user)
+            if wallet.balance >= MINIMUM_WALLET_AMOUNT:
+                wallet_amount_used = wallet.balance
+                # Reduce total amount by wallet balance
+                total_amount = Decimal(total_amount) - wallet_amount_used
+                validated_data['total_amount'] = total_amount
+                # Add wallet_amount_used field to validated_data
+                validated_data['wallet_amount_used'] = wallet_amount_used
+                
+                # Update wallet balance
+                wallet.balance = Decimal('0.00')
+                wallet.save()
+                
+                logger.info(f"Used wallet balance of {wallet_amount_used} for package booking. New total: {total_amount}")
+        except Wallet.DoesNotExist:
+            logger.info(f"No wallet found for user {user.id}")
+            pass
+        except Exception as e:
+            logger.error(f"Error processing wallet: {str(e)}")
 
         advance_percent, advance_amount = get_advance_amount_from_db(total_amount)
         validated_data['advance_amount'] = advance_amount
@@ -186,24 +215,49 @@ class PackageBookingSerializer(BaseBookingSerializer):
             revenue_to_admin=revenue
         )
 
-        if referral_code:
-            try:
-                referrer = User.objects.get(referral_code=referral_code)
-                from decimal import Decimal
+        try:
+            wallet = Wallet.objects.get(user=user)
+            
+            if wallet.referred_by and not wallet.referral_used:
+                logger.info(f"Processing referral for user {user.id}, referred by {wallet.referred_by}")
                 
-                referral_amount = 100.00 
+                try:
+                    referrer = User.objects.get(mobile=wallet.referred_by)
+                except User.DoesNotExist:
+                    try:
+                        referrer = User.objects.get(email=wallet.referred_by)
+                    except User.DoesNotExist:
+                        try:
+                            referrer = User.objects.filter(mobile=wallet.referred_by).first()
+                        except:
+                            logger.warning(f"Referrer with identifier '{wallet.referred_by}' not found")
+                            return booking
                 
-                ReferralTransaction.objects.create(
-                    user=referrer,
-                    referred_user=user,
-                    booking_type='package',
-                    booking_id=booking.id,
-                    amount=referral_amount,
-                    transaction_type='credit',
-                    status='pending'
-                )
-            except User.DoesNotExist:
-                pass
+                if referrer:
+                    reward = 300
+                    
+                    try:
+                        ReferralRewardTransaction.objects.create(
+                            referrer=referrer,
+                            referred_user=user,
+                            booking_type='package',
+                            booking_id=booking.id,
+                            reward_amount=reward,
+                            status='pending'
+                        )
+                        
+                        wallet.referral_used = True
+                        wallet.save()
+                        
+                        logger.info(f"Created referral reward for referrer {referrer.id} from package booking {booking.id}")
+                    except Exception as e:
+                        logger.error(f"Error creating referral transaction: {str(e)}")
+                else:
+                    logger.warning(f"Could not find referrer with any identifier '{wallet.referred_by}'")
+        except Wallet.DoesNotExist:
+            pass
+        except Exception as e:
+            logger.error(f"Unexpected error during referral processing: {str(e)}")
 
         return booking
 
