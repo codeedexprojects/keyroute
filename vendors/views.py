@@ -2763,6 +2763,7 @@ class DeclineBusBookingView(APIView):
                 return Response({"error": "Cancellation reason is required."}, status=status.HTTP_400_BAD_REQUEST)
 
             bus_booking.booking_status = 'declined'
+            bus_booking.trip_status = 'cancelled'
             bus_booking.cancelation_reason = cancelation_reason
             bus_booking.save()
 
@@ -2800,6 +2801,7 @@ class DeclinePackageBookingView(APIView):
                 return Response({"error": "Cancelation reason is required."}, status=status.HTTP_400_BAD_REQUEST)
 
             package_booking.booking_status = 'declined'
+            package_booking.trip_status = 'cancelled'
             package_booking.cancelation_reason = reason
             package_booking.save()
 
