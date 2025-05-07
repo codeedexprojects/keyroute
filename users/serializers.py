@@ -204,39 +204,31 @@ class WalletSerializer(serializers.ModelSerializer):
 
 
 class OngoingReferralSerializer(serializers.ModelSerializer):
-    referred_user_name = serializers.CharField(source='referred_user.name', read_only=True)
-    booking_type_display = serializers.CharField(source='get_booking_type_display', read_only=True)
-    created_at = serializers.DateTimeField(format="%d %b %Y", read_only=True)
     
     class Meta:
         model = ReferralRewardTransaction
         fields = [
             'id', 
-            'referred_user_name', 
             'booking_type', 
-            'booking_type_display',
-            'booking_id', 
-            'reward_amount', 
-            'status',
-            'created_at'
-        ]
-
-class ReferralHistorySerializer(serializers.ModelSerializer):
-    referred_user_name = serializers.CharField(source='referred_user.name', read_only=True)
-    booking_type_display = serializers.CharField(source='get_booking_type_display', read_only=True)
-    created_at = serializers.DateTimeField(format="%d %b %Y", read_only=True)
-    credited_at = serializers.DateTimeField(format="%d %b %Y", read_only=True)
-    
-    class Meta:
-        model = ReferralRewardTransaction
-        fields = [
-            'id', 
-            'referred_user_name', 
-            'booking_type', 
-            'booking_type_display',
             'booking_id', 
             'reward_amount', 
             'status',
             'created_at',
-            'credited_at'
+            'referrer',
+            'referred_user'
+        ]
+
+class ReferralHistorySerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = ReferralRewardTransaction
+        fields = [
+            'id', 
+            'booking_type', 
+            'booking_id', 
+            'reward_amount', 
+            'status',
+            'created_at',
+            'referrer',
+            'referred_user'
         ]
