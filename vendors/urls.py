@@ -111,7 +111,7 @@ urlpatterns = [
 
 
     # EARNINGS BUS + PACKAGE
-    path('api/vendor/bus-booking-earnings/', BusBookingEarningsHistoryView.as_view(), name='vendor-bus-revenue'),
+    path('api/vendor/bus-booking-earnings/', BusBookingEarningsHistoryView.as_view(), name='vendor-bus-revenue'),   
     path('api/vendor/package-booking-earnings/', PackageBookingEarningsView.as_view(), name='package-booking-basic-history'),
 
     # # SINGLE BUS BOOKING HISTORY
