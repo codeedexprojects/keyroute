@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from vendors.models import Bus,Package
+from django.core.validators import MinValueValidator
 
 
 # Create your models here.
@@ -27,34 +28,37 @@ class Favourite(models.Model):
             ('user', 'package'),
         ]
 
-class UserWallet(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='wallet')
+class Wallet(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
     balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    
-    def __str__(self):
-        return f"{self.user.name}'s Wallet (₹{self.balance})"
+    referred_by = models.CharField(max_length=20, blank=True, null=True)
+    referral_used = models.BooleanField(default=False)
 
-class ReferralTransaction(models.Model):
-    TRANSACTION_TYPE_CHOICES = (
-        ('credit', 'Credit'),
-        ('debit', 'Debit'),
-    )
+    def __str__(self):
+        return f"{self.user.name}'s Wallet"
     
-    REFERRAL_STATUS_CHOICES = (
+class ReferralRewardTransaction(models.Model):
+    BOOKING_TYPES = (
+        ('bus', 'Bus Booking'),
+        ('package', 'Package Booking'),
+    )
+    REWARD_STATUS = (
         ('pending', 'Pending'),
-        ('completed', 'Completed'),
+        ('credited', 'Credited'),
         ('cancelled', 'Cancelled'),
     )
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='referral_transactions')
-    referred_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='referred_by_transactions')
-    booking_type = models.CharField(max_length=10, choices=(('bus', 'Bus'), ('package', 'Package')))
+    referrer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='rewards')
+    referred_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='used_referrals')
+    booking_type = models.CharField(max_length=10, choices=BOOKING_TYPES)
     booking_id = models.PositiveIntegerField()
-    amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPE_CHOICES, default='credit')
-    status = models.CharField(max_length=20, choices=REFERRAL_STATUS_CHOICES, default='pending')
+    reward_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    status = models.CharField(max_length=10, choices=REWARD_STATUS, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
-    completed_at = models.DateTimeField(null=True, blank=True)
+    credited_at = models.DateTimeField(null=True, blank=True)
     
     def __str__(self):
-        return f"Referral: {self.user.name} -> {self.referred_user.name} ({self.status})"
+        return f"Referral reward of ₹{self.reward_amount} for {self.referrer.name}"
+
+    class Meta:
+        unique_together = ('referred_user', 'booking_type', 'booking_id')

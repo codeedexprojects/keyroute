@@ -2,10 +2,10 @@ import requests
 from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
-from .models import Favourite
+from .models import Favourite,Wallet
 from admin_panel.utils import send_otp
 from vendors.models import Bus, Package
-from .models import UserWallet, ReferralTransaction
+from .models import ReferralRewardTransaction
 
 User = get_user_model()
 
@@ -18,18 +18,31 @@ class UserSignupSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
     mobile = serializers.CharField(max_length=15)
     email = serializers.EmailField(required=False, allow_blank=True)
-    
+    referral_code = serializers.CharField(max_length=10, required=False, allow_blank=True, allow_null=True)
+
     def validate(self, data):
         if User.objects.filter(mobile=data['mobile']).exists():
             raise serializers.ValidationError({"mobile": "This mobile number is already registered."})
 
-        if data.get('email') and data['email']:
-            if User.objects.filter(email=data['email']).exists():
-                raise serializers.ValidationError({"email": "This email is already in use."})
+        if data.get('email') and User.objects.filter(email=data['email']).exists():
+            raise serializers.ValidationError({"email": "This email is already in use."})
 
+        referral_code = data.get('referral_code')
+        if referral_code:
+            try:
+                referrer = User.objects.get(referral_code=referral_code)
+                if data.get('mobile') == referrer.mobile:
+                    raise serializers.ValidationError({"referral_code": "You cannot refer yourself."})
+                data['referrer'] = referrer
+            except User.DoesNotExist:
+                raise serializers.ValidationError({"referral_code": "Invalid referral code."})
+        
         return data
 
     def create(self, validated_data):
+        referral_code = validated_data.pop('referral_code', None)
+        referrer = validated_data.pop('referrer', None)
+
         user = User(
             name=validated_data.get('name', ''),
             mobile=validated_data['mobile'],
@@ -37,7 +50,14 @@ class UserSignupSerializer(serializers.Serializer):
         )
         user.set_unusable_password()
         user.save()
+
+        Wallet.objects.create(
+            user=user,
+            referred_by=referrer
+        )
+
         return user
+
 
 
 class UserLoginSerializer(serializers.Serializer):
@@ -86,7 +106,7 @@ class SendOTPSerializer(serializers.Serializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'name', 'email', 'mobile', 'role','profile_image']
+        fields = ['id', 'name', 'email', 'mobile', 'role', 'referral_code', 'profile_image']
         extra_kwargs = {
             'mobile': {'read_only': True},
             'email': {'required': False},
@@ -97,17 +117,20 @@ class UserProfileSerializer(serializers.ModelSerializer):
     def validate_email(self, value):
         if value == "":
             return None
-            
+
         if value and User.objects.filter(email=value).exclude(id=self.instance.id).exists():
             raise serializers.ValidationError("This email is already in use.")
         return value
 
     def update(self, instance, validated_data):
         instance.name = validated_data.get('name', instance.name)
-        
+
         if 'email' in validated_data:
             instance.email = validated_data.get('email')
-            
+
+        if 'profile_image' in validated_data:
+            instance.profile_image = validated_data.get('profile_image')
+
         instance.save()
         return instance
 
@@ -173,92 +196,47 @@ class FavouriteSerializer(serializers.ModelSerializer):
         else:
             favourite, created = Favourite.objects.get_or_create(user=user, package=package)
         return favourite
-
-
-class UserWalletSerializer(serializers.ModelSerializer):
+    
+class WalletSerializer(serializers.ModelSerializer):
     class Meta:
-        model = UserWallet
-        fields = ['balance']
-        read_only_fields = ['balance']
+        model = Wallet
+        fields = ['balance', 'referred_by', 'referral_used']
+
 
 class OngoingReferralSerializer(serializers.ModelSerializer):
-    referred_user_name = serializers.SerializerMethodField()
-    booking_details = serializers.SerializerMethodField()
-    date = serializers.SerializerMethodField()
-
+    referred_user_name = serializers.CharField(source='referred_user.name', read_only=True)
+    booking_type_display = serializers.CharField(source='get_booking_type_display', read_only=True)
+    created_at = serializers.DateTimeField(format="%d %b %Y", read_only=True)
+    
     class Meta:
-        model = ReferralTransaction
-        fields = ['id', 'referred_user_name', 'booking_type', 'booking_id', 
-                 'amount', 'status', 'date', 'booking_details']
-        read_only_fields = fields
-
-    def get_referred_user_name(self, obj):
-        return obj.referred_user.name if hasattr(obj.referred_user, 'name') else str(obj.referred_user)
-    
-    def get_date(self, obj):
-        return obj.created_at
-    
-    def get_booking_details(self, obj):
-        if obj.booking_type == 'bus':
-            try:
-                from bookings.models import BusBooking
-                booking = BusBooking.objects.get(id=obj.booking_id)
-                return {
-                    'from': booking.from_location,
-                    'to': booking.to_location,
-                    'date': booking.start_date
-                }
-            except:
-                return {}
-        elif obj.booking_type == 'package':
-            try:
-                from bookings.models import PackageBooking
-                booking = PackageBooking.objects.get(id=obj.booking_id)
-                return {
-                    'package_name': booking.package.name if hasattr(booking.package, 'name') else "",
-                    'date': booking.start_date
-                }
-            except:
-                return {}
-        return {}
+        model = ReferralRewardTransaction
+        fields = [
+            'id', 
+            'referred_user_name', 
+            'booking_type', 
+            'booking_type_display',
+            'booking_id', 
+            'reward_amount', 
+            'status',
+            'created_at'
+        ]
 
 class ReferralHistorySerializer(serializers.ModelSerializer):
-    referred_user_name = serializers.SerializerMethodField()
-    booking_details = serializers.SerializerMethodField()
-    date = serializers.SerializerMethodField()
-
+    referred_user_name = serializers.CharField(source='referred_user.name', read_only=True)
+    booking_type_display = serializers.CharField(source='get_booking_type_display', read_only=True)
+    created_at = serializers.DateTimeField(format="%d %b %Y", read_only=True)
+    credited_at = serializers.DateTimeField(format="%d %b %Y", read_only=True)
+    
     class Meta:
-        model = ReferralTransaction
-        fields = ['id', 'referred_user_name', 'booking_type', 'booking_id', 
-                 'amount', 'transaction_type', 'date', 'booking_details']
-        read_only_fields = fields
-
-    def get_referred_user_name(self, obj):
-        return obj.referred_user.name if hasattr(obj.referred_user, 'name') else str(obj.referred_user)
-    
-    def get_date(self, obj):
-        return obj.completed_at or obj.created_at
-    
-    def get_booking_details(self, obj):
-        if obj.booking_type == 'bus':
-            try:
-                from bookings.models import BusBooking
-                booking = BusBooking.objects.get(id=obj.booking_id)
-                return {
-                    'from': booking.from_location,
-                    'to': booking.to_location,
-                    'date': booking.start_date
-                }
-            except:
-                return {}
-        elif obj.booking_type == 'package':
-            try:
-                from bookings.models import PackageBooking
-                booking = PackageBooking.objects.get(id=obj.booking_id)
-                return {
-                    'package_name': booking.package.name if hasattr(booking.package, 'name') else "",
-                    'date': booking.start_date
-                }
-            except:
-                return {}
-        return {}
+        model = ReferralRewardTransaction
+        fields = [
+            'id', 
+            'referred_user_name', 
+            'booking_type', 
+            'booking_type_display',
+            'booking_id', 
+            'reward_amount', 
+            'status',
+            'created_at',
+            'credited_at'
+        ]
