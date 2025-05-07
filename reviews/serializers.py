@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import BusReview, PackageReview
+from .models import BusReview, PackageReview,AppReview
 from django.db.models import Avg
 
 class BusReviewSerializer(serializers.ModelSerializer):
@@ -76,3 +76,25 @@ class PackageReviewSummarySerializer(serializers.ModelSerializer):
         for i in range(1, 6):
             breakdown[f"{i}★"] = obj.package_reviews.filter(rating=i).count()
         return breakdown
+    
+
+class AppReviewSerializer(serializers.ModelSerializer):
+    username = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = AppReview
+        fields = ['id', 'user', 'username', 'rating', 'comment', 'created_at']
+        read_only_fields = ['user', 'created_at']
+    
+    def get_username(self, obj):
+        return obj.user.username if obj.user.username else obj.user.email
+    
+    def create(self, validated_data):
+        validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)
+
+
+class ReviewStatsSerializer(serializers.Serializer):
+    total_reviews = serializers.IntegerField()
+    average_rating = serializers.FloatField()
+    reviews = AppReviewSerializer(many=True)
