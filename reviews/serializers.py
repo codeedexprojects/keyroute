@@ -89,7 +89,7 @@ class AppReviewSerializer(serializers.ModelSerializer):
         read_only_fields = ['user', 'created_at']
     
     def get_username(self, obj):
-        return obj.user.username if obj.user.username else obj.user.email
+        return obj.user.name if obj.user.name else obj.user.email
     
     def create(self, validated_data):
         validated_data['user'] = self.context['request'].user
