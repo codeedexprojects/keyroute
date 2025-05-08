@@ -28,7 +28,7 @@ class PackageReview(models.Model):
         unique_together = ('user', 'package')
 
     def __str__(self):
-        return f"Review for {self.package.name} by {self.user.name}"
+        return f"Review for {self.package} by {self.user.name}"
     
 class AppReview(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
