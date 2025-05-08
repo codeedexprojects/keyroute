@@ -837,12 +837,15 @@ class DayPlanCreateAPIView(APIView):
             files = request.FILES
             day_number = int(data.get("day") or 1)
 
+            description = data.get("description") or ''
+
+
             package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
             if not package:
                 return Response({"error": "Package not found"}, status=404)
 
             with transaction.atomic():
-                day_plan = DayPlan.objects.create(package=package, day_number=day_number)
+                day_plan = DayPlan.objects.create(package=package, day_number=day_number,description=description)
 
                 # PLACE
                 place = Place.objects.create(
@@ -859,7 +862,8 @@ class DayPlanCreateAPIView(APIView):
                 stay = Stay.objects.create(
                     day_plan=day_plan,
                     hotel_name=data.get("hotel_name") or "",
-                    description=data.get("description") or "",
+                    # description=data.get("description") or "",
+                    description=data.get("stay_description") or "",
                     location=data.get("location") or "",
                     is_ac=(data.get("is_ac") or "").lower() == "true",
                     has_breakfast=(data.get("has_breakfast") or "").lower() == "true"
