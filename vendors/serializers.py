@@ -932,15 +932,22 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
     advance_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     travelers = TravelerSerializer(many=True)   
+    # trip_status = serializers.CharField(source='trip_status')
+    trip_status = serializers.CharField()
+    bus_number = serializers.SerializerMethodField()
 
 
     class Meta:
         model = PackageBooking
         fields = [
             'id', 'start_date', 'total_travelers', 'total_amount', 'advance_amount', 
-            'balance_amount', 'payment_status', 'user', 'package', 'travelers',
+            'balance_amount', 'payment_status', 'user', 'package', 'travelers','trip_status','bus_number'
         ]
 
+    
+    def get_bus_number(self, obj):
+        buses = obj.package.buses.all()
+        return buses[0].bus_number if buses.exists() else None
 
 
 
