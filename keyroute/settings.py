@@ -143,26 +143,26 @@ CORS_ALLOW_CREDENTIALS = True
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'keyroute$database',
-        'USER': 'keyroute',
-        'PASSWORD': 'admin@123',
-        'HOST': 'keyroute.mysql.pythonanywhere-services.com',
-        'PORT': '3306',
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        }
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'keyroute$database',
+#         'USER': 'keyroute',
+#         'PASSWORD': 'admin@123',
+#         'HOST': 'keyroute.mysql.pythonanywhere-services.com',
+#         'PORT': '3306',
+#         'OPTIONS': {
+#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+#         }
+#     }
+# }
 
 
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'soulmate_db',  # Create this DB manually if not already present
+        'NAME': 'database-1',  # Create this DB manually if not already present
         'USER': 'admin',
         'PASSWORD': 'admin123',  # Your actual RDS master password
         'HOST': 'database-1.cp86aus24g28.ap-south-1.rds.amazonaws.com',
