@@ -16,13 +16,15 @@ class VendorSerializer(serializers.ModelSerializer):
     # mobile = serializers.CharField(source='user.mobile', read_only=True)
     mobile = serializers.CharField(write_only=True) 
     password = serializers.CharField(write_only=True)
+    # profile_image = serializers.SerializerMethodField()
+    profile_image = serializers.ImageField(source='user.profile_image', allow_null=True, required=False)
 
     class Meta:
         model = Vendor
         fields = [
             'mobile', 'email_address', 'password', 'full_name',  
             'travels_name', 'location', 'landmark', 'address', 
-            'city', 'state', 'pincode','district'
+            'city', 'state', 'pincode','district','profile_image',
         ]
 
     def validate_mobile(self, value):
@@ -31,6 +33,15 @@ class VendorSerializer(serializers.ModelSerializer):
         if User.objects.filter(mobile=value).exists():
             raise serializers.ValidationError('Mobile number already registered.')
         return value
+
+    def get_profile_image(self, obj):
+        request = self.context.get('request')
+        if obj.user.profile_image:
+            image_url = obj.user.profile_image.url
+            if request is not None:
+                return request.build_absolute_uri(image_url)
+            return image_url
+        return None
     
 
    
@@ -55,6 +66,7 @@ class VendorSerializer(serializers.ModelSerializer):
         # email = validated_data.pop('email', None) 
         email = validated_data.get('email_address') or None  
         password = validated_data.pop('password')
+        profile_image = validated_data.pop('user', {}).get('profile_image', None)
 
         
 
@@ -64,12 +76,28 @@ class VendorSerializer(serializers.ModelSerializer):
             password=password,
             role=User.VENDOR
         )
+        if profile_image:
+            user.profile_image = profile_image
+            user.save()
+        
 
         validated_data['user'] = user
         validated_data['email_address'] = email if email else None   
         vendor = Vendor.objects.create(**validated_data)
         return vendor
 
+    def update(self, instance, validated_data):
+        user_data = validated_data.pop('user', {})
+        profile_image = user_data.get('profile_image', None)
+
+        if profile_image:
+            instance.user.profile_image = profile_image
+            instance.user.save()
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
 
 
 
