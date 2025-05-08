@@ -162,9 +162,9 @@ CORS_ALLOW_CREDENTIALS = True
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'keyroute-db',
+        'NAME': 'keyroute_db',  # database name created in Step 1
         'USER': 'keyroute',
-        'PASSWORD': 'admin123',  
+        'PASSWORD': 'admin123',
         'HOST': 'keyroute-db.cp86aus24g28.ap-south-1.rds.amazonaws.com',
         'PORT': '3306',
         'OPTIONS': {
@@ -172,6 +172,7 @@ DATABASES = {
         },
     }
 }
+
 # }
 # DATABASES['default']['CONN_MAX_AGE'] = 600  # Keep connections alive for 10 minutes
 # DATABASES['default']['OPTIONS'] = {
