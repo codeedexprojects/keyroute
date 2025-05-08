@@ -97,10 +97,11 @@ urlpatterns = [
 
 
 
+
     # CANCELD BUS
-    path('api/vendor/canceled-bus-bookings/<int:booking_id>/', CanceledBusBookingView.as_view(), name='canceled-bus-booking-detail'),
     path('api/vendor/canceled-bus-bookings/', CanceledBusBookingView.as_view(), name='canceled-bus-booking-list'),
     path('api/vendor/canceled-bus-bookings-filter/', CanceledBusBookingFilterView.as_view(), name='BUS-CANCELD-filter'),
+    path('api/vendor/canceled-bus-bookings-single/<int:booking_id>/', CanceledBusBookingFilterView.as_view(), name='BUS-CANCELD-single'),
 
     # CANCELD PACKAGE and FILTER
     path('api/vendor/canceled-package-bookings/', CanceledPackageBookingView.as_view(), name='canceled-package-booking-list'),
