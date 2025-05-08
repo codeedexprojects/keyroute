@@ -268,6 +268,8 @@ class VendorBankDetail(models.Model):
     pay_id = models.CharField(max_length=100, blank=True, null=True)
     payout_narration = models.TextField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
+    holder_name = models.CharField(max_length=100, blank=True, null=True)
+
 
     def __str__(self):
         return f"{self.vendor.full_name} - {self.account_number}"
