@@ -14,94 +14,36 @@ class ReferralCodeSerializer(serializers.ModelSerializer):
         model = User
         fields = ['referral_code']
 
-class UserSignupSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=150)
+class AuthenticationSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=150, required=False)
     mobile = serializers.CharField(max_length=15)
-    email = serializers.EmailField(required=False, allow_blank=True)
     referral_code = serializers.CharField(max_length=10, required=False, allow_blank=True, allow_null=True)
 
     def validate(self, data):
-        if User.objects.filter(mobile=data['mobile']).exists():
-            raise serializers.ValidationError({"mobile": "This mobile number is already registered."})
+        mobile = data.get('mobile')
+        if not mobile:
+            raise serializers.ValidationError({"mobile": "Mobile number is required."})
 
-        if data.get('email') and User.objects.filter(email=data['email']).exists():
-            raise serializers.ValidationError({"email": "This email is already in use."})
-
+        # Check if this is a new user or existing user
+        user_exists = User.objects.filter(mobile=mobile).exists()
+        
+        # If user doesn't exist and no name provided, raise error
+        if not user_exists and not data.get('name'):
+            raise serializers.ValidationError({"name": "Name is required for new users."})
+            
+        # If referral code is provided, validate it
         referral_code = data.get('referral_code')
         if referral_code:
             try:
                 referrer = User.objects.get(referral_code=referral_code)
-                if data.get('mobile') == referrer.mobile:
+                if mobile == referrer.mobile:
                     raise serializers.ValidationError({"referral_code": "You cannot refer yourself."})
                 data['referrer'] = referrer
             except User.DoesNotExist:
                 raise serializers.ValidationError({"referral_code": "Invalid referral code."})
         
+        data['is_new_user'] = not user_exists
         return data
-
-    def create(self, validated_data):
-        referral_code = validated_data.pop('referral_code', None)
-        referrer = validated_data.pop('referrer', None)
-
-        user = User(
-            name=validated_data.get('name', ''),
-            mobile=validated_data['mobile'],
-            email=validated_data.get('email', ''),
-        )
-        user.set_unusable_password()
-        user.save()
-
-        Wallet.objects.create(
-            user=user,
-            referred_by=referrer
-        )
-
-        return user
-
-
-
-class UserLoginSerializer(serializers.Serializer):
-    mobile = serializers.CharField(help_text="Mobile number")
-
-    def validate(self, data):
-        mobile = data.get("mobile")
-
-        if not mobile:
-            raise serializers.ValidationError("Mobile number is required.")
-
-        user = User.objects.filter(mobile=mobile).first()
-
-        if not user:
-            raise serializers.ValidationError("User not found with this mobile/email.")
-
-        if not user.is_active:
-            raise serializers.ValidationError("User account is not active.")
-
-        data["user"] = user
-        data["mobile"] = user.mobile  # For OTP sending
-        return data
-
-
-class SendOTPSerializer(serializers.Serializer):
-    mobile = serializers.CharField()
-
-    def validate_mobile(self, value):
-        if not User.objects.filter(mobile=value).exists():
-            raise serializers.ValidationError("User with this mobile number does not exist.")
-        return value
-
-    def send_otp(self):
-        mobile = self.validated_data['mobile']
-        
-        response = send_otp(mobile)
-
-        if response.get("Status") == "Success":
-            return {
-                "message": "OTP sent successfully.",
-                "session_id": response.get("Details")
-            }
-        else:
-            raise serializers.ValidationError("Failed to send OTP. Try again later.")
         
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
