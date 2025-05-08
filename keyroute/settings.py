@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'notifications',
     'reviews',
     'corsheaders',
+    'users.apps.UsersConfig',
 
 ]
 
@@ -107,6 +108,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'keyroute.wsgi.application'
 
+
+
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=150),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=150),
@@ -124,12 +127,12 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
 
 
@@ -142,19 +145,19 @@ DATABASES = {
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'keyroute$database',
-#         'USER': 'keyroute',
-#         'PASSWORD': 'admin@123',
-#         'HOST': 'keyroute.mysql.pythonanywhere-services.com',
-#         'PORT': '3306',
-#         'OPTIONS': {
-#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-#         }
-#     }
-# }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'keyroute$database',
+        'USER': 'keyroute',
+        'PASSWORD': 'admin@123',
+        'HOST': 'keyroute.mysql.pythonanywhere-services.com',
+        'PORT': '3306',
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        }
+    }
+}
 
 
 
