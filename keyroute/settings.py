@@ -159,18 +159,20 @@ DATABASES = {
 
 
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'blcoaxxyahnj2tp5obnr',
-#         'USER': 'uwckckcsrawd1sj1',
-#         'PASSWORD': 'bd0TL2456Pam0Ap879Gm',
-#         'HOST': 'blcoaxxyahnj2tp5obnr-mysql.services.clever-cloud.com',
-#         'PORT': '3306',
-#         'OPTIONS': {
-#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-#         }
-#     }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'soulmate_db',  # Create this DB manually if not already present
+        'USER': 'admin',
+        'PASSWORD': 'admin123',  # Your actual RDS master password
+        'HOST': 'database-1.cp86aus24g28.ap-south-1.rds.amazonaws.com',
+        'PORT': '3306',
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
+        },
+    }
+}
+
 # }
 # DATABASES['default']['CONN_MAX_AGE'] = 600  # Keep connections alive for 10 minutes
 # DATABASES['default']['OPTIONS'] = {
