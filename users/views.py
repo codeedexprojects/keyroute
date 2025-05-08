@@ -6,7 +6,7 @@ from django.contrib.auth import login
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import generics, permissions
 from admin_panel.utils import send_otp, verify_otp
-from .serializers import  ReferralCodeSerializer, UserProfileSerializer, UserSignupSerializer,FavouriteSerializer,WalletSerializer
+from .serializers import  ReferralCodeSerializer, UserProfileSerializer,FavouriteSerializer,WalletSerializer,AuthenticationSerializer
 from google.auth.transport import requests
 from google.oauth2 import id_token
 from django.conf import settings
@@ -23,124 +23,88 @@ from .serializers import OngoingReferralSerializer, ReferralHistorySerializer
 
 User = get_user_model()
 
-class NormalUserSignupView(APIView):
+class AuthenticationView(APIView):
+    """
+    Combined API for login and signup functionality.
+    If user already exists, it works as login.
+    If user doesn't exist, it works as signup.
+    """
     def post(self, request):
-        name = request.data.get("name")
-        mobile = request.data.get("mobile")
-        referal_code = request.data.get("refrel_code")
+        serializer = AuthenticationSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+        mobile = serializer.validated_data['mobile']
+        is_new_user = serializer.validated_data['is_new_user']
         
-        if not name or not mobile:
-            return Response({"error": "Name and mobile number are required"}, status=status.HTTP_400_BAD_REQUEST)
-
-        if User.objects.filter(mobile=mobile).exists():
-            return Response({"error": "Mobile number already registered"}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Send OTP to verify mobile number
+        # Send OTP for verification
         response = send_otp(mobile)
         
         if response.get("Status") == "Success":
             return Response({
                 "message": "OTP sent to your mobile",
                 "session_id": response.get("Details"),
+                "is_new_user": is_new_user,
                 "temp_data": {
-                    "name": name,
+                    "name": serializer.validated_data.get('name'),
                     "mobile": mobile,
+                    "referral_code": serializer.validated_data.get('referral_code'),
                 }
             }, status=status.HTTP_200_OK)
         
         return Response({"error": "Failed to send OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class VerifySignupOTPView(APIView):
+class VerifyOTPView(APIView):
+    """
+    Verify OTP and create user account if new user,
+    or authenticate existing user.
+    """
     def post(self, request):
         mobile = request.data.get("mobile")
         otp = request.data.get("otp")
         name = request.data.get("name")
         referral_code = request.data.get("referral_code")
-
-        if not mobile or not otp or not name:
-            return Response({"error": "Name, mobile number and OTP are required"}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Verify OTP
-        response = verify_otp(mobile, otp)
-
-        if response.get("Status") == "Success":
-            user_data = {
-                "name": name,
-                "mobile": mobile,
-                "referral_code": referral_code,
-            }
-
-            serializer = UserSignupSerializer(data=user_data)
-            if serializer.is_valid():
-                user = serializer.save()
-                refresh = RefreshToken.for_user(user)
-                return Response({
-                    "message": "Signup successful",
-                    "access_token": str(refresh.access_token),
-                    "refresh_token": str(refresh),
-                    "user": {
-                        "id": user.id,
-                        "mobile": user.mobile,
-                        "email": user.email,
-                        "name": user.name,
-                        "role": user.role,
-                    }
-                }, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
-
-
-class NormalUserLoginView(APIView):
-    def post(self, request):
-        mobile = request.data.get("mobile")  # Can be mobile or email
-        
-        if not mobile:
-            return Response({"error": "Mobile number is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Find user by mobile or email
-        user = User.objects.filter(mobile=mobile).first()
-            
-        if not user:
-            return Response({"error": "User does not exist. Please sign up first."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Send OTP to user's mobile
-        response = send_otp(user.mobile)
-        
-        if response.get("Status") == "Success":
-            return Response({
-                "message": "OTP sent to your mobile",
-                "session_id": response.get("Details"),
-                "user_id": user.id,
-            }, status=status.HTTP_200_OK)
-
-        return Response({"error": "Failed to send OTP"}, status=status.HTTP_400_BAD_REQUEST)
-
-
-class VerifyLoginOTPView(APIView):
-    def post(self, request):
-        mobile = request.data.get("mobile")
-        otp = request.data.get("otp")
+        is_new_user = request.data.get("is_new_user", False)
 
         if not mobile or not otp:
             return Response({"error": "Mobile number and OTP are required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        # For new users, name is required
+        if is_new_user and not name:
+            return Response({"error": "Name is required for new users"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Verify OTP
         response = verify_otp(mobile, otp)
         
         if response.get("Status") == "Success":
-            try:
-                user = User.objects.get(mobile=mobile)
-            except User.DoesNotExist:
-                return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+            # Handle new user registration
+            if is_new_user:
+                user_data = {
+                    "name": name,
+                    "mobile": mobile,
+                    "referral_code": referral_code,
+                }
+                serializer = UserSignupSerializer(data=user_data)
+                if serializer.is_valid():
+                    user = serializer.save()
+                else:
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            # Handle existing user login
+            else:
+                try:
+                    user = User.objects.get(mobile=mobile)
+                except User.DoesNotExist:
+                    return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
+            # Generate tokens and login
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
 
             login(request, user)
             return Response({
-                "message": "Login successful",
+                "message": "Authentication successful",
+                "is_new_user": is_new_user,
                 "access_token": access_token,
                 "refresh_token": str(refresh),
                 "user": {

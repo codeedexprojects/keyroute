@@ -911,14 +911,16 @@ class BusBookingDetailSerializer(serializers.ModelSerializer):
     total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     advance_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
-    travelers = TravelerSerializer(many=True)  
+    travelers = TravelerSerializer(many=True) 
+    bus_number = serializers.CharField(source='bus.bus_number', read_only=True)
+    trip_status = serializers.CharField(read_only=True) 
 
     class Meta:
         model = BusBooking
         fields = [
             'id', 'start_date', 'from_location', 'to_location', 'one_way',
             'total_amount', 'advance_amount', 'balance_amount', 'payment_status', 
-            'user', 'bus', 'travelers'
+            'user', 'bus','bus_number', 'trip_status', 'travelers'
         ]
 
 
