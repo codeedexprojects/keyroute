@@ -954,6 +954,7 @@ class BusBookingDetailSerializer(serializers.ModelSerializer):
             'total_amount', 'advance_amount', 'balance_amount', 'payment_status', 
             'user', 'bus','bus_number', 'trip_status', 'travelers','base_price','payment_date','payment_type'
         ]
+        
 
     def get_payment_type(self, obj):
         if obj.payment_status == 'partial':
