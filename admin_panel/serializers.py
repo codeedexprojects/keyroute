@@ -678,43 +678,31 @@ class PackageListSerializer(serializers.ModelSerializer):
     def get_image(self, obj):
         first_image = obj.package_images.first()
         if first_image and first_image.image:
-            return first_image.image.url  # This returns a relative URL like /media/...
+            return first_image.image.url   
         return None
     
 
 
 class PackageDetailSerializer(serializers.ModelSerializer):
-    buses = BusSerializer(many=True)
-    duration = serializers.SerializerMethodField()
-    image_url = serializers.SerializerMethodField()
-    stays = StaySerializer(many=True)
-    meals = MealSerializer(many=True)
-    activities = ActivitySerializer(many=True)
+    vendor_name = serializers.CharField(source='vendor.full_name')
+    buses = serializers.SerializerMethodField()
+    header_image = serializers.SerializerMethodField()
+    day_plans = DayPlanSerializer(many=True)
 
     class Meta:
         model = Package
         fields = [
-            'id',
-            'places',
-            'duration',
-            'guide_included',
-            'ac_available',
-            'image_url',
-            'buses',
-            'stays',
-            'meals',
-            'activities',
+            'id', 'vendor_name', 'buses', 'places', 'days', 'nights',
+            'ac_available', 'guide_included', 'price_per_person',
+            'header_image', 'day_plans'
         ]
 
-    def get_duration(self, obj):
-        return f"{obj.days} Days / {obj.nights} Nights"
+    def get_buses(self, obj):
+        return [bus.bus_number for bus in obj.buses.all()]
 
-    def get_image_url(self, obj):
+    def get_header_image(self, obj):
         request = self.context.get('request')
-        first_image = obj.package_images.first()
-        if first_image and first_image.image and request:
-            return request.build_absolute_uri(first_image.image.url)
-        return None
+        return request.build_absolute_uri(obj.header_image.url) if obj.header_image else None
 
 
 

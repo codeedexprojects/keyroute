@@ -106,6 +106,7 @@ urlpatterns = [
 
     # PACKAGE LISTING
     path('api/admin/packages/', AdminPackageListView.as_view(), name='admin-package-list'),
+    path('api/admin/packages/<int:pk>/', AdminPackageDetailView.as_view(), name='admin-package-detail'),
 
 
 
