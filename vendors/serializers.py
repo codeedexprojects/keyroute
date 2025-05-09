@@ -969,8 +969,9 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
         model = PackageBooking
         fields = [
             'id', 'start_date', 'total_travelers', 'total_amount', 'advance_amount', 
-            'balance_amount', 'payment_status', 'user', 'package', 'travelers','trip_status','bus_number'
+            'balance_amount', 'payment_status', 'user', 'package', 'travelers','trip_status','bus_number','from_location','to_location'
         ]
+
 
     
     def get_bus_number(self, obj):
@@ -1082,7 +1083,7 @@ class PackageBookingEarnigsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PackageBooking
-        fields = ['id', 'package_name', 'total_amount', 'payment_status', 'commission', 'earnings','trip_type','total_members','one_member_name','created_at']
+        fields = ['id', 'package_name', 'total_amount', 'payment_status', 'commission', 'earnings','trip_type','total_members','one_member_name','created_at','from_location','to_location']
 
     def get_commission(self, obj):
         commission = AdminCommission.objects.filter(booking_type='package', booking_id=obj.id).first()
@@ -1116,7 +1117,6 @@ class PackageBookingEarnigsSerializer(serializers.ModelSerializer):
 
 
 class PackageBookingDetailSerializer222(serializers.ModelSerializer):
-    print('ifrst')
     package_name = serializers.CharField(source='package.places')
     start_date = serializers.DateField()
     total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
@@ -1124,7 +1124,6 @@ class PackageBookingDetailSerializer222(serializers.ModelSerializer):
     travelers = serializers.SerializerMethodField()
     main_traveler_name = serializers.SerializerMethodField() 
     bus_numbers = serializers.SerializerMethodField()
-    print('good')
     # trip_status = serializers.SerializerMethodField()
 
  
@@ -1135,6 +1134,7 @@ class PackageBookingDetailSerializer222(serializers.ModelSerializer):
             'payment_status',  'created_at', 'cancelation_reason',
             'total_travelers', 'from_location', 'to_location', 'travelers','main_traveler_name','booking_status','bus_numbers','trip_status'
         ]
+
 
 
 
