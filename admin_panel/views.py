@@ -294,20 +294,20 @@ class AdminVendorBusListAPIView(APIView):
 
 
 # ADMIN BUS DETAILS
-class AdminBusDetailAPIView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-    def get(self, request, bus_id):
-        try:
-            bus = Bus.objects.get(pk=bus_id)
-        except Bus.DoesNotExist:
-            return Response({"error": "Bus not found"}, status=status.HTTP_404_NOT_FOUND)
+# class AdminBusDetailAPIView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+#     def get(self, request, bus_id):
+#         try:
+#             bus = Bus.objects.get(pk=bus_id)
+#         except Bus.DoesNotExist:
+#             return Response({"error": "Bus not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = BusDetailSerializer(bus)
-        return Response({
-            "message": "Bus details retrieved successfully",
-            "data": serializer.data
-        }, status=status.HTTP_200_OK)
+#         serializer = BusDetailSerializer(bus)
+#         return Response({
+#             "message": "Bus details retrieved successfully",
+#             "data": serializer.data
+#         }, status=status.HTTP_200_OK)
     
 
 
@@ -1100,12 +1100,36 @@ class RevenueGraphView(APIView):
 
 
 
+class BusAdminAPIView(APIView):
+    
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+
+    def get(self, request):
+        if not request.user.is_superuser:
+            return Response({'detail': 'Permission denied. Superuser access only.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        buses = Bus.objects.all()
+        serializer = BusAdminSerializer(buses, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 
 
 
+class SingleBusDetailAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
-
+    def get(self, request, bus_id):
+        try:
+            bus = Bus.objects.get(id=bus_id)
+        except Bus.DoesNotExist:
+            return Response({'detail': 'Bus not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = BusDetailSerializerADMIN(bus, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 

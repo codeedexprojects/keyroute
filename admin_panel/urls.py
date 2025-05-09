@@ -33,7 +33,7 @@ urlpatterns = [
     # SINGLE VENDOR BUS LIST
     path('api/admin/vendors/<int:vendor_id>/buses/', AdminVendorBusListAPIView.as_view()),
 
-    path('api/admin/bus/<int:bus_id>/', AdminBusDetailAPIView.as_view()),
+    
 
     # PACKAGE LISTING AND SINGLE DETAILS
     path('api/admin/vendor/<int:vendor_id>/packages/', AdminVendorPackageListAPIView.as_view()),
@@ -95,4 +95,18 @@ urlpatterns = [
     path('api/admin/dashboard/revenu', RevenueGraphView.as_view(), name='DASHBOARD-REVENUE'),
     
     path('api/admin/reviews/', ListAllReviewsAPIView.as_view(), name='list-all-reviews'),
+
+
+
+    path('api/admin/buses/', BusAdminAPIView.as_view(), name='admin-bus-api'),
+    # SINGLE BUS 
+    # path('api/admin/bus/<int:bus_id>/', AdminBusDetailAPIView.as_view()),
+    path('api/admin/bus/<int:bus_id>/', SingleBusDetailAPIView.as_view(), name='bus-detail'),
+
+
+
+
+
+
+
 ] 
