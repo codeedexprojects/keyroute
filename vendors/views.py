@@ -1312,35 +1312,14 @@ class VendorBusBookingListView(APIView):
 class BusBookingDetailView(APIView):
     """API View to get full details of a single bus booking"""
 
-    # def get(self, request, booking_id, format=None):
-    #     try:
-    #         booking = BusBooking.objects.get(id=booking_id)
-    #     except BusBooking.DoesNotExist:
-    #         return Response({"error": "Booking not found."}, status=status.HTTP_404_NOT_FOUND)
-        
-    #     serializer = BusBookingDetailSerializer(booking)
-    #     return Response(serializer.data, status=status.HTTP_200_OK)
-
+ 
     def get(self, request, booking_id, format=None):
         try:
             booking = BusBooking.objects.get(id=booking_id)
         except BusBooking.DoesNotExist:
             return Response({"error": "Booking not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Check if booking has travelers
-        # if not booking.travelers.exists():
-        #     # If no traveler, create a default one
-        #     Travelers.objects.create(
-        #         bus_booking=booking,
-        #         first_name="Default",
-        #         last_name="Traveler",
-        #         gender="O",  # 'O' for Other
-        #         age=18,
-        #         email="default@example.com",
-        #         mobile="0000000000",
-        #         place="Default Place",
-        #         city="Default City",
-        #     )
+  
 
         # Serialize and return
         serializer = BusBookingDetailSerializer(booking)
@@ -2450,10 +2429,8 @@ class CanceledBusBookingFilterView(APIView):
         current_year = now.year
         current_month = now.month
 
-        # All vendor bookings
         all_vendor_bookings = BusBooking.objects.filter(bus__vendor=vendor)
 
-        # Monthly revenue calculation
         monthly_revenue = float(
             all_vendor_bookings.filter(
                 created_at__year=current_year,
@@ -2461,10 +2438,8 @@ class CanceledBusBookingFilterView(APIView):
             ).aggregate(total=Sum('total_amount'))['total'] or 0
         )
 
-        # Common cancellation logic
         cancel_filter = Q(payment_status='cancelled') | Q(trip_status='cancelled') | Q(booking_status='cancelled')
 
-        # If booking ID is provided (single booking fetch)
         if booking_id:
             try:
                 canceled_booking = BusBooking.objects.get(
@@ -2481,12 +2456,10 @@ class CanceledBusBookingFilterView(APIView):
                     "monthly_revenue": monthly_revenue
                 }, status=status.HTTP_404_NOT_FOUND)
 
-        # Multiple bookings view with filters
         canceled_bookings = BusBooking.objects.filter(
             Q(bus__vendor=vendor) & cancel_filter
         )
 
-        # Filter by query params
         filter_param = request.query_params.get('filter')
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
@@ -2512,7 +2485,6 @@ class CanceledBusBookingFilterView(APIView):
                     "error": "Invalid date format. Use YYYY-MM-DD."
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Serialize and return
         if canceled_bookings.exists():
             serializer = BusBookingDetailSerializer222(canceled_bookings.order_by('-created_at'), many=True)
             return Response({
