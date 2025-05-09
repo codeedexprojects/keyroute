@@ -942,14 +942,25 @@ class BusBookingDetailSerializer(serializers.ModelSerializer):
     travelers = TravelerSerializer(many=True) 
     bus_number = serializers.CharField(source='bus.bus_number', read_only=True)
     trip_status = serializers.CharField(read_only=True) 
+    base_price = serializers.DecimalField(source='bus.base_price', max_digits=10, decimal_places=2, read_only=True)
+    payment_date = serializers.DateTimeField(source='created_at', read_only=True)
+    payment_type = serializers.SerializerMethodField()
+
 
     class Meta:
         model = BusBooking
         fields = [
             'id', 'start_date', 'from_location', 'to_location', 'one_way',
             'total_amount', 'advance_amount', 'balance_amount', 'payment_status', 
-            'user', 'bus','bus_number', 'trip_status', 'travelers'
+            'user', 'bus','bus_number', 'trip_status', 'travelers','base_price','payment_date','payment_type'
         ]
+
+    def get_payment_type(self, obj):
+        if obj.payment_status == 'partial':
+            return 'advanced_only'
+        elif obj.payment_status == 'paid':
+            return 'full'
+        return 'unknown'
 
 
 class PackageBookingDetailSerializer(serializers.ModelSerializer):
