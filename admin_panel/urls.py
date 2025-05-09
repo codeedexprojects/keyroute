@@ -104,6 +104,10 @@ urlpatterns = [
     path('api/admin/bus/<int:bus_id>/', SingleBusDetailAPIView.as_view(), name='bus-detail'),
 
 
+    # PACKAGE LISTING
+    path('api/admin/packages/', AdminPackageListView.as_view(), name='admin-package-list'),
+
+
 
 
 

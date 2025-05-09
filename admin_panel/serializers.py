@@ -646,8 +646,75 @@ class BusDetailSerializerADMIN(serializers.ModelSerializer):
         ]
 
 
+class BusShortSerializer(serializers.ModelSerializer):
+    vendor_name = serializers.CharField(source='vendor.full_name')
+    features = BusFeatureSerializer(many=True)
+
+    class Meta:
+        model = Bus
+        fields = ['vendor_name', 'bus_number', 'features']
 
 
+
+class PackageListSerializer(serializers.ModelSerializer):
+    buses = BusShortSerializer(many=True)
+    duration = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Package
+        fields = [
+            'id',
+            'places',
+            'duration',
+            'price_per_person',
+            'image',
+            'buses'
+        ]
+
+    def get_duration(self, obj):
+        return f"{obj.days} Days / {obj.nights} Nights"
+    
+    def get_image(self, obj):
+        first_image = obj.package_images.first()
+        if first_image and first_image.image:
+            return first_image.image.url  # This returns a relative URL like /media/...
+        return None
+    
+
+
+class PackageDetailSerializer(serializers.ModelSerializer):
+    buses = BusSerializer(many=True)
+    duration = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
+    stays = StaySerializer(many=True)
+    meals = MealSerializer(many=True)
+    activities = ActivitySerializer(many=True)
+
+    class Meta:
+        model = Package
+        fields = [
+            'id',
+            'places',
+            'duration',
+            'guide_included',
+            'ac_available',
+            'image_url',
+            'buses',
+            'stays',
+            'meals',
+            'activities',
+        ]
+
+    def get_duration(self, obj):
+        return f"{obj.days} Days / {obj.nights} Nights"
+
+    def get_image_url(self, obj):
+        request = self.context.get('request')
+        first_image = obj.package_images.first()
+        if first_image and first_image.image and request:
+            return request.build_absolute_uri(first_image.image.url)
+        return None
 
 
 
