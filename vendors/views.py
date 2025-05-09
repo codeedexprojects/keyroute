@@ -1725,26 +1725,22 @@ class PackageBookingListView(APIView):
 
         bookings = PackageBooking.objects.filter(package__vendor=vendor)
 
-        # Filter bookings for the current month and year
         monthly_bookings = bookings.filter(
             created_at__year=current_year,
             created_at__month=current_month
         )
 
-        # Calculate total revenue for the month
         total = monthly_bookings.aggregate(total=Sum('total_amount'))['total']
         monthly_revenue = float(total) if total else 0.0
         
-        # Get the count of monthly bookings
         monthly_count = monthly_bookings.count()
 
-        # Serialize only the monthly bookings, not all bookings
         serializer = PackageBookingDetailSerializer(monthly_bookings, many=True)
 
         return Response({
             "bookings": serializer.data,
             "monthly_revenue": monthly_revenue,
-            "monthly_booking_count": monthly_count  # Monthly booking count for the current month
+            "monthly_booking_count": monthly_count   
         }, status=200)
 
 
