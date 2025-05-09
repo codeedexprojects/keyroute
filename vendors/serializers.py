@@ -954,7 +954,7 @@ class BusBookingDetailSerializer(serializers.ModelSerializer):
             'total_amount', 'advance_amount', 'balance_amount', 'payment_status', 
             'user', 'bus','bus_number', 'trip_status', 'travelers','base_price','payment_date','payment_type'
         ]
-        
+
 
     def get_payment_type(self, obj):
         if obj.payment_status == 'partial':
@@ -975,13 +975,18 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
     # trip_status = serializers.CharField(source='trip_status')
     trip_status = serializers.CharField()
     bus_number = serializers.SerializerMethodField()
+    base_price = serializers.SerializerMethodField()
+    payment_date = serializers.DateTimeField(source='created_at', read_only=True)
+    payment_type = serializers.SerializerMethodField()
+    paid_advance_only = serializers.SerializerMethodField()
 
 
     class Meta:
         model = PackageBooking
         fields = [
             'id', 'start_date', 'total_travelers', 'total_amount', 'advance_amount', 
-            'balance_amount', 'payment_status', 'user', 'package', 'travelers','trip_status','bus_number','from_location','to_location'
+            'balance_amount', 'payment_status', 'user', 'package', 'travelers','trip_status','bus_number','from_location','to_location',
+            'base_price', 'payment_date', 'payment_type', 'paid_advance_only'
         ]
 
 
@@ -990,6 +995,19 @@ class PackageBookingDetailSerializer(serializers.ModelSerializer):
         buses = obj.package.buses.all()
         return buses[0].bus_number if buses.exists() else None
 
+    def get_base_price(self, obj):
+        buses = obj.package.buses.all()
+        return str(buses[0].base_price) if buses.exists() and buses[0].base_price is not None else None
+
+    def get_payment_type(self, obj):
+        if obj.payment_status == 'partial':
+            return 'advance_only'
+        elif obj.payment_status == 'paid':
+            return 'full'
+        return 'unknown'
+
+    def get_paid_advance_only(self, obj):
+        return obj.payment_status == 'partial'
 
 
 
@@ -1059,6 +1077,10 @@ class BusBookingDetailSerializer222(serializers.ModelSerializer):
     user = serializers.StringRelatedField()
     bus = BusInfoSerializer()
     trip_status = serializers.SerializerMethodField()
+    base_price = serializers.SerializerMethodField()
+    payment_date = serializers.DateTimeField(source='created_at', read_only=True)
+    payment_type = serializers.SerializerMethodField()
+    paid_advance_only = serializers.SerializerMethodField()
 
     class Meta:
         model = BusBooking
@@ -1066,7 +1088,9 @@ class BusBookingDetailSerializer222(serializers.ModelSerializer):
             'id', 'user', 'bus', 'from_location', 'to_location',
             'start_date', 'total_amount', 'advance_amount',
             'balance_amount', 'payment_status', 'one_way',
-            'travelers','trip_status','booking_status','cancelation_reason','created_at'
+            'travelers','trip_status','booking_status','cancelation_reason','created_at',
+            'payment_date', 'base_price',
+            'payment_type', 'paid_advance_only'
         ]
 
     def get_trip_status(self, obj):
@@ -1076,6 +1100,19 @@ class BusBookingDetailSerializer222(serializers.ModelSerializer):
             return "cancelled"
         else:
             return "unknown"   
+        
+    def get_base_price(self, obj):
+        return obj.bus.base_price if obj.bus and obj.bus.base_price else None
+
+    def get_payment_type(self, obj):
+        if obj.payment_status == 'partial':
+            return 'advance_only'
+        elif obj.payment_status == 'paid':
+            return 'full'
+        return 'unknown'
+
+    def get_paid_advance_only(self, obj):
+        return obj.payment_status == 'partial'
 
 
 
@@ -1137,6 +1174,10 @@ class PackageBookingDetailSerializer222(serializers.ModelSerializer):
     main_traveler_name = serializers.SerializerMethodField() 
     bus_numbers = serializers.SerializerMethodField()
     # trip_status = serializers.SerializerMethodField()
+    base_price = serializers.SerializerMethodField()
+    payment_date = serializers.DateTimeField(source='created_at', read_only=True)
+    payment_type = serializers.SerializerMethodField()
+    paid_advance_only = serializers.SerializerMethodField()
 
  
     class Meta:
@@ -1144,11 +1185,24 @@ class PackageBookingDetailSerializer222(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'package_name', 'start_date', 'total_amount', 'advance_amount', 'balance_amount',
             'payment_status',  'created_at', 'cancelation_reason',
-            'total_travelers', 'from_location', 'to_location', 'travelers','main_traveler_name','booking_status','bus_numbers','trip_status'
+            'total_travelers', 'from_location', 'to_location', 'travelers','main_traveler_name','booking_status','bus_numbers','trip_status',
+            'base_price', 'payment_type', 'paid_advance_only','payment_date'
         ]
 
 
+    def get_base_price(self, obj):
+        first_bus = obj.package.buses.first()
+        return first_bus.base_price if first_bus and first_bus.base_price else None
 
+    def get_payment_type(self, obj):
+        if obj.payment_status == 'partial':
+            return 'advance_only'
+        elif obj.payment_status == 'paid':
+            return 'full'
+        return 'unknown'
+
+    def get_paid_advance_only(self, obj):
+        return obj.payment_status == 'partial'
 
 
     def get_travelers(self, obj):
