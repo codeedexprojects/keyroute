@@ -1133,3 +1133,40 @@ class SingleBusDetailAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+
+
+class AdminPackageListView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        sub_category_id = request.query_params.get('sub_category_id')
+        if not sub_category_id:
+            return Response({"detail": "Sub category ID is required."}, status=400)
+
+        packages = Package.objects.filter(sub_category_id=sub_category_id).prefetch_related('buses__features', 'buses__vendor')
+        serializer = PackageListSerializer(packages, many=True)
+        return Response(serializer.data)
+
+
+
+
+
+class AdminPackageDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            package = Package.objects.get(pk=pk)
+        except Package.DoesNotExist:
+            return Response({"detail": "Package not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PackageDetailSerializer(package, context={'request': request})
+        return Response(serializer.data)
+
+
+
+
+
+
+
