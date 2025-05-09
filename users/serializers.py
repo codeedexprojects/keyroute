@@ -44,6 +44,36 @@ class AuthenticationSerializer(serializers.Serializer):
         
         data['is_new_user'] = not user_exists
         return data
+    
+class UserSignupSerializer(serializers.ModelSerializer):
+    referral_code = serializers.CharField(required=False, allow_blank=True)
+
+    class Meta:
+        model = User
+        fields = ['name', 'mobile', 'referral_code']
+
+    def validate_referral_code(self, value):
+        if value:
+            try:
+                referrer = User.objects.get(referral_code=value)
+                if self.initial_data.get('mobile') == referrer.mobile:
+                    raise serializers.ValidationError("You cannot refer yourself.")
+                self.context['referrer'] = referrer
+            except User.DoesNotExist:
+                raise serializers.ValidationError("Invalid referral code.")
+        return value
+
+    def create(self, validated_data):
+        referral_code = validated_data.pop('referral_code', None)
+        user = User.objects.create(**validated_data)
+
+        # Handle referral rewards or relationships
+        if 'referrer' in self.context:
+            referrer = self.context['referrer']
+            # Example: Update wallet or referral tracking here
+            Wallet.objects.create(user=user, referred_by=referrer)
+        
+        return user
         
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
