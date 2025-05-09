@@ -87,6 +87,8 @@ urlpatterns = [
     # SIGNLE BOOKING HISTORY BUS AND PACKAGE
     path('api/vendor/bus-booking/<int:booking_id>/', BusBookingDetailView.as_view(), name='bus-booking-detail'),
     path('api/vendor/package-booking-history/<int:booking_id>/', SinglePackageBookingDetailView.as_view(), name='single-package-booking-detail'),
+    
+
 
 
 
