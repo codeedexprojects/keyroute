@@ -1257,6 +1257,9 @@ class ChangePasswordAPIView(APIView):
 
 
 
+
+
+
 class VendorBankDetailView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]

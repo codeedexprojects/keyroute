@@ -1311,7 +1311,8 @@ class PackageBookingBasicSerializer(serializers.ModelSerializer):
 class BusDriverDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = BusDriverDetail
-        fields = ['name', 'place', 'phone_number', 'driver_image', 'license_image', 'experience', 'age']
+        fields = ['name', 'place', 'phone_number', 'driver_image', 'license_image', 'experience', 'age','email']
+
 
 
 
@@ -1319,10 +1320,11 @@ class BusDriverDetailSerializer(serializers.ModelSerializer):
 class AcceptedBusBookingSerializer(serializers.ModelSerializer):
     driver_detail = BusDriverDetailSerializer(read_only=True)
     traveler = serializers.SerializerMethodField()
+    balance_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = BusBooking
-        fields = ['id', 'start_date', 'total_amount', 'advance_amount', 'payment_status', 'booking_status', 
+        fields = ['id', 'start_date', 'total_amount', 'advance_amount', 'balance_amount','payment_status', 'booking_status', 
                   'from_location', 'to_location', 'created_at', 'total_travelers', 'male', 'female', 'children', 
                   'cancelation_reason', 'driver_detail','traveler'] 
         
@@ -1330,6 +1332,9 @@ class AcceptedBusBookingSerializer(serializers.ModelSerializer):
     def get_traveler(self, obj):
         traveler = obj.travelers.first()
         return TravelerSerializer(traveler).data if traveler else None
+    
+    def get_balance_amount(self, obj):
+        return obj.total_amount - obj.advance_amount if obj.total_amount and obj.advance_amount else 0
 
 
 
@@ -1337,22 +1342,26 @@ class AcceptedBusBookingSerializer(serializers.ModelSerializer):
 class PackageDriverDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = PackageDriverDetail
-        fields = ['name', 'place', 'phone_number', 'driver_image', 'license_image', 'experience', 'age']
+        fields = ['name', 'place', 'phone_number', 'driver_image', 'license_image', 'experience', 'age','email']
 
 
 class AcceptedPackageBookingSerializer(serializers.ModelSerializer):
     driver_detail = PackageDriverDetailSerializer(read_only=True)
     traveler = serializers.SerializerMethodField()
+    balance_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = PackageBooking
-        fields = ['id', 'start_date', 'total_amount', 'advance_amount', 'payment_status', 'booking_status', 
+        fields = ['id', 'start_date', 'total_amount', 'advance_amount', 'balance_amount','payment_status', 'booking_status', 
                   'from_location', 'to_location', 'created_at', 'total_travelers', 'male', 'female', 'children', 
                   'cancelation_reason', 'driver_detail','traveler']
         
     def get_traveler(self, obj):
         traveler = obj.travelers.first()
         return TravelerSerializer(traveler).data if traveler else None
+    
+    def get_balance_amount(self, obj):
+        return obj.total_amount - obj.advance_amount if obj.total_amount and obj.advance_amount else 0
 
 
 
