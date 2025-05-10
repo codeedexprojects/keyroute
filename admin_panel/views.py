@@ -391,99 +391,216 @@ class AllSectionsCreateView(APIView):
 
  
 
-    def post(self, request, *args, **kwargs):
+    # def post(self, request, *args, **kwargs):
        
         
-        try:
-            ads_data = []
-            for i in range(len(request.data.getlist('advertisements-0-title'))):
-                ad = {
-                    'title': request.data.getlist(f'advertisements-{i}-title')[0],
-                    'description': request.data.getlist(f'advertisements-{i}-description')[0],
-                    'image': request.FILES.get(f'advertisements-{i}-image') if f'advertisements-{i}-image' in request.FILES else None
-                }
-                ads_data.append(ad)
+    #     try:
+    #         ads_data = []
+    #         for i in range(len(request.data.getlist('advertisements-0-title'))):
+    #             ad = {
+    #                 'title': request.data.getlist(f'advertisements-{i}-title')[0],
+    #                 'description': request.data.getlist(f'advertisements-{i}-description')[0],
+    #                 'image': request.FILES.get(f'advertisements-{i}-image') if f'advertisements-{i}-image' in request.FILES else None
+    #             }
+    #             ads_data.append(ad)
 
-            deals_data = []
-            for i in range(len(request.data.getlist('limited_deals-0-title'))):
-                deal = {
-                    'title': request.data.getlist(f'limited_deals-{i}-title')[0],
-                    'description': request.data.getlist(f'limited_deals-{i}-description')[0],
-                    'images': request.FILES.getlist(f'limited_deals-{i}-images') if f'limited_deals-{i}-images' in request.FILES else []
-                }
-                deals_data.append(deal)
+    #         deals_data = []
+    #         for i in range(len(request.data.getlist('limited_deals-0-title'))):
+    #             deal = {
+    #                 'title': request.data.getlist(f'limited_deals-{i}-title')[0],
+    #                 'description': request.data.getlist(f'limited_deals-{i}-description')[0],
+    #                 'images': request.FILES.getlist(f'limited_deals-{i}-images') if f'limited_deals-{i}-images' in request.FILES else []
+    #             }
+    #             deals_data.append(deal)
 
-            footers_data = []
-            for i in range(len(request.data.getlist('footer_sections-0-title'))):
-                footer = {
-                    'title': request.data.getlist(f'footer_sections-{i}-title')[0],
-                    'description': request.data.getlist(f'footer_sections-{i}-description')[0],
-                    'image': request.FILES.get(f'footer_sections-{i}-image') if f'footer_sections-{i}-image' in request.FILES else None
-                }
-                footers_data.append(footer)
+    #         footers_data = []
+    #         for i in range(len(request.data.getlist('footer_sections-0-title'))):
+    #             footer = {
+    #                 'title': request.data.getlist(f'footer_sections-{i}-title')[0],
+    #                 'description': request.data.getlist(f'footer_sections-{i}-description')[0],
+    #                 'image': request.FILES.get(f'footer_sections-{i}-image') if f'footer_sections-{i}-image' in request.FILES else None
+    #             }
+    #             footers_data.append(footer)
 
           
             
+    #     except Exception as e:
+    #         print(f"Error: {str(e)}")
+    #         return Response({"error": "Invalid data format."}, status=400)
+
+    #     for ad in ads_data:
+    #         print(f"Processing Advertisement: {ad}")
+    #         serializer = AdvertisementSerializer(data=ad)
+    #         if serializer.is_valid():
+    #             serializer.save()
+    #         else:
+    #             print(f"Advertisement serializer errors: {serializer.errors}")
+    #             return Response({'error': serializer.errors}, status=400)
+
+    #     for deal in deals_data:
+    #         print(f"Processing Limited Deal: {deal}")
+    #         images = deal.pop('images', [])
+    #         deal_serializer = LimitedDealSerializer(data=deal)
+    #         if deal_serializer.is_valid():
+    #             limited_deal = deal_serializer.save()
+    #             for img in images:
+    #                 print(f"Processing image for deal: {img}")
+    #                 LimitedDealImage.objects.create(deal=limited_deal, image=img)
+    #         else:
+    #             print(f"Limited Deal serializer errors: {deal_serializer.errors}")
+    #             return Response({'error': deal_serializer.errors}, status=400)
+
+    #     for footer in footers_data:
+    #         print(f"Processing Footer Section: {footer}")
+    #         footer_serializer = FooterSectionSerializer(data=footer)
+    #         if footer_serializer.is_valid():
+    #             footer_serializer.save()
+    #         else:
+    #             print(f"Footer Section serializer errors: {footer_serializer.errors}")
+    #             return Response({'error': footer_serializer.errors}, status=400)
+
+    #     print("All data saved successfully!")
+    #     return Response({"message": "All data saved successfully!"}, status=201)
+
+
+
+
+
+    def post(self, request, *args, **kwargs):
+        try:
+            # 1. Parse advertisements
+            ads_data = []
+            i = 0
+            while f'advertisements-{i}-title' in request.data:
+                ad = {
+                    'title': request.data.get(f'advertisements-{i}-title'),
+                    'description': request.data.get(f'advertisements-{i}-description'),
+                    'image': request.FILES.get(f'advertisements-{i}-image')
+                }
+                ads_data.append(ad)
+                i += 1
+
+            ad_instances = []
+            for ad in ads_data:
+                serializer = AdvertisementSerializer(data=ad)
+                if serializer.is_valid():
+                    instance = serializer.save()
+                    ad_instances.append(instance)
+                else:
+                    return Response({'error': serializer.errors}, status=400)
+
+            # 2. Parse limited deals (each linked to an ad)
+            deals_data = []
+            i = 0
+            while f'limited_deals-{i}-title' in request.data:
+                deal = {
+                    'title': request.data.get(f'limited_deals-{i}-title'),
+                    'description': request.data.get(f'limited_deals-{i}-description'),
+                    'images': request.FILES.getlist(f'limited_deals-{i}-images'),
+                    'advertisement': ad_instances[i] if i < len(ad_instances) else None
+                }
+                deals_data.append(deal)
+                i += 1
+
+            deal_instances = []
+            for deal in deals_data:
+                images = deal.pop('images', [])
+                ad_obj = deal.pop('advertisement')
+                deal_serializer = LimitedDealSerializer(data=deal)
+                if deal_serializer.is_valid():
+                    limited_deal = deal_serializer.save(advertisement=ad_obj)
+                    deal_instances.append(limited_deal)
+                    for img in images:
+                        LimitedDealImage.objects.create(deal=limited_deal, image=img)
+                else:
+                    return Response({'error': deal_serializer.errors}, status=400)
+
+            # 3. Parse footer sections (each linked to an ad)
+            footers_data = []
+            i = 0
+            while f'footer_sections-{i}-title' in request.data:
+                footer = {
+                    'title': request.data.get(f'footer_sections-{i}-title'),
+                    'description': request.data.get(f'footer_sections-{i}-description'),
+                    'image': request.FILES.get(f'footer_sections-{i}-image'),
+                    'advertisement': ad_instances[i] if i < len(ad_instances) else None
+                }
+                footers_data.append(footer)
+                i += 1
+
+            for footer in footers_data:
+                ad_obj = footer.pop('advertisement')
+                footer_serializer = FooterSectionSerializer(data=footer)
+                if footer_serializer.is_valid():
+                    footer_serializer.save(advertisement=ad_obj)
+                else:
+                    return Response({'error': footer_serializer.errors}, status=400)
+
+            return Response({"message": "All data saved successfully!"}, status=201)
+
         except Exception as e:
             print(f"Error: {str(e)}")
-            return Response({"error": "Invalid data format."}, status=400)
+            return Response({"error": str(e)}, status=400)
 
-        for ad in ads_data:
-            print(f"Processing Advertisement: {ad}")
-            serializer = AdvertisementSerializer(data=ad)
-            if serializer.is_valid():
-                serializer.save()
-            else:
-                print(f"Advertisement serializer errors: {serializer.errors}")
-                return Response({'error': serializer.errors}, status=400)
 
-        for deal in deals_data:
-            print(f"Processing Limited Deal: {deal}")
-            images = deal.pop('images', [])
-            deal_serializer = LimitedDealSerializer(data=deal)
-            if deal_serializer.is_valid():
-                limited_deal = deal_serializer.save()
-                for img in images:
-                    print(f"Processing image for deal: {img}")
-                    LimitedDealImage.objects.create(deal=limited_deal, image=img)
-            else:
-                print(f"Limited Deal serializer errors: {deal_serializer.errors}")
-                return Response({'error': deal_serializer.errors}, status=400)
 
-        for footer in footers_data:
-            print(f"Processing Footer Section: {footer}")
-            footer_serializer = FooterSectionSerializer(data=footer)
-            if footer_serializer.is_valid():
-                footer_serializer.save()
-            else:
-                print(f"Footer Section serializer errors: {footer_serializer.errors}")
-                return Response({'error': footer_serializer.errors}, status=400)
 
-        print("All data saved successfully!")
-        return Response({"message": "All data saved successfully!"}, status=201)
 
+    # def get(self, request, *args, **kwargs):
+    #     ads = Advertisement.objects.all()
+    #     deals = LimitedDeal.objects.all()
+    #     footers = FooterSection.objects.all()
+
+    #     ads_serialized = AdvertisementSerializer(ads, many=True).data
+    #     deals_serialized = LimitedDealSerializer(deals, many=True).data
+    #     footers_serialized = FooterSectionSerializer(footers, many=True).data
+
+    #     return Response({
+    #         "advertisements": ads_serialized,
+    #         "limited_deals": deals_serialized,
+    #         "footer_sections": footers_serialized
+    #     }, status=200)
 
 
     def get(self, request, *args, **kwargs):
         ads = Advertisement.objects.all()
-        deals = LimitedDeal.objects.all()
-        footers = FooterSection.objects.all()
-
         ads_serialized = AdvertisementSerializer(ads, many=True).data
-        deals_serialized = LimitedDealSerializer(deals, many=True).data
-        footers_serialized = FooterSectionSerializer(footers, many=True).data
 
         return Response({
-            "advertisements": ads_serialized,
-            "limited_deals": deals_serialized,
-            "footer_sections": footers_serialized
+            "advertisements": ads_serialized
         }, status=200)
 
 
 
+class AdvertisementDetailView(APIView):
+   
+    def get(self, request, ad_id, *args, **kwargs):
+        try:
+            advertisement = Advertisement.objects.get(id=ad_id)
+            print(advertisement, 'avd')  
+        except Advertisement.DoesNotExist:
+            return Response({"error": "Advertisement not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        ad_data = AdvertisementSerializer(advertisement).data
+        print(ad_data, 'ad_data')   
 
+        deals = LimitedDeal.objects.filter(advertisement=advertisement)
+        print(deals, 'dela')   
 
+        deals_data = LimitedDealSerializer(deals, many=True).data
+        print(deals_data, 'deals data')   
 
+        footers = FooterSection.objects.filter(advertisement=advertisement)
+        print(footers, 'footers')   
+
+        footers_data = FooterSectionSerializer(footers, many=True).data
+        print(footers_data, 'footers data')  
+
+        return Response({
+            "advertisement": ad_data,
+            "limited_deals": deals_data,
+            "footer_sections": footers_data
+        }, status=status.HTTP_200_OK)
 
 
 

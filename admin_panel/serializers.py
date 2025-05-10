@@ -309,7 +309,7 @@ class UserSerializer(serializers.ModelSerializer):
 class AdvertisementSerializer(serializers.ModelSerializer):
     class Meta:
         model = Advertisement
-        fields = ['title', 'description', 'image']
+        fields = ['id','title', 'description', 'image']
 
 
 class LimitedDealImageSerializer(serializers.ModelSerializer):
