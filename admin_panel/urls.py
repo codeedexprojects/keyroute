@@ -48,6 +48,8 @@ urlpatterns = [
 
     #Advertisement CREATING AND LISTING
     path('api/admin/sections/', AllSectionsCreateView.as_view(), name='create-sections'),
+    path('api/admin/advertisement/<int:ad_id>/', AdvertisementDetailView.as_view(), name='advertisement-detail'),
+
 
     # EXPLORE
     path('api/admin/explore/crete/', ExploreSectionCreateView.as_view(), name='create-explore-section'),

@@ -923,6 +923,283 @@ class DayPlanCreateAPIView(APIView):
 
 
 
+
+
+
+class CreatePackageAndDayPlanAPIView(APIView):
+    parser_classes = [MultiPartParser, JSONParser]
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    # def post(self, request):
+    #     try:
+    #         # Vendor check
+    #         vendor = Vendor.objects.filter(user=request.user).first()
+    #         if not vendor:
+    #             return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    #         # Basic Package Creation
+    #         data = request.data
+    #         buses_raw = request.data.getlist('buses')
+
+    #         if len(buses_raw) == 1:
+    #             try:
+    #                 buses_list = json.loads(buses_raw[0])
+    #                 data['buses'] = [int(b) for b in buses_list]
+    #             except:
+    #                 data['buses'] = [int(buses_raw[0])]
+    #         else:
+    #             data['buses'] = [int(b) for b in buses_raw]
+
+    #         package_images = request.FILES.getlist('package_images')
+
+    #         mutable_data = request.data.copy()
+    #         mutable_data.setlist('package_images', package_images)
+    #         mutable_data.setlist('buses', data['buses'])
+
+    #         # Serialize and create package
+    #         serializer = PackageBasicSerializer(data=mutable_data, context={'vendor': vendor})
+    #         if serializer.is_valid():
+    #             package = serializer.save()
+    #             package_id = package.id
+    #         else:
+    #             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    #         # Day Plan Creation
+    #         files = request.FILES
+    #         day_number = int(data.get("day") or 1)
+    #         description = data.get("description") or ''
+
+    #         # Package check
+    #         package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
+    #         if not package:
+    #             return Response({"error": "Package not found"}, status=404)
+
+    #         with transaction.atomic():
+    #             # Create Day Plan
+    #             day_plan = DayPlan.objects.create(package=package, day_number=day_number, description=description)
+
+    #             # Place
+    #             place = Place.objects.create(
+    #                 day_plan=day_plan,
+    #                 name=data.get("place_name") or "",
+    #                 description=data.get("place_description") or ""
+    #             )
+    #             for i in range(1, 5):
+    #                 img = files.get(f"place_image_{i}")
+    #                 if img:
+    #                     PlaceImage.objects.create(place=place, image=img)
+
+    #             # Stay
+    #             stay = Stay.objects.create(
+    #                 day_plan=day_plan,
+    #                 hotel_name=data.get("hotel_name") or "",
+    #                 description=data.get("stay_description") or "",
+    #                 location=data.get("location") or "",
+    #                 is_ac=(data.get("is_ac") or "").lower() == "true",
+    #                 has_breakfast=(data.get("has_breakfast") or "").lower() == "true"
+    #             )
+    #             for i in range(1, 5):
+    #                 img = files.get(f"stay_image_{i}")
+    #                 if img:
+    #                     StayImage.objects.create(stay=stay, image=img)
+
+    #             # Meal
+    #             meal_time_str = data.get("meal_time") or ""
+    #             meal_time = None
+    #             if meal_time_str:
+    #                 try:
+    #                     meal_time = datetime.strptime(meal_time_str.strip(), "%H:%M").time()
+    #                 except ValueError:
+    #                     return Response({"error": "Invalid meal_time format. Use HH:MM."}, status=400)
+
+    #             meal = Meal.objects.create(
+    #                 day_plan=day_plan,
+    #                 type=data.get("meal_type") or "breakfast",
+    #                 description=data.get("meal_description") or "",
+    #                 restaurant_name=data.get("restaurant_name") or "",
+    #                 location=data.get("meal_location") or "",
+    #                 time=meal_time
+    #             )
+    #             for i in range(1, 5):
+    #                 img = files.get(f"meal_image_{i}")
+    #                 if img:
+    #                     MealImage.objects.create(meal=meal, image=img)
+
+    #             # Activity
+    #             activity_time_str = data.get("activity_time") or ""
+    #             activity_time = None
+    #             if activity_time_str:
+    #                 try:
+    #                     activity_time = datetime.strptime(activity_time_str.strip(), "%H:%M").time()
+    #                 except ValueError:
+    #                     return Response({"error": "Invalid activity_time format. Use HH:MM."}, status=400)
+
+    #             activity = Activity.objects.create(
+    #                 day_plan=day_plan,
+    #                 name=data.get("activity_name") or "",
+    #                 description=data.get("activity_description") or "",
+    #                 time=activity_time,
+    #                 location=data.get("activity_location") or ""
+    #             )
+    #             for i in range(1, 5):
+    #                 img = files.get(f"activity_image_{i}")
+    #                 if img:
+    #                     ActivityImage.objects.create(activity=activity, image=img)
+
+    #         return Response({"message": "Package and Day plan created successfully."}, status=201)
+
+    #     except Exception as e:
+    #         return Response({"error": str(e)}, status=500)
+
+
+
+
+
+    def post(self, request):
+        try:
+            vendor = Vendor.objects.filter(user=request.user).first()
+            if not vendor:
+                return Response({"error": "Vendor not found"}, status=404)
+
+            data = request.data
+            files = request.FILES
+            print(data.get("sub_category"),'inc'),
+
+            def str_to_bool(value):
+                return str(value).lower() in ['true', '1', 'yes']
+            
+            sub_category_id = data.get("sub_category")
+            sub_category = PackageSubCategory.objects.get(id=sub_category_id)
+            # 1. CREATE PACKAGE
+            package = Package.objects.create(
+                vendor=vendor,
+                places=data.get("places"),
+                sub_category=sub_category,
+                # description=data.get("description"),
+                header_image=data.get("header_image"),
+                nights=data.get("nights"),
+                days=data.get("days"),
+                extra_charge_per_km=data.get("extra_charge_per_km"),
+                price_per_person=data.get("price_per_person"),
+                bus_location=data.get("bus_location"),
+                # ac_available=data.get("ac_available"),
+                # guide_included=data.get("guide_included"),
+                ac_available=str_to_bool(data.get("ac_available")),
+                guide_included=str_to_bool(data.get("guide_included")),
+            )
+
+            # 2. SET BUSES
+            buses_raw = data.getlist("buses")
+            try:
+                buses = [int(b) for b in json.loads(buses_raw[0])]
+            except:
+                buses = [int(b) for b in buses_raw]
+            package.buses.set(buses)
+
+            # 3. PACKAGE IMAGES
+            if files.getlist("package_images"):
+                for img in files.getlist("package_images"):
+                    PackageImage.objects.create(package=package, image=img)
+
+            # 4. DETECT AND HANDLE MULTIPLE DAYS
+            day_indices = set()
+            for key in data.keys():
+                match = re.search(r"_(\d+)$", key)
+                if match:
+                    day_indices.add(int(match.group(1)))
+
+            for day in sorted(day_indices):
+                day_number = int(data.get(f"day_{day}", day))
+                day_description = data.get(f"description_{day}", "")
+
+                day_plan = DayPlan.objects.create(
+                    package=package,
+                    day_number=day_number,
+                    description=day_description
+                )
+
+                # --- PLACE ---
+                place = Place.objects.create(
+                    day_plan=day_plan,
+                    name=data.get(f"place_name_{day}", ""),
+                    description=data.get(f"place_description_{day}", "")
+                )
+                for i in range(1, 5):
+                    img = files.get(f"place_image_{day}_{i}")
+                    if img:
+                        PlaceImage.objects.create(place=place, image=img)
+
+                # --- STAY ---
+                stay = Stay.objects.create(
+                    day_plan=day_plan,
+                    hotel_name=data.get(f"stay_name_{day}", ""),
+                    description=data.get(f"stay_description_{day}", ""),
+                    location=data.get(f"location_{day}", ""),
+                    is_ac=data.get(f"is_ac_{day}", "false").lower() == "true",
+                    has_breakfast=data.get(f"has_breakfast_{day}", "false").lower() == "true"
+                )
+                for i in range(1, 5):
+                    img = files.get(f"stay_image_{day}_{i}")
+                    if img:
+                        StayImage.objects.create(stay=stay, image=img)
+
+                # --- MEAL ---
+                meal_time_str = data.get(f"meal_time_{day}")
+                meal_time = None
+                if meal_time_str and re.match(r"^\d{2}:\d{2}$", meal_time_str):
+                    meal_time = datetime.strptime(meal_time_str, "%H:%M").time()
+
+                meal = Meal.objects.create(
+                    day_plan=day_plan,
+                    type=data.get(f"meal_type_{day}", "breakfast"),
+                    description=data.get(f"meal_description_{day}", ""),
+                    restaurant_name=data.get(f"restaurant_name_{day}", ""),
+                    location=data.get(f"meal_location_{day}", ""),
+                    time=meal_time
+                )
+                for i in range(1, 5):
+                    img = files.get(f"meal_image_{day}_{i}")
+                    if img:
+                        MealImage.objects.create(meal=meal, image=img)
+
+                # --- ACTIVITY ---
+                activity_time_str = data.get(f"activity_time_{day}")
+                activity_time = None
+                if activity_time_str and re.match(r"^\d{2}:\d{2}$", activity_time_str):
+                    activity_time = datetime.strptime(activity_time_str, "%H:%M").time()
+
+
+                activity = Activity.objects.create(
+                    day_plan=day_plan,
+                    name=data.get(f"activity_name_{day}", ""),
+                    description=data.get(f"activity_description_{day}", ""),
+                    location=data.get(f"activity_location_{day}", ""),
+                    time=activity_time
+                )
+                for i in range(1, 5):
+                    img = files.get(f"activity_image_{day}_{i}")
+                    if img:
+                        ActivityImage.objects.create(activity=activity, image=img)
+
+            return Response({"message": "Package created successfully with all day plans."}, status=201)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class VendorProfileAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
