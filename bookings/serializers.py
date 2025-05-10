@@ -177,19 +177,15 @@ class PackageBookingSerializer(BaseBookingSerializer):
         total_amount = validated_data.get('total_amount')
         user = self.context['request'].user
         
-        # Check if wallet has minimum balance and apply it to the booking
         wallet_amount_used = Decimal('0.00')
         try:
             wallet = Wallet.objects.get(user=user)
             if wallet.balance >= MINIMUM_WALLET_AMOUNT:
                 wallet_amount_used = wallet.balance
-                # Reduce total amount by wallet balance
                 total_amount = Decimal(total_amount) - wallet_amount_used
                 validated_data['total_amount'] = total_amount
-                # Add wallet_amount_used field to validated_data
                 validated_data['wallet_amount_used'] = wallet_amount_used
                 
-                # Update wallet balance
                 wallet.balance = Decimal('0.00')
                 wallet.save()
                 
