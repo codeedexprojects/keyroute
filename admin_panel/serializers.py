@@ -646,8 +646,63 @@ class BusDetailSerializerADMIN(serializers.ModelSerializer):
         ]
 
 
+class BusShortSerializer(serializers.ModelSerializer):
+    vendor_name = serializers.CharField(source='vendor.full_name')
+    features = BusFeatureSerializer(many=True)
+
+    class Meta:
+        model = Bus
+        fields = ['vendor_name', 'bus_number', 'features']
 
 
+
+class PackageListSerializer(serializers.ModelSerializer):
+    buses = BusShortSerializer(many=True)
+    duration = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Package
+        fields = [
+            'id',
+            'places',
+            'duration',
+            'price_per_person',
+            'image',
+            'buses'
+        ]
+
+    def get_duration(self, obj):
+        return f"{obj.days} Days / {obj.nights} Nights"
+    
+    def get_image(self, obj):
+        first_image = obj.package_images.first()
+        if first_image and first_image.image:
+            return first_image.image.url   
+        return None
+    
+
+
+class PackageDetailSerializer(serializers.ModelSerializer):
+    vendor_name = serializers.CharField(source='vendor.full_name')
+    buses = serializers.SerializerMethodField()
+    header_image = serializers.SerializerMethodField()
+    day_plans = DayPlanSerializer(many=True)
+
+    class Meta:
+        model = Package
+        fields = [
+            'id', 'vendor_name', 'buses', 'places', 'days', 'nights',
+            'ac_available', 'guide_included', 'price_per_person',
+            'header_image', 'day_plans'
+        ]
+
+    def get_buses(self, obj):
+        return [bus.bus_number for bus in obj.buses.all()]
+
+    def get_header_image(self, obj):
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.header_image.url) if obj.header_image else None
 
 
 
