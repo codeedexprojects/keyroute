@@ -3638,7 +3638,7 @@ class PreAcceptPackageBookingDetailView(APIView):
             bus_booking = BusBooking.objects.filter(
                 id=booking_id,
                 bus__vendor=vendor,
-                booking_status='pending'  # pending = not accepted yet
+                booking_status='pending'   
             ).first()
 
             if bus_booking:
@@ -3651,6 +3651,8 @@ class PreAcceptPackageBookingDetailView(APIView):
                     "male": bus_booking.male,
                     "female": bus_booking.female,
                     "children": bus_booking.children,
+                    # 'way': bus_booking.one_way,
+                    "way": "One Way" if bus_booking.one_way else "Two Way",
                     "travelers": TravelerSerializer(bus_booking.travelers.all(), many=True).data
                 }
                 return Response(data, status=status.HTTP_200_OK)
@@ -3672,6 +3674,7 @@ class PreAcceptPackageBookingDetailView(APIView):
                     "male": package_booking.male,
                     "female": package_booking.female,
                     "children": package_booking.children,
+                    "way":'two way',
                     "travelers": TravelerSerializer(package_booking.travelers.all(), many=True).data
                 }
                 return Response(data, status=status.HTTP_200_OK)
