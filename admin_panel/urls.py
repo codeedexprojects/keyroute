@@ -50,7 +50,9 @@ urlpatterns = [
     path('api/admin/sections/', AllSectionsCreateView.as_view(), name='create-sections'),
 
     # EXPLORE
-    path('api/admin/explore/create/', ExploreSectionCreateView.as_view(), name='create-explore-section'),
+    path('api/admin/explore/crete/', ExploreSectionCreateView.as_view(), name='create-explore-section'),
+    # edit
+    path('api/admin/explore/<int:pk>/', ExploreSectionCreateView.as_view(), name='create-explore-section'),
 
     # EXPLORE LISTING
     path('explore/list/', ExploreSectionListView.as_view(), name='explore-list'),
