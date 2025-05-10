@@ -119,6 +119,7 @@ class Advertisement(models.Model):
 
 
 class LimitedDeal(models.Model):
+    advertisement = models.ForeignKey(Advertisement, on_delete=models.CASCADE, related_name="limited_deals")
     title = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -136,6 +137,7 @@ class LimitedDealImage(models.Model):
 
 
 class FooterSection(models.Model):
+    advertisement = models.ForeignKey(Advertisement, on_delete=models.CASCADE, related_name="footer_sections")
     title = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
     image = models.ImageField(upload_to="footer_sections/")
