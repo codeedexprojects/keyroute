@@ -143,35 +143,35 @@ CORS_ALLOW_CREDENTIALS = True
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'keyroute$database',
-#         'USER': 'keyroute',
-#         'PASSWORD': 'admin@123',
-#         'HOST': 'keyroute.mysql.pythonanywhere-services.com',
-#         'PORT': '3306',
-#         'OPTIONS': {
-#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-#         }
-#     }
-# }
-
-
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'keyroute_db',  # database name created in Step 1
+        'NAME': 'keyroute$database',
         'USER': 'keyroute',
-        'PASSWORD': 'admin123',
-        'HOST': 'keyroute-db.cp86aus24g28.ap-south-1.rds.amazonaws.com',
+        'PASSWORD': 'admin@123',
+        'HOST': 'keyroute.mysql.pythonanywhere-services.com',
         'PORT': '3306',
         'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
-        },
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+        }
     }
 }
+
+
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'keyroute_db',  # database name created in Step 1
+#         'USER': 'keyroute',
+#         'PASSWORD': 'admin123',
+#         'HOST': 'keyroute-db.cp86aus24g28.ap-south-1.rds.amazonaws.com',
+#         'PORT': '3306',
+#         'OPTIONS': {
+#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
+#         },
+#     }
+# }
 
 # }
 # DATABASES['default']['CONN_MAX_AGE'] = 600  # Keep connections alive for 10 minutes

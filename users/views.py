@@ -57,6 +57,7 @@ class AuthenticationView(APIView):
                     "name": serializer.validated_data.get('name'),
                     "referral_code": serializer.validated_data.get('referral_code'),
                     "referrer": serializer.validated_data.get('referrer'),
+                    
                 }, 
                 timeout=600
             )
@@ -69,6 +70,7 @@ class AuthenticationView(APIView):
                     "name": serializer.validated_data.get('name'),
                     "mobile": mobile,
                     "referral_code": serializer.validated_data.get('referral_code'),
+                    "otp":send_otp,
                 }
             }, status=status.HTTP_200_OK)
         
