@@ -530,6 +530,73 @@ class ExploreSectionCreateView(APIView):
 
 
 
+
+    def patch(self, request, *args, **kwargs):
+        print('is working')
+        sight_id = kwargs.get('pk')   
+        try:
+            sight_instance = Sight.objects.get(pk=sight_id)
+        except Sight.DoesNotExist:
+            return Response({"error": "Sight not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data
+
+        sight_data = {
+            'title': data.get('sight[title]'),
+            'description': data.get('sight[description]'),
+            'season_description': data.get('sight[season_description]'),
+            'image': data.get('sight[image]')
+        }
+        sight_data = {key: value for key, value in sight_data.items() if value is not None}
+
+        sight_serializer = SightSerializer(sight_instance, data=sight_data, partial=True)
+        if sight_serializer.is_valid():
+            sight_serializer.save()
+        else:
+            return Response({"error": sight_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        experience_data = []
+        index = 0
+        while f'experiences[{index}][description]' in data:
+            exp = {
+                'description': data.get(f'experiences[{index}][description]'),
+                'image': data.get(f'experiences[{index}][image]')
+            }
+            experience_data.append(exp)
+            index += 1
+
+        if experience_data:
+            
+
+            for exp in experience_data:
+                exp_serializer = ExperienceSerializer(data=exp)
+                if exp_serializer.is_valid():
+                    exp_serializer.save(sight=sight_instance)
+                else:
+                    return Response({"error": exp_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"message": "Sight updated successfully."}, status=status.HTTP_200_OK)
+
+
+
+    def delete(self, request, *args, **kwargs):
+        sight_id = kwargs.get('pk')   
+        try:
+            sight_instance = Sight.objects.get(pk=sight_id)
+        except Sight.DoesNotExist:
+            return Response({"error": "Sight not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        sight_instance.delete()  
+        return Response({"message": "Sight and its experiences deleted successfully."}, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
 #EXPLORE LISTING
 class ExploreSectionListView(APIView):
     permission_classes = [IsAuthenticated]
