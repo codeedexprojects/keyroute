@@ -14,9 +14,9 @@ class ReferralCodeSerializer(serializers.ModelSerializer):
         model = User
         fields = ['referral_code']
 
-class AuthenticationSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=150, required=False)
+class LoginSerializer(serializers.Serializer):
     mobile = serializers.CharField(max_length=15)
+    name = serializers.CharField(max_length=150, required=False)
     referral_code = serializers.CharField(max_length=10, required=False, allow_blank=True, allow_null=True)
 
     def validate(self, data):
@@ -24,14 +24,12 @@ class AuthenticationSerializer(serializers.Serializer):
         if not mobile:
             raise serializers.ValidationError({"mobile": "Mobile number is required."})
 
-        # Check if this is a new user or existing user
-        user_exists = User.objects.filter(mobile=mobile).exists()
-        
-        # If user doesn't exist and no name provided, raise error
-        if not user_exists and not data.get('name'):
-            raise serializers.ValidationError({"name": "Name is required for new users."})
+        try:
+            user = User.objects.get(mobile=mobile)
+            data['is_new_user'] = False
+        except User.DoesNotExist:
+            raise serializers.ValidationError({"mobile": "User with this mobile number does not exist."})
             
-        # If referral code is provided, validate it
         referral_code = data.get('referral_code')
         if referral_code:
             try:
@@ -42,35 +40,49 @@ class AuthenticationSerializer(serializers.Serializer):
             except User.DoesNotExist:
                 raise serializers.ValidationError({"referral_code": "Invalid referral code."})
         
-        data['is_new_user'] = not user_exists
         return data
-    
-class UserSignupSerializer(serializers.ModelSerializer):
-    referral_code = serializers.CharField(required=False, allow_blank=True)
 
+
+class SignupSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=150)
+    mobile = serializers.CharField(max_length=15)
+    referral_code = serializers.CharField(max_length=10, required=False, allow_blank=True, allow_null=True)
+
+    def validate(self, data):
+        mobile = data.get('mobile')
+        if not mobile:
+            raise serializers.ValidationError({"mobile": "Mobile number is required."})
+
+        if User.objects.filter(mobile=mobile).exists():
+            raise serializers.ValidationError({"mobile": "User with this mobile number already exists."})
+        
+        if not data.get('name'):
+            raise serializers.ValidationError({"name": "Name is required for new users."})
+            
+        referral_code = data.get('referral_code')
+        if referral_code:
+            try:
+                referrer = User.objects.get(referral_code=referral_code)
+                if mobile == referrer.mobile:
+                    raise serializers.ValidationError({"referral_code": "You cannot refer yourself."})
+                data['referrer'] = referrer
+            except User.DoesNotExist:
+                raise serializers.ValidationError({"referral_code": "Invalid referral code."})
+        
+        data['is_new_user'] = True
+        return data
+
+
+class UserCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['name', 'mobile', 'referral_code']
-
-    def validate_referral_code(self, value):
-        if value:
-            try:
-                referrer = User.objects.get(referral_code=value)
-                if self.initial_data.get('mobile') == referrer.mobile:
-                    raise serializers.ValidationError("You cannot refer yourself.")
-                self.context['referrer'] = referrer
-            except User.DoesNotExist:
-                raise serializers.ValidationError("Invalid referral code.")
-        return value
+        fields = ['name', 'mobile']
 
     def create(self, validated_data):
-        referral_code = validated_data.pop('referral_code', None)
         user = User.objects.create(**validated_data)
-
-        # Handle referral rewards or relationships
-        if 'referrer' in self.context:
-            referrer = self.context['referrer']
-            # Example: Update wallet or referral tracking here
+        
+        referrer = self.context.get('referrer')
+        if referrer:
             Wallet.objects.create(user=user, referred_by=referrer)
         
         return user
