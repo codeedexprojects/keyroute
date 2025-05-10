@@ -6,7 +6,7 @@ from django.contrib.auth import login
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import generics, permissions
 from admin_panel.utils import send_otp, verify_otp
-from .serializers import  ReferralCodeSerializer, UserProfileSerializer,FavouriteSerializer,WalletSerializer,AuthenticationSerializer,UserSignupSerializer
+from .serializers import  ReferralCodeSerializer, UserProfileSerializer,FavouriteSerializer,WalletSerializer,LoginSerializer,SignupSerializer,UserCreateSerializer
 from google.auth.transport import requests
 from google.oauth2 import id_token
 from django.conf import settings
@@ -20,30 +20,50 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from .models import Wallet
 from .models import ReferralRewardTransaction
 from .serializers import OngoingReferralSerializer, ReferralHistorySerializer
+from datetime import datetime, timedelta
+from django.core.cache import cache
 
 User = get_user_model()
 
 class AuthenticationView(APIView):
-    """
-    Combined API for login and signup functionality.
-    If user already exists, it works as login.
-    If user doesn't exist, it works as signup.
-    """
     def post(self, request):
-        serializer = AuthenticationSerializer(data=request.data)
+        mobile = request.data.get('mobile')
+        
+        user_exists = User.objects.filter(mobile=mobile).exists()
+        
+        if user_exists:
+            serializer = LoginSerializer(data=request.data)
+        else:
+            serializer = SignupSerializer(data=request.data)
+            
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             
         mobile = serializer.validated_data['mobile']
         is_new_user = serializer.validated_data['is_new_user']
         
-        # Send OTP for verification
         response = send_otp(mobile)
         
         if response.get("Status") == "Success":
+            session_id = response.get("Details")
+            expiry_time = datetime.now() + timedelta(minutes=10)
+            
+            cache.set(
+                f"otp_{session_id}", 
+                {
+                    "mobile": mobile,
+                    "is_new_user": is_new_user,
+                    "expiry_time": expiry_time.timestamp(),
+                    "name": serializer.validated_data.get('name'),
+                    "referral_code": serializer.validated_data.get('referral_code'),
+                    "referrer": serializer.validated_data.get('referrer'),
+                }, 
+                timeout=600
+            )
+            
             return Response({
                 "message": "OTP sent to your mobile",
-                "session_id": response.get("Details"),
+                "session_id": session_id,
                 "is_new_user": is_new_user,
                 "temp_data": {
                     "name": serializer.validated_data.get('name'),
@@ -56,48 +76,52 @@ class AuthenticationView(APIView):
 
 
 class VerifyOTPView(APIView):
-    """
-    Verify OTP and create user account if new user,
-    or authenticate existing user.
-    """
     def post(self, request):
         mobile = request.data.get("mobile")
         otp = request.data.get("otp")
-        name = request.data.get("name")
-        referral_code = request.data.get("referral_code")
-        is_new_user = request.data.get("is_new_user", False)
+        session_id = request.data.get("session_id")
 
-        if not mobile or not otp:
-            return Response({"error": "Mobile number and OTP are required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not mobile or not otp or not session_id:
+            return Response({"error": "Mobile number, OTP, and session ID are required"}, status=status.HTTP_400_BAD_REQUEST)
             
-        # For new users, name is required
-        if is_new_user and not name:
-            return Response({"error": "Name is required for new users"}, status=status.HTTP_400_BAD_REQUEST)
+        otp_data = cache.get(f"otp_{session_id}")
+        
+        if not otp_data:
+            return Response({"error": "OTP session expired or invalid"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        current_time = datetime.now().timestamp()
+        if current_time > otp_data.get("expiry_time", 0):
+            cache.delete(f"otp_{session_id}")
+            return Response({"error": "OTP has expired"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Verify OTP
         response = verify_otp(mobile, otp)
         
         if response.get("Status") == "Success":
-            # Handle new user registration
+            is_new_user = otp_data.get("is_new_user", False)
+            
             if is_new_user:
                 user_data = {
-                    "name": name,
+                    "name": otp_data.get("name"),
                     "mobile": mobile,
-                    "referral_code": referral_code,
                 }
-                serializer = UserSignupSerializer(data=user_data)
+                
+                serializer = UserCreateSerializer(
+                    data=user_data,
+                    context={"referrer": otp_data.get("referrer")}
+                )
+                
                 if serializer.is_valid():
                     user = serializer.save()
                 else:
                     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            # Handle existing user login
             else:
                 try:
                     user = User.objects.get(mobile=mobile)
                 except User.DoesNotExist:
                     return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-            # Generate tokens and login
+            cache.delete(f"otp_{session_id}")
+
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
 
