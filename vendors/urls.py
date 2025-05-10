@@ -38,6 +38,10 @@ urlpatterns = [
     path('api/vendor/packages/<int:package_id>/add-day-plans/', DayPlanCreateAPIView.as_view(), name='add-day-plans'),
 
 
+    # LATEST PACKAGE CREATING SINGLE ONE DAYS
+    path('api/vendor/packages-days/create', CreatePackageAndDayPlanAPIView.as_view(), name='create-package'),
+
+
 
 
 
