@@ -49,6 +49,7 @@ class BaseBooking(models.Model):
     @property
     def balance_amount(self):
         return self.total_amount - self.advance_amount
+    
 
 class BusBooking(BaseBooking):
     bus = models.ForeignKey(Bus, on_delete=models.CASCADE, related_name='bookings')
