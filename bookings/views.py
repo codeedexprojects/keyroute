@@ -517,7 +517,7 @@ class PackageCategoryListAPIView(APIView):
 
 
 class PackageSubCategoryListAPIView(APIView):
-    def get(self, request):
-        subcategories = PackageSubCategory.objects.all()
+    def get(self, request,category):
+        subcategories = PackageSubCategory.objects.filter(category=category)
         serializer = PackageSubCategorySerializer(subcategories, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
