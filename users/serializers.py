@@ -188,12 +188,11 @@ class WalletSerializer(serializers.ModelSerializer):
         fields = ['balance', 'referred_by', 'referral_used']
 
 
+from rest_framework import serializers
+
 class OngoingReferralSerializer(serializers.ModelSerializer):
-    referred_user = serializers.SlugRelatedField(
-        read_only=True,
-        slug_field='name'
-    )
-    
+    referred_user_name = serializers.SerializerMethodField()
+
     class Meta:
         model = ReferralRewardTransaction
         fields = [
@@ -204,15 +203,18 @@ class OngoingReferralSerializer(serializers.ModelSerializer):
             'status',
             'created_at',
             'referrer',
-            'referred_user'
+            'referred_user_name'
         ]
 
+    def get_referred_user_name(self, obj):
+        if obj.referred_user:
+            return obj.referred_user.name
+        return None
+
+
 class ReferralHistorySerializer(serializers.ModelSerializer):
-    referred_user = serializers.SlugRelatedField(
-        read_only=True,
-        slug_field='name'
-    )
-    
+    referred_user_name = serializers.SerializerMethodField()
+
     class Meta:
         model = ReferralRewardTransaction
         fields = [
@@ -223,8 +225,13 @@ class ReferralHistorySerializer(serializers.ModelSerializer):
             'status',
             'created_at',
             'referrer',
-            'referred_user'
+            'referred_user_name'
         ]
+
+    def get_referred_user_name(self, obj):
+        if obj.referred_user:
+            return obj.referred_user.name
+        return None
 
 class ExploreSerializer(serializers.ModelSerializer):
     
