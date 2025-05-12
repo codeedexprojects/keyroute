@@ -22,6 +22,7 @@ from .models import ReferralRewardTransaction
 from .serializers import OngoingReferralSerializer, ReferralHistorySerializer
 from datetime import datetime, timedelta
 from django.core.cache import cache
+from django.db.models import Sum
 
 User = get_user_model()
 
@@ -288,7 +289,7 @@ class OngoingReferralsView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class ReferralHistoryView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     
     def get(self, request, *args, **kwargs):
         referrals = ReferralRewardTransaction.objects.filter(
@@ -297,4 +298,12 @@ class ReferralHistoryView(APIView):
         )
         
         serializer = ReferralHistorySerializer(referrals, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        total_reward = referrals.aggregate(total=Sum('reward_amount'))['total'] or 0
+
+        response_data = {
+            'total_reward': total_reward,
+            'referral_history': serializer.data
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
