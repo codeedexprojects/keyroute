@@ -100,6 +100,12 @@ urlpatterns = [
     
     path('api/admin/reviews/', ListAllReviewsAPIView.as_view(), name='list-all-reviews'),
 
+    path('api/admin/combined-bookings/', CombinedBookingsAPIView.as_view(), name='combined-bookings'),
+
+    path('api/admin/payment-details/', PaymentDetailsAPIView.as_view(), name='payment-details'),
+
+    path('api/admin/booking-details/<str:booking_type>/<int:booking_id>/', SingleBookingDetailAPIView.as_view(), name='single-booking-detail'),
+    path('api/admin/payment-details/<str:booking_type>/<int:booking_id>/', SinglePaymentDetailAPIView.as_view(), name='single-payment-detail'),
 
 
     path('api/admin/buses/', BusAdminAPIView.as_view(), name='admin-bus-api'),
@@ -111,11 +117,5 @@ urlpatterns = [
     # PACKAGE LISTING
     path('api/admin/packages/', AdminPackageListView.as_view(), name='admin-package-list'),
     path('api/admin/packages/<int:pk>/', AdminPackageDetailView.as_view(), name='admin-package-detail'),
-
-
-
-
-
-
 
 ] 

@@ -29,6 +29,7 @@ from itertools import chain
 from operator import attrgetter
 from django.db.models.functions import TruncMonth
 
+
 # Create your views here.
 
 
@@ -1221,6 +1222,147 @@ class RecentApprovedBookingsAPIView(APIView):
         return Response(serializer.data)
 
 
+class CombinedBookingsAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        # Fetch bookings
+        bus_bookings = BusBooking.objects.all()
+        package_bookings = PackageBooking.objects.all()
+
+        # Annotate for distinguishing type (optional)
+        for booking in bus_bookings:
+            booking.booking_type = 'bus'
+        for booking in package_bookings:
+            booking.booking_type = 'package'
+        
+        # Combine and sort by created_at desc
+        combined_bookings = sorted(
+            chain(bus_bookings, package_bookings),
+            key=attrgetter('created_at'),
+            reverse=True
+        )
+
+        # Serialize each object based on type
+        data = []
+        for booking in combined_bookings:
+            if booking.booking_type == 'bus':
+                serializer = BusBookingSerializer(booking)
+                serialized_data = serializer.data
+                serialized_data['booking_type'] = 'bus'
+                data.append(serialized_data)
+            elif booking.booking_type == 'package':
+                serializer = PackageBookingSerializer(booking)
+                serialized_data = serializer.data
+                serialized_data['booking_type'] = 'package'
+                data.append(serialized_data)
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class PaymentDetailsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        bus_bookings = BusBooking.objects.select_related('bus__vendor').all()
+        package_bookings = PackageBooking.objects.select_related('package__vendor').all()
+
+        data = []
+
+        # Bus Booking Data
+        for booking in bus_bookings:
+            data.append({
+                'id': booking.id,
+                'booking_type': 'Bus Booking',
+                'vendor_name': booking.bus.vendor.full_name,
+                'bus_or_package': booking.bus.bus_name,
+                'total_amount': booking.total_amount,
+                'advance_amount': booking.advance_amount,
+                'payment_status': booking.payment_status,
+            })
+
+        # Package Booking Data
+        for booking in package_bookings:
+            data.append({
+                'id': booking.id,
+                'booking_type': 'Package Booking',
+                'vendor_name': booking.package.vendor.full_name,
+                'bus_or_package': booking.package.places,
+                'total_amount': booking.total_amount,
+                'advance_amount': booking.advance_amount,
+                'payment_status': booking.payment_status,
+            })
+
+        serializer = PaymentDetailsSerializer(data, many=True)
+        return Response(serializer.data)
+
+
+class SingleBookingDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, booking_type, booking_id):
+        if booking_type == 'bus':
+            try:
+                booking = BusBooking.objects.get(id=booking_id)
+                serializer = BusBookingSerializer(booking)
+                data = serializer.data
+                data['booking_type'] = 'bus'
+                return Response(data, status=status.HTTP_200_OK)
+            except BusBooking.DoesNotExist:
+                return Response({'detail': 'Bus Booking not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        elif booking_type == 'package':
+            try:
+                booking = PackageBooking.objects.get(id=booking_id)
+                serializer = PackageBookingSerializer(booking)
+                data = serializer.data
+                data['booking_type'] = 'package'
+                return Response(data, status=status.HTTP_200_OK)
+            except PackageBooking.DoesNotExist:
+                return Response({'detail': 'Package Booking not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        else:
+            return Response({'detail': 'Invalid booking type.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SinglePaymentDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, booking_type, booking_id):
+        if booking_type == 'bus':
+            try:
+                booking = BusBooking.objects.select_related('bus__vendor').get(id=booking_id)
+                data = {
+                    'id': booking.id,
+                    'booking_type': 'Bus Booking',
+                    'vendor_name': booking.bus.vendor.full_name,
+                    'bus_or_package': booking.bus.bus_name,
+                    'total_amount': booking.total_amount,
+                    'advance_amount': booking.advance_amount,
+                    'payment_status': booking.payment_status,
+                }
+                serializer = PaymentDetailsSerializer(data)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except BusBooking.DoesNotExist:
+                return Response({'detail': 'Bus Booking not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        elif booking_type == 'package':
+            try:
+                booking = PackageBooking.objects.select_related('package__vendor').get(id=booking_id)
+                data = {
+                    'id': booking.id,
+                    'booking_type': 'Package Booking',
+                    'vendor_name': booking.package.vendor.full_name,
+                    'bus_or_package': booking.package.places,
+                    'total_amount': booking.total_amount,
+                    'advance_amount': booking.advance_amount,
+                    'payment_status': booking.payment_status,
+                }
+                serializer = PaymentDetailsSerializer(data)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except PackageBooking.DoesNotExist:
+                return Response({'detail': 'Package Booking not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        else:
+            return Response({'detail': 'Invalid booking type.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -1347,10 +1489,6 @@ class AdminPackageDetailView(APIView):
 
         serializer = PackageDetailSerializer(package, context={'request': request})
         return Response(serializer.data)
-
-
-
-
 
 
 
