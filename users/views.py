@@ -320,7 +320,7 @@ class ExperianceView(APIView):
     
 class SightView(APIView):
 
-    def get(self,request,experiance):
+    def get(self,request):
         sight = Sight.objects.all()
         serializer = SightSerializer(sight,many=True)
         return Response(serializer.data)
