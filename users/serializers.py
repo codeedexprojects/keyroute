@@ -188,18 +188,16 @@ class WalletSerializer(serializers.ModelSerializer):
         fields = ['balance', 'referred_by', 'referral_used']
 
 
-from rest_framework import serializers
-
 class OngoingReferralSerializer(serializers.ModelSerializer):
     referred_user_name = serializers.SerializerMethodField()
 
     class Meta:
         model = ReferralRewardTransaction
         fields = [
-            'id', 
-            'booking_type', 
-            'booking_id', 
-            'reward_amount', 
+            'id',
+            'booking_type',
+            'booking_id',
+            'reward_amount',
             'status',
             'created_at',
             'referrer',
@@ -207,9 +205,7 @@ class OngoingReferralSerializer(serializers.ModelSerializer):
         ]
 
     def get_referred_user_name(self, obj):
-        if obj.referred_user:
-            return obj.referred_user.name
-        return None
+        return getattr(obj.referred_user, 'name', None)
 
 
 class ReferralHistorySerializer(serializers.ModelSerializer):
@@ -218,10 +214,10 @@ class ReferralHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = ReferralRewardTransaction
         fields = [
-            'id', 
-            'booking_type', 
-            'booking_id', 
-            'reward_amount', 
+            'id',
+            'booking_type',
+            'booking_id',
+            'reward_amount',
             'status',
             'created_at',
             'referrer',
@@ -229,9 +225,7 @@ class ReferralHistorySerializer(serializers.ModelSerializer):
         ]
 
     def get_referred_user_name(self, obj):
-        if obj.referred_user:
-            return obj.referred_user.name
-        return None
+        return getattr(obj.referred_user, 'name', None)
 
 class ExploreSerializer(serializers.ModelSerializer):
     
