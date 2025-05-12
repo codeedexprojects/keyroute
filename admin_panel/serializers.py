@@ -559,6 +559,60 @@ class BookingDisplaySerializer(serializers.Serializer):
         return f"Traveler {obj.id}"
 
 
+from rest_framework import serializers
+from bookings.models import BusBooking, PackageBooking, Travelers, BusDriverDetail, PackageDriverDetail
+
+# Travelers Serializer
+class TravelerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Travelers
+        fields = '__all__'
+
+# Bus Driver Detail Serializer
+class BusDriverDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusDriverDetail
+        fields = '__all__'
+
+# Package Driver Detail Serializer
+class PackageDriverDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageDriverDetail
+        fields = '__all__'
+
+# BusBooking Serializer
+class BusBookingSerializer(serializers.ModelSerializer):
+    travelers = TravelerSerializer(many=True, read_only=True)
+    driver_detail = BusDriverDetailSerializer(read_only=True)
+    balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = BusBooking
+        fields = '__all__'
+
+# PackageBooking Serializer
+class PackageBookingSerializer(serializers.ModelSerializer):
+    travelers = TravelerSerializer(many=True, read_only=True)
+    driver_detail = PackageDriverDetailSerializer(read_only=True)
+    balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = PackageBooking
+        fields = '__all__'
+
+
+class PaymentDetailsSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    booking_type = serializers.CharField()
+    vendor_name = serializers.CharField()
+    bus_or_package = serializers.CharField()
+    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    advance_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    balance_amount = serializers.SerializerMethodField()
+    payment_status = serializers.CharField()
+
+    def get_balance_amount(self, obj):
+        return obj.total_amount - obj.advance_amount
 
 
 
