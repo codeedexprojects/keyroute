@@ -20,4 +20,7 @@ urlpatterns = [
 
     path('referrals/ongoing/',OngoingReferralsView.as_view(), name='ongoing-referrals'),
     path('referrals/history/',ReferralHistoryView.as_view(), name='referral-history'),
+
+    path('experiance/',ReferralHistoryView.as_view(), name='referral-history'),
+    path('sight/<int:id>/',ReferralHistoryView.as_view(), name='referral-history'),
 ]
