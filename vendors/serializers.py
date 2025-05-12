@@ -553,6 +553,8 @@ class PackageSerializer(serializers.ModelSerializer):
     
     average_rating = serializers.ReadOnlyField()
     total_reviews = serializers.ReadOnlyField()
+    vendor_name = serializers.SerializerMethodField()
+    price_per_person = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
@@ -560,9 +562,17 @@ class PackageSerializer(serializers.ModelSerializer):
             'id',
             'sub_category', 'header_image', 'places', 'days', 'nights',
             'ac_available', 'guide_included', 'buses', 
-            'day_plans','day_plans_read','average_rating', 'total_reviews','price_per_person'
+            'day_plans','day_plans_read','average_rating', 'total_reviews','price_per_person','vendor_name'
         ]
 
+    def get_vendor_name(self, obj):
+        return obj.vendor.travels_name if obj.vendor else None
+    
+    def get_price_per_person(self, obj):
+        if obj.price_per_person is not None:
+            return int(obj.price_per_person)
+        return 0
+    
     def validate_days(self, value):
         if value <= 0:
             raise serializers.ValidationError("Days must be greater than 0.")
