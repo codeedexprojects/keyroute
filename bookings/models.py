@@ -136,6 +136,7 @@ class Travelers(models.Model):
 class BusDriverDetail(models.Model):
     bus_booking = models.OneToOneField('BusBooking', on_delete=models.CASCADE, related_name='driver_detail')
     name = models.CharField(max_length=150)
+    email = models.EmailField(max_length=255, null=True, blank=True) 
     place = models.CharField(max_length=150)
     phone_number = models.CharField(max_length=15)
     driver_image = models.ImageField(upload_to='driver_images/')
@@ -150,6 +151,7 @@ class BusDriverDetail(models.Model):
 class PackageDriverDetail(models.Model):
     package_booking = models.OneToOneField(PackageBooking, on_delete=models.CASCADE, related_name='driver_detail')
     name = models.CharField(max_length=150)
+    email = models.EmailField(max_length=255, null=True, blank=True) 
     place = models.CharField(max_length=150)
     phone_number = models.CharField(max_length=15)
     driver_image = models.ImageField(upload_to='driver_images/')
