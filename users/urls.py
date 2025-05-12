@@ -21,6 +21,6 @@ urlpatterns = [
     path('referrals/ongoing/',OngoingReferralsView.as_view(), name='ongoing-referrals'),
     path('referrals/history/',ReferralHistoryView.as_view(), name='referral-history'),
 
-    path('experiance/',ExperianceView.as_view(), name='referral-history'),
-    path('sight/<int:id>/',SightView.as_view(), name='referral-history'),
+    path('experiance/<int:sight>',ExperianceView.as_view(), name='referral-history'),
+    path('sight/',SightView.as_view(), name='referral-history'),
 ]
