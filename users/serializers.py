@@ -6,6 +6,7 @@ from .models import Favourite,Wallet
 from admin_panel.utils import send_otp
 from vendors.models import Bus, Package
 from .models import ReferralRewardTransaction
+from admin_panel.models import Experience
 
 User = get_user_model()
 
@@ -224,3 +225,9 @@ class ReferralHistorySerializer(serializers.ModelSerializer):
             'referrer',
             'referred_user'
         ]
+
+class ExploreSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = Experience
+        fields = ['__all__']
