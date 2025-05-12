@@ -32,6 +32,14 @@ class PackageListAPIView(APIView):
         packages = Package.objects.all()
         serializer = PackageSerializer(packages, many=True, context={'request': request})
         return Response(serializer.data)
+    
+class SinglePackageListAPIView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request,package_id):
+        packages = Package.objects.get(id=package_id)
+        serializer = PackageSerializer(packages, many=False, context={'request': request})
+        return Response(serializer.data)
 
 class BusListAPIView(APIView):
     permission_classes = [AllowAny]
@@ -39,6 +47,14 @@ class BusListAPIView(APIView):
     def get(self, request):
         buses = Bus.objects.all()
         serializer = BusSerializer(buses, many=True, context={'request': request})
+        return Response(serializer.data)
+    
+class SingleBusListAPIView(APIView):
+    permission_classes = [AllowAny]
+    
+    def get(self, request,bus_id):
+        buses = Bus.objects.get(id=bus_id)
+        serializer = BusSerializer(buses, many=False, context={'request': request})
         return Response(serializer.data)
 
 class PackageBookingListCreateAPIView(APIView):
