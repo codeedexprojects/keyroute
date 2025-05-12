@@ -188,6 +188,10 @@ class WalletSerializer(serializers.ModelSerializer):
 
 
 class OngoingReferralSerializer(serializers.ModelSerializer):
+    referred_user = serializers.SlugRelatedField(
+        read_only=True,
+        slug_field='name'
+    )
     
     class Meta:
         model = ReferralRewardTransaction
@@ -203,6 +207,10 @@ class OngoingReferralSerializer(serializers.ModelSerializer):
         ]
 
 class ReferralHistorySerializer(serializers.ModelSerializer):
+    referred_user = serializers.SlugRelatedField(
+        read_only=True,
+        slug_field='name'
+    )
     
     class Meta:
         model = ReferralRewardTransaction
