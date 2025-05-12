@@ -61,7 +61,7 @@ class Bus(models.Model):
     capacity = models.IntegerField()
     vehicle_description = models.TextField()
     vehicle_rc_number = models.CharField(max_length=50)
-    travels_logo = models.ImageField(upload_to='travels_logos/', null=True, blank=True)  # Moved here
+    travels_logo = models.ImageField(upload_to='travels_logos/', null=True, blank=True)   
     rc_certificate = models.FileField(upload_to='rc_certificates/')
     license = models.FileField(upload_to='licenses/')
     contract_carriage_permit = models.FileField(upload_to='permits/')
@@ -213,6 +213,9 @@ class Stay(models.Model):
     day_plan = models.OneToOneField(DayPlan, on_delete=models.CASCADE, related_name='stay')
     hotel_name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
+    location = models.CharField(max_length=255, blank=True, null=True)  
+    is_ac = models.BooleanField(default=False, blank=True, null=True)  
+    has_breakfast = models.BooleanField(default=False, blank=True, null=True) 
 
 
 class StayImage(models.Model):
@@ -225,6 +228,9 @@ class Meal(models.Model):
     day_plan = models.ForeignKey(DayPlan, on_delete=models.CASCADE, related_name='meals')
     type = models.CharField(max_length=50, choices=[('breakfast', 'Breakfast'), ('lunch', 'Lunch'), ('dinner', 'Dinner')])
     description = models.TextField(blank=True, null=True)
+    restaurant_name = models.CharField(max_length=255, blank=True, null=True)
+    location = models.CharField(max_length=255, blank=True, null=True)
+    time = models.TimeField(blank=True, null=True)
 
 
 
@@ -237,6 +243,8 @@ class Activity(models.Model):
     day_plan = models.ForeignKey(DayPlan, on_delete=models.CASCADE, related_name='activities')
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
+    time = models.TimeField(blank=True, null=True)
+    location = models.CharField(max_length=255, blank=True, null=True)
 
 class ActivityImage(models.Model):
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name='images')
@@ -260,6 +268,8 @@ class VendorBankDetail(models.Model):
     pay_id = models.CharField(max_length=100, blank=True, null=True)
     payout_narration = models.TextField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
+    holder_name = models.CharField(max_length=100, blank=True, null=True)
+
 
     def __str__(self):
         return f"{self.vendor.full_name} - {self.account_number}"
@@ -298,7 +308,6 @@ class VendorBusyDate(models.Model):
         if self.from_time and self.to_time:
             return f"{self.vendor.user.name} - {self.date} ({self.from_time} to {self.to_time})"
         return f"{self.vendor.user.name} - {self.date} (Full Day)"
-
 
 
 

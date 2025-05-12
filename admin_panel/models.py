@@ -99,6 +99,9 @@ class Vendor(models.Model):
     state = models.CharField(max_length=255)
     pincode = models.CharField(max_length=10)
     district = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(default=timezone.now, blank=True, null=True)
+  
+
 
     def __str__(self):
         return self.full_name
@@ -116,6 +119,7 @@ class Advertisement(models.Model):
 
 
 class LimitedDeal(models.Model):
+    advertisement = models.ForeignKey(Advertisement, on_delete=models.CASCADE, related_name="limited_deals")
     title = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -133,6 +137,7 @@ class LimitedDealImage(models.Model):
 
 
 class FooterSection(models.Model):
+    advertisement = models.ForeignKey(Advertisement, on_delete=models.CASCADE, related_name="footer_sections")
     title = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
     image = models.ImageField(upload_to="footer_sections/")
@@ -142,7 +147,7 @@ class FooterSection(models.Model):
         return f"Footer Section - {self.title}"
 
 
-
+ 
 
 
 class Sight(models.Model):

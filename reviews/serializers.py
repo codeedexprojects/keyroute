@@ -5,14 +5,23 @@ from django.db.models import Avg
 class BusReviewSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source="user.name", read_only=True)
     created_at_formatted = serializers.SerializerMethodField()
+    user_profile_image = serializers.ImageField(source="user.profile_image", read_only=True)
+    bus_name = serializers.CharField(source='bus.bus_name', read_only=True)
     
     class Meta:
         model = BusReview
-        fields = ["id", "user", "bus", "user_name", "rating", "comment", "created_at", "created_at_formatted"]
+        fields = ["id", "user", "user_name", "rating", "comment", "created_at", "created_at_formatted",'user_profile_image','bus_name']
         read_only_fields = ["id", "created_at", "created_at_formatted"]
         extra_kwargs = {
             'user': {'write_only': True},
         }
+    
+    def get_user_profile_image(self, obj):
+        if obj.user.profile_image:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.user.profile_image.url) if request else obj.user.profile_image.url
+        return None
+
     
     def get_created_at_formatted(self, obj):
         return obj.created_at.strftime("%B %d, %Y")
@@ -21,14 +30,22 @@ class BusReviewSerializer(serializers.ModelSerializer):
 class PackageReviewSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source="user.name", read_only=True)
     created_at_formatted = serializers.SerializerMethodField()
+    user_profile_image = serializers.ImageField(source="user.profile_image", read_only=True)
+    name = serializers.CharField(source='package.places', read_only=True)
     
     class Meta:
         model = PackageReview
-        fields = ["id", "user", "package", "user_name", "rating", "comment", "created_at", "created_at_formatted"]
+        fields = ["id", "user", "package", "user_name", "rating", "comment", "created_at", "created_at_formatted",'user_profile_image','name']
         read_only_fields = ["id", "created_at", "created_at_formatted"]
         extra_kwargs = {
             'user': {'write_only': True},
         }
+
+    def get_user_profile_image(self, obj):
+        if obj.user.profile_image:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.user.profile_image.url) if request else obj.user.profile_image.url
+        return None
     
     def get_created_at_formatted(self, obj):
         return obj.created_at.strftime("%B %d, %Y")

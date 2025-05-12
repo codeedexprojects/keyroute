@@ -7,7 +7,7 @@ urlpatterns = [
     path('reviews/bus/<int:bus_id>/', BusReviewView.as_view(), name='get_bus_reviews'),
     
     # Package review endpoints
-    path('reviews/package/', PackageReviewView.as_view(), name='post_package_review'),
+    path('api/vendorreviews/package/', PackageReviewView.as_view(), name='post_package_review'),
     path('reviews/package/<int:package_id>/', PackageReviewView.as_view(), name='get_package_reviews'),
 
     path('reviews/', AppReviewView.as_view(), name='review-list-create'),

@@ -27,6 +27,7 @@ from itertools import chain
 from django.db.models import Count
 from itertools import chain
 from operator import attrgetter
+from django.db.models.functions import TruncMonth
 
 
 # Create your views here.
@@ -158,44 +159,6 @@ class AdminBusListAPIView(APIView):
             "buses": serializer.data
         }, status=status.HTTP_200_OK)
 
-    # def get(self, request, user_id=None):
-    #     if user_id:
-    #         try:
-    #             user = User.objects.get(id=user_id, role=User.USER)
-    #             serializer = UserSerializer(user)
-    #             return Response(serializer.data, status=status.HTTP_200_OK)
-    #         except User.DoesNotExist:
-    #             return Response({"error": "User not found or not a normal user."}, status=status.HTTP_404_NOT_FOUND)
-    #     else:
-    #         # Check if there are any users with role 'USER'
-    #         total_users = User.objects.filter(role=User.USER)
-    #         print(total_users,'users')
-
-    #         if total_users.exists():  # Ensure users exist before proceeding
-    #             # Booked users count (those who have made a booking)
-    #             booked_users = User.objects.filter(role=User.USER, id__in=BaseBooking.objects.values('user_id').distinct())
-
-    #             # Active users count
-    #             active_users = User.objects.filter(role=User.USER, is_active=True)
-    #             print(active_users,'actgive')
-
-    #             # Inactive users count
-    #             inactive_users = User.objects.filter(role=User.USER, is_active=False)
-    #             print(inactive_users,'actgive')
-
-
-    #             # Serialize the users
-    #             serializer = UserSerializer(total_users, many=True)
-
-    #             return Response({
-    #                 "total_users_count": total_users.count(),
-    #                 "booked_users_count": booked_users.count(),
-    #                 "active_users_count": active_users.count(),
-    #                 "inactive_users_count": inactive_users.count(),
-    #                 "users": serializer.data
-    #             }, status=status.HTTP_200_OK)
-    #         else:
-    #             return Response({"message": "No users found."}, status=status.HTTP_404_NOT_FOUND)
 
 
 class AllUsersAPIView(APIView):
@@ -263,6 +226,8 @@ class AllUsersAPIView(APIView):
 
 # VENDOR CREATING AND LISTING
 class AdminCreateVendorAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     def post(self, request):
         serializer = AdminVendorSerializer(data=request.data)
         if serializer.is_valid():
@@ -275,8 +240,16 @@ class AdminCreateVendorAPIView(APIView):
     
 
 
+    # def get(self, request):
+    #     vendors = Vendor.objects.all()
+    #     serializer = VendorFullSerializer(vendors, many=True)
+    #     return Response({
+    #         "message": "List of all vendors1",
+    #         "data": serializer.data
+    #     }, status=status.HTTP_200_OK)
+
     def get(self, request):
-        vendors = Vendor.objects.all()
+        vendors = Vendor.objects.all().order_by('-created_at')
         serializer = VendorFullSerializer(vendors, many=True)
         return Response({
             "message": "List of all vendors",
@@ -286,6 +259,8 @@ class AdminCreateVendorAPIView(APIView):
 
 # VENDOR DETAILS
 class AdminVendorDetailAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     def get(self, request, vendor_id):
         try:
             vendor = Vendor.objects.get(pk=vendor_id)
@@ -301,6 +276,8 @@ class AdminVendorDetailAPIView(APIView):
 
 # ADMIN BUS LISTING
 class AdminVendorBusListAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     def get(self, request, vendor_id):
         try:
             vendor = Vendor.objects.get(pk=vendor_id)
@@ -318,18 +295,20 @@ class AdminVendorBusListAPIView(APIView):
 
 
 # ADMIN BUS DETAILS
-class AdminBusDetailAPIView(APIView):
-    def get(self, request, bus_id):
-        try:
-            bus = Bus.objects.get(pk=bus_id)
-        except Bus.DoesNotExist:
-            return Response({"error": "Bus not found"}, status=status.HTTP_404_NOT_FOUND)
+# class AdminBusDetailAPIView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+#     def get(self, request, bus_id):
+#         try:
+#             bus = Bus.objects.get(pk=bus_id)
+#         except Bus.DoesNotExist:
+#             return Response({"error": "Bus not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = BusDetailSerializer(bus)
-        return Response({
-            "message": "Bus details retrieved successfully",
-            "data": serializer.data
-        }, status=status.HTTP_200_OK)
+#         serializer = BusDetailSerializer(bus)
+#         return Response({
+#             "message": "Bus details retrieved successfully",
+#             "data": serializer.data
+#         }, status=status.HTTP_200_OK)
     
 
 
@@ -337,6 +316,8 @@ class AdminBusDetailAPIView(APIView):
 
 # VENDOR PACKAGE LISTING
 class AdminVendorPackageListAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     def get(self, request, vendor_id):
         try:
             vendor = Vendor.objects.get(user=vendor_id)
@@ -352,6 +333,8 @@ class AdminVendorPackageListAPIView(APIView):
 
 # VENDOR PACKAGE DETAILS
 class AdminPackageDetailAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     def get(self, request, package_id):
         try:
             package = Package.objects.get(pk=package_id)
@@ -368,6 +351,8 @@ class AdminPackageDetailAPIView(APIView):
 
 
 class PackageCategoryListAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     def get(self, request):
         categories = PackageCategory.objects.all()
         serializer = PackageCategoryListSerializer(categories, many=True)
@@ -401,48 +386,229 @@ class AdminCreateUserView(APIView):
 
 # ADVERTISMENT CREATION
 class AllSectionsCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
     parser_classes = [MultiPartParser, FormParser]
 
+ 
+
+    # def post(self, request, *args, **kwargs):
+       
+        
+    #     try:
+    #         ads_data = []
+    #         for i in range(len(request.data.getlist('advertisements-0-title'))):
+    #             ad = {
+    #                 'title': request.data.getlist(f'advertisements-{i}-title')[0],
+    #                 'description': request.data.getlist(f'advertisements-{i}-description')[0],
+    #                 'image': request.FILES.get(f'advertisements-{i}-image') if f'advertisements-{i}-image' in request.FILES else None
+    #             }
+    #             ads_data.append(ad)
+
+    #         deals_data = []
+    #         for i in range(len(request.data.getlist('limited_deals-0-title'))):
+    #             deal = {
+    #                 'title': request.data.getlist(f'limited_deals-{i}-title')[0],
+    #                 'description': request.data.getlist(f'limited_deals-{i}-description')[0],
+    #                 'images': request.FILES.getlist(f'limited_deals-{i}-images') if f'limited_deals-{i}-images' in request.FILES else []
+    #             }
+    #             deals_data.append(deal)
+
+    #         footers_data = []
+    #         for i in range(len(request.data.getlist('footer_sections-0-title'))):
+    #             footer = {
+    #                 'title': request.data.getlist(f'footer_sections-{i}-title')[0],
+    #                 'description': request.data.getlist(f'footer_sections-{i}-description')[0],
+    #                 'image': request.FILES.get(f'footer_sections-{i}-image') if f'footer_sections-{i}-image' in request.FILES else None
+    #             }
+    #             footers_data.append(footer)
+
+          
+            
+    #     except Exception as e:
+    #         print(f"Error: {str(e)}")
+    #         return Response({"error": "Invalid data format."}, status=400)
+
+    #     for ad in ads_data:
+    #         print(f"Processing Advertisement: {ad}")
+    #         serializer = AdvertisementSerializer(data=ad)
+    #         if serializer.is_valid():
+    #             serializer.save()
+    #         else:
+    #             print(f"Advertisement serializer errors: {serializer.errors}")
+    #             return Response({'error': serializer.errors}, status=400)
+
+    #     for deal in deals_data:
+    #         print(f"Processing Limited Deal: {deal}")
+    #         images = deal.pop('images', [])
+    #         deal_serializer = LimitedDealSerializer(data=deal)
+    #         if deal_serializer.is_valid():
+    #             limited_deal = deal_serializer.save()
+    #             for img in images:
+    #                 print(f"Processing image for deal: {img}")
+    #                 LimitedDealImage.objects.create(deal=limited_deal, image=img)
+    #         else:
+    #             print(f"Limited Deal serializer errors: {deal_serializer.errors}")
+    #             return Response({'error': deal_serializer.errors}, status=400)
+
+    #     for footer in footers_data:
+    #         print(f"Processing Footer Section: {footer}")
+    #         footer_serializer = FooterSectionSerializer(data=footer)
+    #         if footer_serializer.is_valid():
+    #             footer_serializer.save()
+    #         else:
+    #             print(f"Footer Section serializer errors: {footer_serializer.errors}")
+    #             return Response({'error': footer_serializer.errors}, status=400)
+
+    #     print("All data saved successfully!")
+    #     return Response({"message": "All data saved successfully!"}, status=201)
+
+
+
+
+
     def post(self, request, *args, **kwargs):
-        ads_data = request.data.getlist('advertisements')
-        deals_data = request.data.getlist('limited_deals')
-        footers_data = request.data.getlist('footer_sections')
+        try:
+            # 1. Parse advertisements
+            ads_data = []
+            i = 0
+            while f'advertisements-{i}-title' in request.data:
+                ad = {
+                    'title': request.data.get(f'advertisements-{i}-title'),
+                    'description': request.data.get(f'advertisements-{i}-description'),
+                    'image': request.FILES.get(f'advertisements-{i}-image')
+                }
+                ads_data.append(ad)
+                i += 1
 
-        for ad in ads_data:
-            serializer = AdvertisementSerializer(data=ad)
-            if serializer.is_valid():
-                serializer.save()
-            else:
-                return Response({'error': serializer.errors}, status=400)
+            ad_instances = []
+            for ad in ads_data:
+                serializer = AdvertisementSerializer(data=ad)
+                if serializer.is_valid():
+                    instance = serializer.save()
+                    ad_instances.append(instance)
+                else:
+                    return Response({'error': serializer.errors}, status=400)
 
-        for deal in deals_data:
-            images = deal.pop('images', [])
-            deal_serializer = LimitedDealSerializer(data=deal)
-            if deal_serializer.is_valid():
-                limited_deal = deal_serializer.save()
-                for img in images:
-                    LimitedDealImage.objects.create(deal=limited_deal, image=img)
-            else:
-                return Response({'error': deal_serializer.errors}, status=400)
+            # 2. Parse limited deals (each linked to an ad)
+            deals_data = []
+            i = 0
+            while f'limited_deals-{i}-title' in request.data:
+                deal = {
+                    'title': request.data.get(f'limited_deals-{i}-title'),
+                    'description': request.data.get(f'limited_deals-{i}-description'),
+                    'images': request.FILES.getlist(f'limited_deals-{i}-images'),
+                    'advertisement': ad_instances[i] if i < len(ad_instances) else None
+                }
+                deals_data.append(deal)
+                i += 1
 
-        for footer in footers_data:
-            serializer = FooterSectionSerializer(data=footer)
-            if serializer.is_valid():
-                serializer.save()
-            else:
-                return Response({'error': serializer.errors}, status=400)
+            deal_instances = []
+            for deal in deals_data:
+                images = deal.pop('images', [])
+                ad_obj = deal.pop('advertisement')
+                deal_serializer = LimitedDealSerializer(data=deal)
+                if deal_serializer.is_valid():
+                    limited_deal = deal_serializer.save(advertisement=ad_obj)
+                    deal_instances.append(limited_deal)
+                    for img in images:
+                        LimitedDealImage.objects.create(deal=limited_deal, image=img)
+                else:
+                    return Response({'error': deal_serializer.errors}, status=400)
 
-        return Response({"message": "All data saved successfully!"}, status=201)
+            # 3. Parse footer sections (each linked to an ad)
+            footers_data = []
+            i = 0
+            while f'footer_sections-{i}-title' in request.data:
+                footer = {
+                    'title': request.data.get(f'footer_sections-{i}-title'),
+                    'description': request.data.get(f'footer_sections-{i}-description'),
+                    'image': request.FILES.get(f'footer_sections-{i}-image'),
+                    'advertisement': ad_instances[i] if i < len(ad_instances) else None
+                }
+                footers_data.append(footer)
+                i += 1
+
+            for footer in footers_data:
+                ad_obj = footer.pop('advertisement')
+                footer_serializer = FooterSectionSerializer(data=footer)
+                if footer_serializer.is_valid():
+                    footer_serializer.save(advertisement=ad_obj)
+                else:
+                    return Response({'error': footer_serializer.errors}, status=400)
+
+            return Response({"message": "All data saved successfully!"}, status=201)
+
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            return Response({"error": str(e)}, status=400)
 
 
 
 
 
+    # def get(self, request, *args, **kwargs):
+    #     ads = Advertisement.objects.all()
+    #     deals = LimitedDeal.objects.all()
+    #     footers = FooterSection.objects.all()
+
+    #     ads_serialized = AdvertisementSerializer(ads, many=True).data
+    #     deals_serialized = LimitedDealSerializer(deals, many=True).data
+    #     footers_serialized = FooterSectionSerializer(footers, many=True).data
+
+    #     return Response({
+    #         "advertisements": ads_serialized,
+    #         "limited_deals": deals_serialized,
+    #         "footer_sections": footers_serialized
+    #     }, status=200)
+
+
+    def get(self, request, *args, **kwargs):
+        ads = Advertisement.objects.all()
+        ads_serialized = AdvertisementSerializer(ads, many=True).data
+
+        return Response({
+            "advertisements": ads_serialized
+        }, status=200)
+
+
+
+class AdvertisementDetailView(APIView):
+   
+    def get(self, request, ad_id, *args, **kwargs):
+        try:
+            advertisement = Advertisement.objects.get(id=ad_id)
+            print(advertisement, 'avd')  
+        except Advertisement.DoesNotExist:
+            return Response({"error": "Advertisement not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        ad_data = AdvertisementSerializer(advertisement).data
+        print(ad_data, 'ad_data')   
+
+        deals = LimitedDeal.objects.filter(advertisement=advertisement)
+        print(deals, 'dela')   
+
+        deals_data = LimitedDealSerializer(deals, many=True).data
+        print(deals_data, 'deals data')   
+
+        footers = FooterSection.objects.filter(advertisement=advertisement)
+        print(footers, 'footers')   
+
+        footers_data = FooterSectionSerializer(footers, many=True).data
+        print(footers_data, 'footers data')  
+
+        return Response({
+            "advertisement": ad_data,
+            "limited_deals": deals_data,
+            "footer_sections": footers_data
+        }, status=status.HTTP_200_OK)
 
 
 
 #EXPLROE CREATING
 class ExploreSectionCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
     parser_classes = [MultiPartParser, FormParser]
 
     def post(self, request, *args, **kwargs):
@@ -482,8 +648,77 @@ class ExploreSectionCreateView(APIView):
 
 
 
+
+    def patch(self, request, *args, **kwargs):
+        print('is working')
+        sight_id = kwargs.get('pk')   
+        try:
+            sight_instance = Sight.objects.get(pk=sight_id)
+        except Sight.DoesNotExist:
+            return Response({"error": "Sight not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data
+
+        sight_data = {
+            'title': data.get('sight[title]'),
+            'description': data.get('sight[description]'),
+            'season_description': data.get('sight[season_description]'),
+            'image': data.get('sight[image]')
+        }
+        sight_data = {key: value for key, value in sight_data.items() if value is not None}
+
+        sight_serializer = SightSerializer(sight_instance, data=sight_data, partial=True)
+        if sight_serializer.is_valid():
+            sight_serializer.save()
+        else:
+            return Response({"error": sight_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        experience_data = []
+        index = 0
+        while f'experiences[{index}][description]' in data:
+            exp = {
+                'description': data.get(f'experiences[{index}][description]'),
+                'image': data.get(f'experiences[{index}][image]')
+            }
+            experience_data.append(exp)
+            index += 1
+
+        if experience_data:
+            
+
+            for exp in experience_data:
+                exp_serializer = ExperienceSerializer(data=exp)
+                if exp_serializer.is_valid():
+                    exp_serializer.save(sight=sight_instance)
+                else:
+                    return Response({"error": exp_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"message": "Sight updated successfully."}, status=status.HTTP_200_OK)
+
+
+
+    def delete(self, request, *args, **kwargs):
+        sight_id = kwargs.get('pk')   
+        try:
+            sight_instance = Sight.objects.get(pk=sight_id)
+        except Sight.DoesNotExist:
+            return Response({"error": "Sight not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        sight_instance.delete()  
+        return Response({"message": "Sight and its experiences deleted successfully."}, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
 #EXPLORE LISTING
 class ExploreSectionListView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
     def get(self, request):
         sights = Sight.objects.all().order_by('-id')
         serializer = SightListSerializer(sights, many=True)
@@ -495,7 +730,6 @@ class ExploreSectionListView(APIView):
 
 
 class AdminBookingListView(APIView):
-    # permission_classes = [IsAdminUser]
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
@@ -768,6 +1002,7 @@ class AdminVendorOverview(APIView):
 
 
 class AllBookingsAPI(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -790,6 +1025,7 @@ class AllBookingsAPI(APIView):
         return Response(sorted_combined_data)
     
 class BookingDetails(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     
     def get(self, request, booking_type, booking_id):
@@ -807,6 +1043,7 @@ class BookingDetails(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 class ListAllReviewsAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsAdminUser]
 
     def get(self, request):
@@ -843,6 +1080,10 @@ class RecentUsersAPIView(APIView):
 
 
 class TopVendorsAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+
     def get(self, request):
         bus_booking_counts = (
             BusBooking.objects
@@ -1122,3 +1363,132 @@ class SinglePaymentDetailAPIView(APIView):
 
         else:
             return Response({'detail': 'Invalid booking type.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+class RevenueGraphView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        bus_bookings = BusBooking.objects.all()
+        package_bookings = PackageBooking.objects.all()
+
+        all_bookings = list(bus_bookings) + list(package_bookings)
+
+        bus_revenue = bus_bookings.annotate(month=TruncMonth('created_at')) \
+                                  .values('month') \
+                                  .annotate(total_amount=Sum('total_amount'))
+
+        package_revenue = package_bookings.annotate(month=TruncMonth('created_at')) \
+                                          .values('month') \
+                                          .annotate(total_amount=Sum('total_amount'))
+
+        monthly_data = {}
+
+        for entry in list(bus_revenue) + list(package_revenue):
+            month_str = entry['month'].strftime("%Y-%m")
+            monthly_data[month_str] = monthly_data.get(month_str, 0) + float(entry['total_amount'])
+
+        monthly_revenue = [{"month": k, "total_amount": v} for k, v in sorted(monthly_data.items())]
+
+        def serialize_booking(b, booking_type):
+            return {
+                "id": b.id,
+                "type": booking_type,
+                "user": str(b.user),
+                "start_date": b.start_date,
+                "created_at": b.created_at,
+                "total_amount": b.total_amount,
+                "advance_amount": b.advance_amount,
+                "payment_status": b.payment_status,
+                "booking_status": b.booking_status,
+                "trip_status": b.trip_status,
+                "from_location": b.from_location,
+                "to_location": b.to_location,
+                "total_travelers": b.total_travelers
+            }
+
+        bookings_serialized = (
+            [serialize_booking(b, "bus") for b in bus_bookings] +
+            [serialize_booking(p, "package") for p in package_bookings]
+        )
+
+        return Response({
+            "monthly_revenue": monthly_revenue,
+            "all_bookings": bookings_serialized
+        }, status=status.HTTP_200_OK)
+
+
+
+
+class BusAdminAPIView(APIView):
+    
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+
+    def get(self, request):
+        if not request.user.is_superuser:
+            return Response({'detail': 'Permission denied. Superuser access only.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        buses = Bus.objects.all()
+        serializer = BusAdminSerializer(buses, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
+
+class SingleBusDetailAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, bus_id):
+        try:
+            bus = Bus.objects.get(id=bus_id)
+        except Bus.DoesNotExist:
+            return Response({'detail': 'Bus not found.'}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = BusDetailSerializerADMIN(bus, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
+class AdminPackageListView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        sub_category_id = request.query_params.get('sub_category_id')
+        if not sub_category_id:
+            return Response({"detail": "Sub category ID is required."}, status=400)
+
+        packages = Package.objects.filter(sub_category_id=sub_category_id).prefetch_related('buses__features', 'buses__vendor')
+        serializer = PackageListSerializer(packages, many=True)
+        return Response(serializer.data)
+
+
+
+
+
+class AdminPackageDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        try:
+            package = Package.objects.get(pk=pk)
+        except Package.DoesNotExist:
+            return Response({"detail": "Package not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PackageDetailSerializer(package, context={'request': request})
+        return Response(serializer.data)
+
+
+

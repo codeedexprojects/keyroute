@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import *
 from bookings.views import VendorBusBookingAPI,VendorPackageBookingAPI,VendorBusBookingByStatusAPI,VendorPackageBookingByStatusAPI,BookingFilterByDate
-
+from reviews.views import BusReviewView,PackageReviewView,VendorAllReviewsView
 urlpatterns = [
    path('api/vendor/signup/', VendorSignupAPIView.as_view(), name='vendor-signup'),
    path('api/vendor/login/', LoginAPIView.as_view(), name='vendor_login'),
@@ -38,6 +38,10 @@ urlpatterns = [
     path('api/vendor/packages/<int:package_id>/add-day-plans/', DayPlanCreateAPIView.as_view(), name='add-day-plans'),
 
 
+    # LATEST PACKAGE CREATING SINGLE ONE DAYS
+    path('api/vendor/packages-days/create', CreatePackageAndDayPlanAPIView.as_view(), name='create-package'),
+
+
 
 
 
@@ -52,10 +56,10 @@ urlpatterns = [
 
 
     #Booking
-    path('api/vendor/bus/bookings/',VendorBusBookingAPI.as_view(),name="vendor-bus-booking-list"),
-    path('api/vendor/package/bookings/',VendorPackageBookingAPI.as_view(),name="vendor-package-booking-list"),
-    path('api/vendor/bus/bookings/<str:booking_status>/',VendorBusBookingByStatusAPI.as_view(),name="vendor-bus-booking-status"),
-    path('api/vendor/package/bookings/<str:booking_status>/',VendorPackageBookingByStatusAPI.as_view(),name="vendor-package-booking-status"),
+    # path('api/vendor/bus/bookings/',VendorBusBookingAPI.as_view(),name="vendor-bus-booking-list"),
+    # path('api/vendor/package/bookings/',VendorPackageBookingAPI.as_view(),name="vendor-package-booking-list"),
+    # path('api/vendor/bus/bookings/<str:booking_status>/',VendorBusBookingByStatusAPI.as_view(),name="vendor-bus-booking-status"),
+    # path('api/vendor/package/bookings/<str:booking_status>/',VendorPackageBookingByStatusAPI.as_view(),name="vendor-package-booking-status"),
 
 
     # NOTIFICATION
@@ -70,6 +74,8 @@ urlpatterns = [
 
     # LATEST BOOKING 
     path('api/vendor/latest/', LatestSingleBookingView.as_view(), name='latest-bus-bookings'),
+    # LATEST BOOKING DETAILS VIEW
+    path('api/booking-detail/<int:booking_id>/', BookingDetailByIdView.as_view()),
 
     # LASTEST BOOKING COMPLETED HISTORY SINGLE
     path('api/vendor/latest/booking-history/', VendorLatestSingleBookingHistoryView.as_view(), name='latest-bookings-history'),
@@ -85,6 +91,8 @@ urlpatterns = [
     # SIGNLE BOOKING HISTORY BUS AND PACKAGE
     path('api/vendor/bus-booking/<int:booking_id>/', BusBookingDetailView.as_view(), name='bus-booking-detail'),
     path('api/vendor/package-booking-history/<int:booking_id>/', SinglePackageBookingDetailView.as_view(), name='single-package-booking-detail'),
+    
+
 
 
 
@@ -95,19 +103,22 @@ urlpatterns = [
 
 
 
-    # CANCELD BUS
-    path('api/vendor/canceled-bus-bookings/<int:booking_id>/', CanceledBusBookingView.as_view(), name='canceled-bus-booking-detail'),
-    path('api/vendor/canceled-bus-bookings/', CanceledBusBookingView.as_view(), name='canceled-bus-booking-list'),
 
-    # CANCELD PACKAGE
+    # CANCELD BUS
+    path('api/vendor/canceled-bus-bookings/', CanceledBusBookingView.as_view(), name='canceled-bus-booking-list'),
+    path('api/vendor/canceled-bus-bookings-filter/', CanceledBusBookingFilterView.as_view(), name='BUS-CANCELD-filter'),
+    path('api/vendor/canceled-bus-bookings-single/<int:booking_id>/', CanceledBusBookingFilterView.as_view(), name='BUS-CANCELD-single'),
+
+    # CANCELD PACKAGE and FILTER
     path('api/vendor/canceled-package-bookings/', CanceledPackageBookingView.as_view(), name='canceled-package-booking-list'),
     path('api/vendor/canceled-package-bookings/<int:booking_id>/', CanceledPackageBookingView.as_view(), name='canceled-package-booking-detail'),
+    path('api/vendor/canceled-package-bookings-filter/', CanceledPackageBookingFilterView.as_view(), name='PACKAGE-CANCELD-filter'),
 
     # path('api/package-booking/latest/', LatestPackageBookingDetailView.as_view(), name='latest-package-booking-detail'),
 
 
     # EARNINGS BUS + PACKAGE
-    path('api/vendor/bus-booking-earnings/', BusBookingEarningsHistoryView.as_view(), name='vendor-bus-revenue'),
+    path('api/vendor/bus-booking-earnings/', BusBookingEarningsHistoryView.as_view(), name='vendor-bus-revenue'),   
     path('api/vendor/package-booking-earnings/', PackageBookingEarningsView.as_view(), name='package-booking-basic-history'),
 
     # # SINGLE BUS BOOKING HISTORY
@@ -158,7 +169,27 @@ urlpatterns = [
     path('api/vendor/request-list-bus-bookings/', BusBookingRequestListView.as_view(), name='reqst-list-bus-bookings'),
     path('api/vendor/request-list-package-bookings/', PackageBookingRequestView.as_view(), name='reqst-list-package-bookings'),
 
+    # PRE ACCEPTING BOOKING VIEW
+    path('api/vendor/prerequest-view/<int:booking_id>/', PreAcceptPackageBookingDetailView.as_view(), name='pre-requst'),
+
+
+
+    # Latest BOOKING VIEW
+    path('api/vendor/booking/detail/<int:booking_id>/', UnifiedBookingDetailView.as_view(), name='unified_booking_detail'),
+
+    # REVIEWS
+    path('api/vendor/reviews/package/<int:package_id>/', PackageReviewView.as_view(), name='get_package_reviews'),
+    path('api/vendor/reviews/bus/<int:bus_id>/', BusReviewView.as_view(), name='get_bus_reviews'),
+    path('api/vendor/reviews/', VendorAllReviewsView.as_view(), name='vendor_all_reviews'),
+
+
+    
+
+
 
 
 
 ]
+
+
+
