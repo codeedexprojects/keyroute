@@ -14,24 +14,27 @@ class ReferralCodeSerializer(serializers.ModelSerializer):
         model = User
         fields = ['referral_code']
 
-class UserSignupSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=150)
+class LoginSerializer(serializers.Serializer):
     mobile = serializers.CharField(max_length=15)
-    email = serializers.EmailField(required=False, allow_blank=True)
+    name = serializers.CharField(max_length=150, required=False)
     referral_code = serializers.CharField(max_length=10, required=False, allow_blank=True, allow_null=True)
 
     def validate(self, data):
-        if User.objects.filter(mobile=data['mobile']).exists():
-            raise serializers.ValidationError({"mobile": "This mobile number is already registered."})
+        mobile = data.get('mobile')
+        if not mobile:
+            raise serializers.ValidationError({"mobile": "Mobile number is required."})
 
-        if data.get('email') and User.objects.filter(email=data['email']).exists():
-            raise serializers.ValidationError({"email": "This email is already in use."})
-
+        try:
+            user = User.objects.get(mobile=mobile)
+            data['is_new_user'] = False
+        except User.DoesNotExist:
+            raise serializers.ValidationError({"mobile": "User with this mobile number does not exist."})
+            
         referral_code = data.get('referral_code')
         if referral_code:
             try:
                 referrer = User.objects.get(referral_code=referral_code)
-                if data.get('mobile') == referrer.mobile:
+                if mobile == referrer.mobile:
                     raise serializers.ValidationError({"referral_code": "You cannot refer yourself."})
                 data['referrer'] = referrer
             except User.DoesNotExist:
@@ -39,69 +42,50 @@ class UserSignupSerializer(serializers.Serializer):
         
         return data
 
-    def create(self, validated_data):
-        referral_code = validated_data.pop('referral_code', None)
-        referrer = validated_data.pop('referrer', None)
 
-        user = User(
-            name=validated_data.get('name', ''),
-            mobile=validated_data['mobile'],
-            email=validated_data.get('email', ''),
-        )
-        user.set_unusable_password()
-        user.save()
-
-        Wallet.objects.create(
-            user=user,
-            referred_by=referrer
-        )
-
-        return user
-
-
-
-class UserLoginSerializer(serializers.Serializer):
-    mobile = serializers.CharField(help_text="Mobile number")
+class SignupSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=150)
+    mobile = serializers.CharField(max_length=15)
+    referral_code = serializers.CharField(max_length=10, required=False, allow_blank=True, allow_null=True)
 
     def validate(self, data):
-        mobile = data.get("mobile")
-
+        mobile = data.get('mobile')
         if not mobile:
-            raise serializers.ValidationError("Mobile number is required.")
+            raise serializers.ValidationError({"mobile": "Mobile number is required."})
 
-        user = User.objects.filter(mobile=mobile).first()
-
-        if not user:
-            raise serializers.ValidationError("User not found with this mobile/email.")
-
-        if not user.is_active:
-            raise serializers.ValidationError("User account is not active.")
-
-        data["user"] = user
-        data["mobile"] = user.mobile  # For OTP sending
+        if User.objects.filter(mobile=mobile).exists():
+            raise serializers.ValidationError({"mobile": "User with this mobile number already exists."})
+        
+        if not data.get('name'):
+            raise serializers.ValidationError({"name": "Name is required for new users."})
+            
+        referral_code = data.get('referral_code')
+        if referral_code:
+            try:
+                referrer = User.objects.get(referral_code=referral_code)
+                if mobile == referrer.mobile:
+                    raise serializers.ValidationError({"referral_code": "You cannot refer yourself."})
+                data['referrer'] = referrer
+            except User.DoesNotExist:
+                raise serializers.ValidationError({"referral_code": "Invalid referral code."})
+        
+        data['is_new_user'] = True
         return data
 
 
-class SendOTPSerializer(serializers.Serializer):
-    mobile = serializers.CharField()
+class UserCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['name', 'mobile']
 
-    def validate_mobile(self, value):
-        if not User.objects.filter(mobile=value).exists():
-            raise serializers.ValidationError("User with this mobile number does not exist.")
-        return value
-
-    def send_otp(self):
-        mobile = self.validated_data['mobile']
+    def create(self, validated_data):
+        user = User.objects.create(**validated_data)
         
-        response = send_otp(mobile)
-
-        if response.get("Status") == "Success":
-            return {
-                "message": "OTP sent successfully.",
-                "session_id": response.get("Details")
-            }
-        else:
-            raise serializers.ValidationError("Failed to send OTP. Try again later.")
+        referrer = self.context.get('referrer')
+        if referrer:
+            Wallet.objects.create(user=user, referred_by=referrer)
+        
+        return user
         
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -204,39 +188,31 @@ class WalletSerializer(serializers.ModelSerializer):
 
 
 class OngoingReferralSerializer(serializers.ModelSerializer):
-    referred_user_name = serializers.CharField(source='referred_user.name', read_only=True)
-    booking_type_display = serializers.CharField(source='get_booking_type_display', read_only=True)
-    created_at = serializers.DateTimeField(format="%d %b %Y", read_only=True)
     
     class Meta:
         model = ReferralRewardTransaction
         fields = [
             'id', 
-            'referred_user_name', 
             'booking_type', 
-            'booking_type_display',
-            'booking_id', 
-            'reward_amount', 
-            'status',
-            'created_at'
-        ]
-
-class ReferralHistorySerializer(serializers.ModelSerializer):
-    referred_user_name = serializers.CharField(source='referred_user.name', read_only=True)
-    booking_type_display = serializers.CharField(source='get_booking_type_display', read_only=True)
-    created_at = serializers.DateTimeField(format="%d %b %Y", read_only=True)
-    credited_at = serializers.DateTimeField(format="%d %b %Y", read_only=True)
-    
-    class Meta:
-        model = ReferralRewardTransaction
-        fields = [
-            'id', 
-            'referred_user_name', 
-            'booking_type', 
-            'booking_type_display',
             'booking_id', 
             'reward_amount', 
             'status',
             'created_at',
-            'credited_at'
+            'referrer',
+            'referred_user'
+        ]
+
+class ReferralHistorySerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = ReferralRewardTransaction
+        fields = [
+            'id', 
+            'booking_type', 
+            'booking_id', 
+            'reward_amount', 
+            'status',
+            'created_at',
+            'referrer',
+            'referred_user'
         ]
