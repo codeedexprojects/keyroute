@@ -11,13 +11,13 @@ class UserManager(BaseUserManager):
         if not mobile and not email:
             raise ValueError("Users must have a mobile number or email")
 
-        extra_fields.setdefault("role", "user")  # Default role to 'user' if not provided
+        extra_fields.setdefault("role", "user")
         user = self.model(mobile=mobile, email=self.normalize_email(email), **extra_fields)
 
         if password:
-            user.set_password(password)  # Vendors/Admins use passwords
+            user.set_password(password)
         else:
-            user.set_unusable_password()  # Normal users using OTP
+            user.set_unusable_password()
 
         user.save(using=self._db)
         return user
@@ -66,8 +66,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     objects = UserManager()
 
-    USERNAME_FIELD = "mobile"  # Default login with mobile
-    REQUIRED_FIELDS = []  # No required fields
+    USERNAME_FIELD = "mobile"
+    REQUIRED_FIELDS = []
 
     def save(self, *args, **kwargs):
         if not self.referral_code:
