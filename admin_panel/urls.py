@@ -99,4 +99,11 @@ urlpatterns = [
     path('api/admin/recent-approved-booking', RecentApprovedBookingsAPIView.as_view(), name='recent-approved'),
     
     path('api/admin/reviews/', ListAllReviewsAPIView.as_view(), name='list-all-reviews'),
+
+    path('api/admin/combined-bookings/', CombinedBookingsAPIView.as_view(), name='combined-bookings'),
+
+    path('api/admin/payment-details/', PaymentDetailsAPIView.as_view(), name='payment-details'),
+
+    path('api/admin/booking-details/<str:booking_type>/<int:booking_id>/', SingleBookingDetailAPIView.as_view(), name='single-booking-detail'),
+    path('api/admin/payment-details/<str:booking_type>/<int:booking_id>/', SinglePaymentDetailAPIView.as_view(), name='single-payment-detail'),
 ] 
