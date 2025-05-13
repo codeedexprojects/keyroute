@@ -296,3 +296,117 @@ class TravelerCreateSerializer(serializers.ModelSerializer):
             traveler.package_booking.save()
             
         return traveler
+    
+class PackageFilterSerializer(serializers.ModelSerializer):
+    package_name = serializers.SerializerMethodField()
+    class Meta:
+        model = PackageBooking
+        fields = ['package_name','total_travelers','start_date','total_amount','id','from_location','to_location']
+
+    def get_package_name(self, obj):
+        return obj.package.places
+    
+class BusFilterSerializer(serializers.ModelSerializer):
+    bus_name = serializers.SerializerMethodField()
+    class Meta:
+        model = BusBooking
+        fields = ['bus_name','total_travelers','start_date','total_amount','id','from_location','to_location']
+
+    def get_bus_name(self, obj):
+        return obj.bus.bus_name
+    
+from rest_framework import serializers
+from .models import Package, PackageImage, DayPlan, Place, PlaceImage, Stay, StayImage, Meal, MealImage, Activity, ActivityImage
+
+
+class PackageImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageImage
+        fields = ['id', 'image', 'uploaded_at']
+
+
+class PlaceImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlaceImage
+        fields = ['id', 'image']
+
+
+class PlaceSerializer(serializers.ModelSerializer):
+    images = PlaceImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Place
+        fields = ['id', 'name', 'description', 'images']
+
+
+class StayImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StayImage
+        fields = ['id', 'image']
+
+
+class StaySerializer(serializers.ModelSerializer):
+    images = StayImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Stay
+        fields = ['id', 'hotel_name', 'description', 'location', 'is_ac', 'has_breakfast', 'images']
+
+
+class MealImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MealImage
+        fields = ['id', 'image']
+
+
+class MealSerializer(serializers.ModelSerializer):
+    images = MealImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Meal
+        fields = ['id', 'type', 'description', 'restaurant_name', 'location', 'time', 'images']
+
+
+class ActivityImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActivityImage
+        fields = ['id', 'image']
+
+
+class ActivitySerializer(serializers.ModelSerializer):
+    images = ActivityImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Activity
+        fields = ['id', 'name', 'description', 'time', 'location', 'images']
+
+
+class DayPlanSerializer(serializers.ModelSerializer):
+    places = PlaceSerializer(many=True, read_only=True)
+    stay = StaySerializer(read_only=True)
+    meals = MealSerializer(many=True, read_only=True)
+    activities = ActivitySerializer(many=True, read_only=True)
+
+    class Meta:
+        model = DayPlan
+        fields = ['id', 'day_number', 'description', 'places', 'stay', 'meals', 'activities']
+
+
+class PackageSerializer(serializers.ModelSerializer):
+    package_images = PackageImageSerializer(many=True, read_only=True)
+    day_plans = DayPlanSerializer(many=True, read_only=True)
+    average_rating = serializers.FloatField(read_only=True)
+    total_reviews = serializers.IntegerField(read_only=True)
+
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)
+    sub_category_name = serializers.CharField(source='sub_category.name', read_only=True)
+    buses = serializers.StringRelatedField(many=True)
+
+    class Meta:
+        model = Package
+        fields = [
+            'id', 'vendor_name', 'sub_category_name', 'header_image', 'places', 'days', 'nights',
+            'ac_available', 'guide_included', 'buses', 'bus_location', 'price_per_person',
+            'extra_charge_per_km', 'status', 'average_rating', 'total_reviews',
+            'package_images', 'day_plans', 'created_at', 'updated_at'
+        ]
