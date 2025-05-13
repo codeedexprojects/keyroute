@@ -6,6 +6,7 @@ from admin_panel.models import AdminCommission
 from django.contrib.auth import get_user_model
 from users.models import Wallet, ReferralRewardTransaction
 from decimal import Decimal
+from vendors.models import Package, PackageImage, DayPlan, Place, PlaceImage, Stay, StayImage, Meal, MealImage, Activity, ActivityImage
 
 User = get_user_model()
 
@@ -313,8 +314,6 @@ class BusFilterSerializer(serializers.ModelSerializer):
     def get_bus_name(self, obj):
         return obj.bus.bus_name
     
-from rest_framework import serializers
-from .models import Package, PackageImage, DayPlan, Place, PlaceImage, Stay, StayImage, Meal, MealImage, Activity, ActivityImage
 
 
 class PackageImageSerializer(serializers.ModelSerializer):
