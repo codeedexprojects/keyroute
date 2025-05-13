@@ -548,7 +548,7 @@ class DayPlanSerializer(serializers.ModelSerializer):
 class PackageSerializer(serializers.ModelSerializer):
     day_plans = DayPlanSerializer(many=True, write_only=True)
     buses = serializers.PrimaryKeyRelatedField(queryset=Bus.objects.all(), many=True)
-
+    travels_name = serializers.SerializerMethodField()
     day_plans_read = DayPlanSerializer(source='dayplan_set', many=True, read_only=True)
     is_favorite = serializers.SerializerMethodField()
     average_rating = serializers.ReadOnlyField()
@@ -561,9 +561,12 @@ class PackageSerializer(serializers.ModelSerializer):
             'id',
             'sub_category', 'header_image', 'places', 'days', 'nights',
             'ac_available', 'guide_included', 'buses', 
-            'day_plans','day_plans_read','average_rating', 'total_reviews','price_per_person','is_favorite'
+            'day_plans','day_plans_read','average_rating', 'total_reviews','price_per_person','is_favorite','travels_name'
         ]
     
+    def get_travels_name(self, obj):
+        return obj.vendor.travels_name
+
     def get_price_per_person(self, obj):
         if obj.price_per_person is not None:
             return int(obj.price_per_person)
