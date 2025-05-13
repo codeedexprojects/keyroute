@@ -545,6 +545,25 @@ class PackageAPIView(APIView):
 
 
 
+class DayPlanDeleteAPIView(APIView):
+    parser_classes = [JSONParser]
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, day_id):
+        vendor = Vendor.objects.filter(user=request.user).first()
+        if not vendor:
+            return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get the day plan ensuring it belongs to the vendor
+        day_plan = get_object_or_404(DayPlan, pk=day_id, package__vendor=vendor)
+
+        day_plan.delete()
+        return Response({"message": "Day plan deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+
+
 class BasicPackageAPIView(APIView):
     parser_classes = [MultiPartParser, JSONParser]
     authentication_classes = [JWTAuthentication]
