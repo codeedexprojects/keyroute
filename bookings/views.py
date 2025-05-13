@@ -9,7 +9,7 @@ from .serializers import (
     TravelerSerializer, TravelerCreateSerializer
 )
 from vendors.models import Package, Bus
-from vendors.serializers import PackageSerializer, BusSerializer
+from vendors.serializers import BusSerializer
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from admin_panel.models import Vendor
 from users.models import Favourite
@@ -21,6 +21,7 @@ from rest_framework import status as http_status
 from itertools import chain
 from vendors.models import PackageCategory,PackageSubCategory
 from vendors.serializers import PackageCategorySerializer,PackageSubCategorySerializer
+from .serializers import PackageFilterSerializer,BusFilterSerializer,PackageSerializer
 
 
 from .utils import *
@@ -322,11 +323,11 @@ class UserBookingsByStatus(APIView):
 
     def get(self, request, status_filter):
         user = request.user
-        package_bookings = PackageBooking.objects.filter(payment_status=status_filter, user=user)
-        bus_bookings = BusBooking.objects.filter(payment_status=status_filter, user=user)
+        package_bookings = PackageBooking.objects.filter(trip_status=status_filter, user=user)
+        bus_bookings = BusBooking.objects.filter(trip_status=status_filter, user=user)
 
-        package_serializer = PackageBookingSerializer(package_bookings, many=True)
-        bus_serializer = BusBookingSerializer(bus_bookings, many=True)
+        package_serializer = PackageFilterSerializer(package_bookings, many=True)
+        bus_serializer = BusFilterSerializer(bus_bookings, many=True)
 
         for item in package_serializer.data:
             item['booking_type'] = 'package'
