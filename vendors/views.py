@@ -3355,9 +3355,9 @@ class PackageBookingRequestView(APIView):
 
 
 
-class VendorLatestSingleBookingHistoryView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+# class VendorLatestSingleBookingHistoryView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
 
     # def get(self, request):
     #     vendor = Vendor.objects.filter(user=request.user).first()
@@ -3379,37 +3379,6 @@ class VendorLatestSingleBookingHistoryView(APIView):
     #     serializer = CombinedBookingSerializer(latest)
     #     return Response(serializer.data, status=status.HTTP_200_OK)
 
-# class VendorLatestSingleBookingHistoryView(APIView):
-#     authentication_classes = [JWTAuthentication]
-#     permission_classes = [IsAuthenticated]
-
-  
-
-#     def get(self, request):
-#         vendor = Vendor.objects.filter(user=request.user).first()
-#         if not vendor:
-#             return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
-
-#         latest_completed_bus = BusBooking.objects.filter(
-#             bus__vendor=vendor, trip_status='completed'
-#         ).order_by('-created_at').first()
-
-#         latest_completed_package = PackageBooking.objects.filter(
-#             package__vendor=vendor, trip_status='completed'
-#         ).order_by('-created_at').first()
-
-#         latest = max(
-#             filter(None, [latest_completed_bus, latest_completed_package]),
-#             key=lambda x: x.created_at,
-#             default=None
-#         )
-
-#         if not latest:
-#             return Response({"message": "No completed bookings found."}, status=status.HTTP_204_NO_CONTENT)
-
-#         serializer = CombinedBookingSerializer(latest)
-#         return Response(serializer.data, status=status.HTTP_200_OK)
-    
 
 
 class VendorLatestSingleBookingHistoryView(APIView):
@@ -3751,9 +3720,7 @@ class BookingDetailByIdView(APIView):
                     "male": package_booking.male,
                     "female": package_booking.female,
                     "children": package_booking.children,
-
                     "passenger": traveler_data,
-
                     "total_fare": package_booking.total_amount,
                     "paid_amount": package_booking.advance_amount,
                     "balance_amount": package_booking.balance_amount,
