@@ -7,6 +7,8 @@ from django.contrib.auth import get_user_model
 from users.models import Wallet, ReferralRewardTransaction
 from decimal import Decimal
 from vendors.models import Package, PackageImage, DayPlan, Place, PlaceImage, Stay, StayImage, Meal, MealImage, Activity, ActivityImage
+from django.db import models
+
 
 User = get_user_model()
 
@@ -300,21 +302,59 @@ class TravelerCreateSerializer(serializers.ModelSerializer):
     
 class PackageFilterSerializer(serializers.ModelSerializer):
     package_name = serializers.SerializerMethodField()
+    average_rating = serializers.FloatField(read_only=True)
+    total_reviews = serializers.IntegerField(read_only=True)
+    package_images = serializers.SerializerMethodField()
+    
     class Meta:
         model = PackageBooking
-        fields = ['package_name','total_travelers','start_date','total_amount','id','from_location','to_location','created_at']
+        fields = ['package_name','total_travelers','start_date','total_amount','id','from_location',
+                  'to_location','created_at','average_rating', 'total_reviews','package_images']
 
     def get_package_name(self, obj):
         return obj.package.places
     
+    def get_average_rating(self, obj):
+        from reviews.models import BusReview
+        avg = BusReview.objects.filter(bus=obj).aggregate(models.Avg('rating'))['rating__avg']
+        return round(avg, 1) if avg is not None else 0.0
+    
+    def get_total_reviews(self, obj):
+        from reviews.models import BusReview
+        return BusReview.objects.filter(bus=obj).count()
+    
+    def get_package_images(self, obj):
+        request = self.context.get('request')
+        images = obj.package.package_images.all()
+        return [request.build_absolute_uri(image.image.url) for image in images if image.image]
+    
 class BusFilterSerializer(serializers.ModelSerializer):
     bus_name = serializers.SerializerMethodField()
+    average_rating = serializers.FloatField(read_only=True)
+    total_reviews = serializers.IntegerField(read_only=True)
+    bus_images = serializers.SerializerMethodField()
+
     class Meta:
         model = BusBooking
-        fields = ['bus_name','total_travelers','start_date','total_amount','id','from_location','to_location','created_at']
+        fields = ['bus_name','total_travelers','start_date','total_amount','id','from_location',
+                  'to_location','created_at','average_rating', 'total_reviews','bus_images']
 
     def get_bus_name(self, obj):
         return obj.bus.bus_name
+
+    def get_average_rating(self, obj):
+        from reviews.models import BusReview
+        avg = BusReview.objects.filter(bus=obj).aggregate(models.Avg('rating'))['rating__avg']
+        return round(avg, 1) if avg is not None else 0.0
+    
+    def get_total_reviews(self, obj):
+        from reviews.models import BusReview
+        return BusReview.objects.filter(bus=obj).count()
+    
+    def get_bus_images(self, obj):
+        request = self.context.get('request')
+        images = obj.bus.images.all()
+        return [request.build_absolute_uri(image.bus_view_image.url) for image in images if image.bus_view_image]
     
 
 
@@ -409,3 +449,12 @@ class PackageSerializer(serializers.ModelSerializer):
             'extra_charge_per_km', 'status', 'average_rating', 'total_reviews',
             'package_images', 'day_plans', 'created_at', 'updated_at'
         ]
+
+    def get_average_rating(self, obj):
+        from reviews.models import BusReview
+        avg = BusReview.objects.filter(bus=obj).aggregate(models.Avg('rating'))['rating__avg']
+        return round(avg, 1) if avg is not None else 0.0
+    
+    def get_total_reviews(self, obj):
+        from reviews.models import BusReview
+        return BusReview.objects.filter(bus=obj).count()
