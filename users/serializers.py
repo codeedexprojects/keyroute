@@ -6,6 +6,7 @@ from .models import Favourite,Wallet
 from admin_panel.utils import send_otp
 from vendors.models import Bus, Package
 from .models import ReferralRewardTransaction
+from admin_panel.models import Experience,Sight
 
 User = get_user_model()
 
@@ -188,31 +189,52 @@ class WalletSerializer(serializers.ModelSerializer):
 
 
 class OngoingReferralSerializer(serializers.ModelSerializer):
-    
+    referred_user_name = serializers.SerializerMethodField()
+
     class Meta:
         model = ReferralRewardTransaction
         fields = [
-            'id', 
-            'booking_type', 
-            'booking_id', 
-            'reward_amount', 
+            'id',
+            'booking_type',
+            'booking_id',
+            'reward_amount',
             'status',
             'created_at',
             'referrer',
-            'referred_user'
+            'referred_user_name'
         ]
 
+    def get_referred_user_name(self, obj):
+        return getattr(obj.referred_user, 'name', None)
+
+
 class ReferralHistorySerializer(serializers.ModelSerializer):
-    
+    referred_user_name = serializers.SerializerMethodField()
+
     class Meta:
         model = ReferralRewardTransaction
         fields = [
-            'id', 
-            'booking_type', 
-            'booking_id', 
-            'reward_amount', 
+            'id',
+            'booking_type',
+            'booking_id',
+            'reward_amount',
             'status',
             'created_at',
             'referrer',
-            'referred_user'
+            'referred_user_name'
         ]
+
+    def get_referred_user_name(self, obj):
+        return getattr(obj.referred_user, 'name', None)
+
+class ExploreSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = Experience
+        fields = '__all__'
+
+class SightSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = Sight
+        fields = '__all__'
