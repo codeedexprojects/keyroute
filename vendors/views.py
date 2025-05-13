@@ -545,6 +545,25 @@ class PackageAPIView(APIView):
 
 
 
+class DayPlanDeleteAPIView(APIView):
+    parser_classes = [JSONParser]
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, day_id):
+        vendor = Vendor.objects.filter(user=request.user).first()
+        if not vendor:
+            return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get the day plan ensuring it belongs to the vendor
+        day_plan = get_object_or_404(DayPlan, pk=day_id, package__vendor=vendor)
+
+        day_plan.delete()
+        return Response({"message": "Day plan deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+
+
 class BasicPackageAPIView(APIView):
     parser_classes = [MultiPartParser, JSONParser]
     authentication_classes = [JWTAuthentication]
@@ -829,6 +848,9 @@ class DayPlanCreateAPIView(APIView):
 
     #     except Exception as e:
     #         return Response({"error": str(e)}, status=500)
+
+
+
 
 
     def post(self, request, package_id):
@@ -1411,7 +1433,7 @@ class VendorTotalRevenueView(APIView):
         package_revenue = PackageBooking.objects.filter(
             package__vendor=vendor,
             payment_status__in=["paid", "partial"]
-        ).aggregate(total=Sum('total_amount'), count=Count('id'))
+        ).aggregate(total=Sum('total_a mount'), count=Count('id'))
 
         # Calculate totals
         total_revenue = float(bus_revenue['total'] or 0) + float(package_revenue['total'] or 0)
