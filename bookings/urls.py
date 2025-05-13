@@ -4,13 +4,16 @@ from .views import (
     PackageBookingListCreateAPIView, PackageBookingDetailAPIView,
     BusBookingListCreateAPIView, BusBookingDetailAPIView,
     TravelerCreateAPIView, PackageBookingTravelersAPIView, BusBookingTravelersAPIView,
-    TravelerDetailAPIView, UserBookingsByStatus,CancelBookingView,PackageCategoryListAPIView,PackageSubCategoryListAPIView
+    TravelerDetailAPIView, UserBookingsByStatus,CancelBookingView,PackageCategoryListAPIView,PackageSubCategoryListAPIView,SingleBusListAPIView,SinglePackageListAPIView
 )
 
 urlpatterns = [
     # Vendor resource endpoints
     path('packages/', PackageListAPIView.as_view(), name='package-list'),
     path('buses/', BusListAPIView.as_view(), name='bus-list'),
+
+    path('bus/details/<int:bus_id/>',SingleBusListAPIView.as_view(),name="bus detail"),
+    path('package/details/<int:<int:package_id>/',SinglePackageListAPIView.as_view(),name="bus_details"),
     
     # Package booking endpoints
     path('bookings/package/', PackageBookingListCreateAPIView.as_view(), name='package-booking-list-create'),
