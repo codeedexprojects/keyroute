@@ -31,6 +31,8 @@ urlpatterns = [
 
     # PACKAGE 
     path('api/vendor/package/', PackageAPIView.as_view(), name='package-create-list'),
+    # DAYS DELETING
+    path('api/vendor/day-plan/delete/<int:day_id>/', DayPlanDeleteAPIView.as_view(), name='delete_day_plan'),
     path('api/vendor/package/<int:package_id>/', PackageAPIView.as_view(), name='package-detail'), 
 
     # NEW
