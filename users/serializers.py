@@ -231,10 +231,10 @@ class ExploreSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Experience
-        fields = ['__all__']
+        fields = '__all__'
 
 class SightSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Sight
-        fields = ['__all__']
+        fields = '__all__'
