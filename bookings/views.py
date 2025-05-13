@@ -326,8 +326,8 @@ class UserBookingsByStatus(APIView):
         package_bookings = PackageBooking.objects.filter(trip_status=status_filter, user=user)
         bus_bookings = BusBooking.objects.filter(trip_status=status_filter, user=user)
 
-        package_serializer = PackageFilterSerializer(package_bookings, many=True)
-        bus_serializer = BusFilterSerializer(bus_bookings, many=True)
+        package_serializer = PackageFilterSerializer(package_bookings, many=True,context={'request': request})
+        bus_serializer = BusFilterSerializer(bus_bookings, many=True,context={'request': request})
 
         for item in package_serializer.data:
             item['booking_type'] = 'package'
