@@ -831,6 +831,9 @@ class DayPlanCreateAPIView(APIView):
     #         return Response({"error": str(e)}, status=500)
 
 
+
+
+
     def post(self, request, package_id):
         try:
             data = request.data
@@ -1411,7 +1414,7 @@ class VendorTotalRevenueView(APIView):
         package_revenue = PackageBooking.objects.filter(
             package__vendor=vendor,
             payment_status__in=["paid", "partial"]
-        ).aggregate(total=Sum('total_amount'), count=Count('id'))
+        ).aggregate(total=Sum('total_a mount'), count=Count('id'))
 
         # Calculate totals
         total_revenue = float(bus_revenue['total'] or 0) + float(package_revenue['total'] or 0)
