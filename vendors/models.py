@@ -74,6 +74,7 @@ class Bus(models.Model):
 
     minimum_fare = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
+    location = models.CharField(max_length=255, null=True, blank=True)
 
     @property
     def average_rating(self):
