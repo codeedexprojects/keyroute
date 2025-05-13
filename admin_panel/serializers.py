@@ -559,151 +559,60 @@ class BookingDisplaySerializer(serializers.Serializer):
         return f"Traveler {obj.id}"
 
 
+from rest_framework import serializers
+from bookings.models import BusBooking, PackageBooking, Travelers, BusDriverDetail, PackageDriverDetail
 
-
-
-
-
-
-class BusTravelImageSerializer(serializers.ModelSerializer):
+# Travelers Serializer
+class TravelerSerializer(serializers.ModelSerializer):
     class Meta:
-        model = BusTravelImage
-        fields = ['image']
+        model = Travelers
+        fields = '__all__'
 
-
-class BusFeatureSerializer(serializers.ModelSerializer):
+# Bus Driver Detail Serializer
+class BusDriverDetailSerializer(serializers.ModelSerializer):
     class Meta:
-        model = BusFeature
-        fields = ['id', 'name']  
+        model = BusDriverDetail
+        fields = '__all__'
 
-
-class BusAdminSerializer(serializers.ModelSerializer):
-    travels_name = serializers.CharField(source='vendor.full_name')   
-    images = BusTravelImageSerializer(source='travel_images', many=True, read_only=True)
-    bus_type = serializers.SerializerMethodField()
-
+# Package Driver Detail Serializer
+class PackageDriverDetailSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Bus
-        fields = [
-            'id',
-            'travels_name',
-            'bus_number',
-            'capacity',
-            'vehicle_rc_number',
-            'status',
-            'bus_type',
-            'images',
-        ]
+        model = PackageDriverDetail
+        fields = '__all__'
 
-
-    def get_bus_type(self, obj):
-        return {feature.id: feature.name for feature in obj.features.all()}
-
-
-
-class AmenitySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Amenity
-        fields = ['id', 'name']  # customize as needed
-
-
-
-class BusDetailSerializerADMIN(serializers.ModelSerializer):
-    vendor_name = serializers.CharField(source='vendor.full_name')
-    bus_type = BusFeatureSerializer(source='features', many=True)
-    amenities = AmenitySerializer(many=True)
-    travels_logo = serializers.ImageField()
-    travel_images = BusTravelImageSerializer(many=True)
-    average_rating = serializers.FloatField(read_only=True)
-    total_reviews = serializers.IntegerField(read_only=True)
-
+# BusBooking Serializer
+class BusBookingSerializer(serializers.ModelSerializer):
+    travelers = TravelerSerializer(many=True, read_only=True)
+    driver_detail = BusDriverDetailSerializer(read_only=True)
+    balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
-        model = Bus
-        fields = [
-            'id',
-            'vendor_name',
-            'bus_name',
-            'bus_number',
-            'capacity',
-            'vehicle_description',
-            'vehicle_rc_number',
-            'travels_logo',
-            'travel_images',
-            'rc_certificate',
-            'license',
-            'contract_carriage_permit',
-            'passenger_insurance',
-            'vehicle_insurance',
-            'base_price',
-            'price_per_km',
-            'minimum_fare',
-            'status',
-            'bus_type',
-            'amenities',
-            'average_rating',
-            'total_reviews',
-        ]
+        model = BusBooking
+        fields = '__all__'
 
-
-class BusShortSerializer(serializers.ModelSerializer):
-    vendor_name = serializers.CharField(source='vendor.full_name')
-    features = BusFeatureSerializer(many=True)
+# PackageBooking Serializer
+class PackageBookingSerializer(serializers.ModelSerializer):
+    travelers = TravelerSerializer(many=True, read_only=True)
+    driver_detail = PackageDriverDetailSerializer(read_only=True)
+    balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
-        model = Bus
-        fields = ['vendor_name', 'bus_number', 'features']
+        model = PackageBooking
+        fields = '__all__'
 
 
 
-class PackageListSerializer(serializers.ModelSerializer):
-    buses = BusShortSerializer(many=True)
-    duration = serializers.SerializerMethodField()
-    image = serializers.SerializerMethodField()
+class PaymentDetailsSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    booking_type = serializers.CharField()
+    vendor_name = serializers.CharField()
+    bus_or_package = serializers.CharField()
+    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    advance_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    balance_amount = serializers.SerializerMethodField()
+    payment_status = serializers.CharField()
 
-    class Meta:
-        model = Package
-        fields = [
-            'id',
-            'places',
-            'duration',
-            'price_per_person',
-            'image',
-            'buses'
-        ]
-
-    def get_duration(self, obj):
-        return f"{obj.days} Days / {obj.nights} Nights"
-    
-    def get_image(self, obj):
-        first_image = obj.package_images.first()
-        if first_image and first_image.image:
-            return first_image.image.url   
-        return None
-    
-
-
-class PackageDetailSerializer(serializers.ModelSerializer):
-    vendor_name = serializers.CharField(source='vendor.full_name')
-    buses = serializers.SerializerMethodField()
-    header_image = serializers.SerializerMethodField()
-    day_plans = DayPlanSerializer(many=True)
-
-    class Meta:
-        model = Package
-        fields = [
-            'id', 'vendor_name', 'buses', 'places', 'days', 'nights',
-            'ac_available', 'guide_included', 'price_per_person',
-            'header_image', 'day_plans'
-        ]
-
-    def get_buses(self, obj):
-        return [bus.bus_number for bus in obj.buses.all()]
-
-    def get_header_image(self, obj):
-        request = self.context.get('request')
-        return request.build_absolute_uri(obj.header_image.url) if obj.header_image else None
-
-
-
-
+    def get_balance_amount(self, obj):
+        total_amount = obj.get('total_amount') or 0
+        advance_amount = obj.get('advance_amount') or 0
+        return total_amount - advance_amount

@@ -1,13 +1,9 @@
 from django.urls import path
-from .views import NormalUserLoginView, NormalUserSignupView, UserLogoutView, UserProfileAPIView,  VerifyLoginOTPView, VerifySignupOTPView,FavouriteAPIView,ListFavourites, GetReferralCodeView,GetWalletView,OngoingReferralsView,ReferralHistoryView
+from .views import UserLogoutView, UserProfileAPIView,  AuthenticationView, VerifyOTPView,FavouriteAPIView,ListFavourites, GetReferralCodeView,GetWalletView,OngoingReferralsView,ReferralHistoryView
 
 urlpatterns = [
-    path("signup/", NormalUserSignupView.as_view(), name="user-signup"),
-    path("verify-signup/", VerifySignupOTPView.as_view(), name="verify-signup"),
-
-    path("login/", NormalUserLoginView.as_view(), name="user-login"),
-    path("verify-login/", VerifyLoginOTPView.as_view(), name="verify-login"),
-
+    path("auth/", AuthenticationView.as_view(), name="user-authentication"),
+    path("verify-otp/", VerifyOTPView.as_view(), name="verify-otp"),
     path('logout/', UserLogoutView.as_view(), name='user-logout'),
 
     # path('reviews/create/', CreateReviewView.as_view(), name='create-review'),
