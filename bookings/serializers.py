@@ -34,7 +34,7 @@ class BaseBookingSerializer(serializers.ModelSerializer):
     
     class Meta:
         abstract = True
-        fields = ['id', 'user', 'start_date', 'total_amount', 'advance_amount', 
+        fields = ['booking_id', 'user', 'start_date', 'total_amount', 'advance_amount', 
                  'payment_status', 'booking_status', 'trip_status', 'created_at', 
                  'balance_amount', 'cancelation_reason', 'total_travelers', 
                  'male', 'female', 'children', 'from_location', 'to_location']
@@ -307,14 +307,18 @@ class PackageFilterSerializer(serializers.ModelSerializer):
     average_rating = serializers.FloatField(read_only=True)
     total_reviews = serializers.IntegerField(read_only=True)
     package_images = serializers.SerializerMethodField()
+    capacity = serializers.SerializerMethodField()
     
     class Meta:
         model = PackageBooking
-        fields = ['package_name','total_travelers','start_date','total_amount','id','from_location',
-                  'to_location','created_at','average_rating', 'total_reviews','package_images']
+        fields = ['booking_id','package_name','total_travelers','start_date','total_amount','from_location',
+                  'to_location','created_at','average_rating', 'total_reviews','package_images','capacity']
 
     def get_package_name(self, obj):
         return obj.package.places
+    
+    def get_capacity(self,obj):
+        return obj.package.bus.capacity
     
     def get_average_rating(self, obj):
         from reviews.models import BusReview
@@ -335,14 +339,18 @@ class BusFilterSerializer(serializers.ModelSerializer):
     average_rating = serializers.FloatField(read_only=True)
     total_reviews = serializers.IntegerField(read_only=True)
     bus_images = serializers.SerializerMethodField()
+    capacity = serializers.SerializerMethodField()
 
     class Meta:
         model = BusBooking
-        fields = ['bus_name','total_travelers','start_date','total_amount','id','from_location',
-                  'to_location','created_at','average_rating', 'total_reviews','bus_images']
+        fields = ['booking_id','bus_name','total_travelers','start_date','total_amount','from_location',
+                  'to_location','created_at','average_rating', 'total_reviews','bus_images','capacity']
 
     def get_bus_name(self, obj):
         return obj.bus.bus_name
+    
+    def get_capacity(self,obj):
+        return obj.bus.capacity
 
     def get_average_rating(self, obj):
         from reviews.models import BusReview
