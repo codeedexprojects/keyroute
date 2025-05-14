@@ -8,6 +8,8 @@ from users.models import Wallet, ReferralRewardTransaction
 from decimal import Decimal
 from vendors.models import Package, PackageImage, DayPlan, Place, PlaceImage, Stay, StayImage, Meal, MealImage, Activity, ActivityImage
 from django.db import models
+from users.models import Favourite
+from django.db.models import Avg
 
 
 User = get_user_model()
@@ -434,12 +436,16 @@ class DayPlanSerializer(serializers.ModelSerializer):
 class PackageSerializer(serializers.ModelSerializer):
     package_images = PackageImageSerializer(many=True, read_only=True)
     day_plans = DayPlanSerializer(many=True, read_only=True)
-    average_rating = serializers.FloatField(read_only=True)
-    total_reviews = serializers.IntegerField(read_only=True)
 
+    travels_name = serializers.SerializerMethodField()
     vendor_name = serializers.CharField(source='vendor.name', read_only=True)
     sub_category_name = serializers.CharField(source='sub_category.name', read_only=True)
     buses = serializers.StringRelatedField(many=True)
+    is_favorite = serializers.SerializerMethodField()
+    price_per_person = serializers.SerializerMethodField()
+    extra_charge_per_km = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    total_reviews = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
@@ -447,14 +453,27 @@ class PackageSerializer(serializers.ModelSerializer):
             'id', 'vendor_name', 'sub_category_name', 'header_image', 'places', 'days', 'nights',
             'ac_available', 'guide_included', 'buses', 'bus_location', 'price_per_person',
             'extra_charge_per_km', 'status', 'average_rating', 'total_reviews',
-            'package_images', 'day_plans', 'created_at', 'updated_at'
+            'package_images', 'day_plans', 'created_at', 'updated_at', 'travels_name', 'is_favorite'
         ]
 
+    def get_travels_name(self, obj):
+        return obj.vendor.travels_name
+
+    def get_is_favorite(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return Favourite.objects.filter(user=request.user, package=obj).exists()
+        return False
+
+    def get_price_per_person(self, obj):
+        return int(obj.price_per_person)
+
+    def get_extra_charge_per_km(self, obj):
+        return int(obj.extra_charge_per_km)
+
     def get_average_rating(self, obj):
-        from reviews.models import BusReview
-        avg = BusReview.objects.filter(bus=obj).aggregate(models.Avg('rating'))['rating__avg']
-        return round(avg, 1) if avg is not None else 0.0
-    
+        avg = obj.package_reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(avg, 1) if avg else 0.0
+
     def get_total_reviews(self, obj):
-        from reviews.models import BusReview
-        return BusReview.objects.filter(bus=obj).count()
+        return obj.package_reviews.count()
