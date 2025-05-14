@@ -317,8 +317,12 @@ class PackageFilterSerializer(serializers.ModelSerializer):
     def get_package_name(self, obj):
         return obj.package.places
     
-    def get_capacity(self,obj):
-        return obj.package.buses.capacity
+    def get_capacity(self, obj):
+        # Access the ManyToManyField correctly using `.all()`
+        buses = obj.package.buses.all()
+        total_capacity = sum(bus.capacity for bus in buses)
+        return total_capacity
+
     
     def get_average_rating(self, obj):
         from reviews.models import BusReview
