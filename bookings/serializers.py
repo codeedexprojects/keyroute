@@ -316,7 +316,7 @@ class PackageFilterSerializer(serializers.ModelSerializer):
         return obj.package.places
     
     def get_capacity(self,obj):
-        return obj.package.bus.capacity
+        return obj.package.buses.capacity
     
     def get_average_rating(self, obj):
         from reviews.models import BusReview
