@@ -10,6 +10,7 @@ from vendors.models import Package, PackageImage, DayPlan, Place, PlaceImage, St
 from django.db import models
 from users.models import Favourite
 from django.db.models import Avg
+from vendors.models import *
 
 
 User = get_user_model()
@@ -302,34 +303,36 @@ class TravelerCreateSerializer(serializers.ModelSerializer):
     
 class PackageFilterSerializer(serializers.ModelSerializer):
     package_name = serializers.SerializerMethodField()
-    average_rating = serializers.FloatField(read_only=True)
-    total_reviews = serializers.IntegerField(read_only=True)
     package_images = serializers.SerializerMethodField()
     capacity = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    total_reviews = serializers.SerializerMethodField()
+    bus_name = serializers.SerializerMethodField()
     
     class Meta:
         model = PackageBooking
         fields = ['booking_id','package_name','total_travelers','start_date','total_amount','from_location',
-                  'to_location','created_at','average_rating', 'total_reviews','package_images','capacity']
+                  'to_location','created_at','average_rating', 'total_reviews','package_images','capacity','bus_name']
 
     def get_package_name(self, obj):
         return obj.package.places
     
+    def get_bus_name(self, obj):
+        buses = obj.package.buses.all()
+        return [bus.bus_name for bus in buses]
+    
     def get_capacity(self, obj):
-        # Access the ManyToManyField correctly using `.all()`
         buses = obj.package.buses.all()
         total_capacity = sum(bus.capacity for bus in buses)
         return total_capacity
 
     
     def get_average_rating(self, obj):
-        from reviews.models import BusReview
-        avg = BusReview.objects.filter(bus=obj).aggregate(models.Avg('rating'))['rating__avg']
-        return round(avg, 1) if avg is not None else 0.0
-    
+        avg = obj.package.package_reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(avg, 1) if avg else 0.0
+
     def get_total_reviews(self, obj):
-        from reviews.models import BusReview
-        return BusReview.objects.filter(bus=obj).count()
+        return obj.package.package_reviews.count()
     
     def get_package_images(self, obj):
         request = self.context.get('request')
@@ -338,10 +341,10 @@ class PackageFilterSerializer(serializers.ModelSerializer):
     
 class BusFilterSerializer(serializers.ModelSerializer):
     bus_name = serializers.SerializerMethodField()
-    average_rating = serializers.FloatField(read_only=True)
-    total_reviews = serializers.IntegerField(read_only=True)
     bus_images = serializers.SerializerMethodField()
     capacity = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    total_reviews = serializers.SerializerMethodField()
 
     class Meta:
         model = BusBooking
@@ -355,13 +358,11 @@ class BusFilterSerializer(serializers.ModelSerializer):
         return obj.bus.capacity
 
     def get_average_rating(self, obj):
-        from reviews.models import BusReview
-        avg = BusReview.objects.filter(bus=obj).aggregate(models.Avg('rating'))['rating__avg']
-        return round(avg, 1) if avg is not None else 0.0
-    
+        avg = obj.bus.bus_reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(avg, 1) if avg else 0.0
+
     def get_total_reviews(self, obj):
-        from reviews.models import BusReview
-        return BusReview.objects.filter(bus=obj).count()
+        return obj.bus.bus_reviews.count()
     
     def get_bus_images(self, obj):
         request = self.context.get('request')
@@ -442,6 +443,57 @@ class DayPlanSerializer(serializers.ModelSerializer):
         model = DayPlan
         fields = ['id', 'day_number', 'description', 'places', 'stay', 'meals', 'activities']
 
+class AmenitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Amenity
+        fields = ['id', 'name', 'icon']
+
+
+class BusFeatureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusFeature
+        fields = ['id', 'name']
+
+
+class BusImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusImage
+        fields = ['id', 'bus_view_image']
+
+
+class BusTravelImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusTravelImage
+        fields = ['id', 'image']
+
+
+class BusDetailSerializer(serializers.ModelSerializer):
+    amenities = AmenitySerializer(many=True, read_only=True)
+    features = BusFeatureSerializer(many=True, read_only=True)
+    images = BusImageSerializer(many=True, read_only=True)
+    travel_images = BusTravelImageSerializer(many=True, read_only=True)
+
+    average_rating = serializers.SerializerMethodField()
+    total_reviews = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Bus
+        fields = [
+            'id', 'bus_name', 'bus_number', 'capacity', 'vehicle_description', 'vehicle_rc_number',
+            'travels_logo', 'rc_certificate', 'license', 'contract_carriage_permit', 'passenger_insurance',
+            'vehicle_insurance', 'base_price', 'price_per_km', 'minimum_fare', 'status',
+            'amenities', 'features', 'images', 'travel_images',
+            'average_rating', 'total_reviews'
+        ]
+
+    def get_average_rating(self, obj):
+        avg = obj.bus_reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(avg, 1) if avg else 0.0
+
+    def get_total_reviews(self, obj):
+        return obj.bus_reviews.count()
+
+
 
 class PackageSerializer(serializers.ModelSerializer):
     package_images = PackageImageSerializer(many=True, read_only=True)
@@ -450,7 +502,7 @@ class PackageSerializer(serializers.ModelSerializer):
     travels_name = serializers.SerializerMethodField()
     vendor_name = serializers.CharField(source='vendor.name', read_only=True)
     sub_category_name = serializers.CharField(source='sub_category.name', read_only=True)
-    buses = serializers.StringRelatedField(many=True)
+    buses = BusDetailSerializer(many=True, read_only=True)
     is_favorite = serializers.SerializerMethodField()
     price_per_person = serializers.SerializerMethodField()
     extra_charge_per_km = serializers.SerializerMethodField()
