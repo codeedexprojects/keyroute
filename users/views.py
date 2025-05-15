@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 from django.core.cache import cache
 from django.db.models import Sum
 from admin_panel.models import Experience,Sight
+import pytz
 
 User = get_user_model()
 
@@ -322,3 +323,18 @@ class SightView(APIView):
         sight = Sight.objects.all()
         serializer = SightSerializer(sight,many=True)
         return Response(serializer.data)
+    
+
+class GreetingAPIView(APIView):
+    def get(self, request):
+        india_timezone = pytz.timezone('Asia/Kolkata')
+        current_time = datetime.now(india_timezone)
+        current_hour = current_time.hour
+        
+        if 5 <= current_hour < 12:
+            greeting = "Good Morning"
+        elif 12 <= current_hour < 17:
+            greeting = "Good Afternoon"
+        else:
+            greeting = "Good Evening"
+        return Response({"message": greeting})
