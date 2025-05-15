@@ -1,5 +1,8 @@
 from django.urls import path
-from .views import UserLogoutView, UserProfileAPIView,  AuthenticationView, VerifyOTPView,FavouriteAPIView,ListFavourites, GetReferralCodeView,GetWalletView,OngoingReferralsView,ReferralHistoryView,ExperianceView,SightView
+from .views import (UserLogoutView, UserProfileAPIView,  AuthenticationView, 
+                    VerifyOTPView,FavouriteAPIView,ListFavourites, GetReferralCodeView,
+                    GetWalletView,OngoingReferralsView,ReferralHistoryView,
+                    ExperianceView,SightView,GreetingAPIView)
 
 urlpatterns = [
     path("auth/", AuthenticationView.as_view(), name="user-authentication"),
@@ -23,4 +26,5 @@ urlpatterns = [
 
     path('experiance/<int:sight>/',ExperianceView.as_view(), name='referral-history'),
     path('sight/',SightView.as_view(), name='referral-history'),
+    path('greeting/', GreetingAPIView.as_view(), name='greeting'),
 ]
