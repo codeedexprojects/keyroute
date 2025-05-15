@@ -112,7 +112,7 @@ class PackageBookingDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get_object(self, pk, user):
-        return get_object_or_404(PackageBooking, pk=pk, user=user)
+        return get_object_or_404(PackageBooking, booking_id=pk, user=user)
     
     def get(self, request, pk):
         booking = self.get_object(pk, request.user)
@@ -192,7 +192,7 @@ class BusBookingDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get_object(self, pk, user):
-        return get_object_or_404(BusBooking, pk=pk, user=user)
+        return get_object_or_404(BusBooking, booking_id=pk, user=user)
     
     def get(self, request, pk):
         booking = self.get_object(pk, request.user)
