@@ -970,6 +970,16 @@ class CreatePackageAndDayPlanAPIView(APIView):
             
             sub_category_id = data.get("sub_category")
             sub_category = PackageSubCategory.objects.get(id=sub_category_id)
+
+            day_indices = set()
+            for key in data.keys():
+                match = re.search(r"_(\d+)$", key)
+                if match:
+                    day_indices.add(int(match.group(1)))
+            total_days = len(day_indices)
+            print(total_days,'days')
+            
+
             # 1. CREATE PACKAGE
             package = Package.objects.create(
                 vendor=vendor,
@@ -978,7 +988,7 @@ class CreatePackageAndDayPlanAPIView(APIView):
                 # description=data.get("description"),
                 header_image=data.get("header_image"),
                 nights=data.get("nights"),
-                days=data.get("days"),
+                days=total_days,
                 extra_charge_per_km=data.get("extra_charge_per_km"),
                 price_per_person=data.get("price_per_person"),
                 bus_location=data.get("bus_location"),
