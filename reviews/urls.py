@@ -6,4 +6,4 @@ urlpatterns = [
 
     path('reviews/', AppReviewView.as_view(), name='review-list-create'),
     path('reviews/<int:pk>/', AppReviewView.as_view(), name='review-detail'),
-]
+]   
