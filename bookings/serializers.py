@@ -305,19 +305,28 @@ class TravelerCreateSerializer(serializers.ModelSerializer):
     
 class PackageFilterSerializer(serializers.ModelSerializer):
     package_name = serializers.SerializerMethodField()
+    package_id = serializers.SerializerMethodField()
     package_images = serializers.SerializerMethodField()
     capacity = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
     total_reviews = serializers.SerializerMethodField()
     bus_name = serializers.SerializerMethodField()
+    bus_id = serializers.SerializerMethodField()
     
     class Meta:
         model = PackageBooking
         fields = ['booking_id','package_name','total_travelers','start_date','total_amount','from_location',
-                  'to_location','created_at','average_rating', 'total_reviews','package_images','capacity','bus_name']
+                  'to_location','created_at','average_rating', 'total_reviews','package_images','capacity','bus_name','package_id','bus_id']
 
     def get_package_name(self, obj):
         return obj.package.places
+    
+    def get_package_id(self, obj):
+        return obj.package.id
+    
+    def get_bus_id(self, obj):
+        buses = obj.package.buses.all()
+        return [bus.id for bus in buses]
     
     def get_bus_name(self, obj):
         buses = obj.package.buses.all()
@@ -343,6 +352,7 @@ class PackageFilterSerializer(serializers.ModelSerializer):
     
 class BusFilterSerializer(serializers.ModelSerializer):
     bus_name = serializers.SerializerMethodField()
+    bus_id = serializers.SerializerMethodField()
     bus_images = serializers.SerializerMethodField()
     capacity = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
@@ -351,10 +361,13 @@ class BusFilterSerializer(serializers.ModelSerializer):
     class Meta:
         model = BusBooking
         fields = ['booking_id','bus_name','total_travelers','start_date','total_amount','from_location',
-                  'to_location','created_at','average_rating', 'total_reviews','bus_images','capacity']
+                  'to_location','created_at','average_rating', 'total_reviews','bus_images','capacity','bus_id']
 
     def get_bus_name(self, obj):
         return obj.bus.bus_name
+    
+    def get_bus_id(self, obj):
+        return obj.bus.id
     
     def get_capacity(self,obj):
         return obj.bus.capacity

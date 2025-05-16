@@ -67,7 +67,17 @@ class PackageBookingListCreateAPIView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        serializer = PackageBookingSerializer(data=request.data, context={'request': request})
+        data = request.data.copy()
+        query_data = {
+            'start_date': request.query_params.get('start_date'),
+            'total_travelers': request.query_params.get('total_travelers'),
+            'from_location': request.query_params.get('from_location'),
+            'children': request.query_params.get('children'),
+            'female': request.query_params.get('female'),
+            'male': request.query_params.get('male'),
+        }
+        data.update(query_data)
+        serializer = PackageBookingSerializer(data=data, context={'request': request})
         if serializer.is_valid():
             package = serializer.validated_data['package']
             vendor = package.vendor
