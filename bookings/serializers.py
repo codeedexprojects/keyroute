@@ -11,6 +11,7 @@ from django.db import models
 from users.models import Favourite
 from django.db.models import Avg
 from vendors.models import *
+from datetime import timedelta
 
 
 User = get_user_model()
@@ -149,6 +150,28 @@ class BusBookingSerializer(BaseBookingSerializer):
             logger.error(f"Unexpected error during referral processing: {str(e)}")
 
         return booking
+    
+
+class SinglePackageBookingSerilizer(serializers.ModelSerializer):
+    end_date = serializers.SerializerMethodField()
+    paid_amount = serializers.SerializerMethodField()
+    bus_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PackageBooking
+        fields = ['booking_id','from_location','to_location','start_date','end_date','total_travelers','total_amount','paid_amount','bus_name']
+
+    def get_end_date(self, obj):
+        total_days = obj.package.days + obj.package.nights
+        end_date = obj.start_date + timedelta(days=total_days)
+        return end_date
+    
+    def get_paid_amount(self, obj):
+        return obj.advance_amount
+    
+    def get_bus_name(self, obj):
+        buses = obj.package.buses.all()
+        return [bus.bus_name for bus in buses]
 
 
 class PackageBookingSerializer(BaseBookingSerializer):
