@@ -35,47 +35,48 @@ class PackageListAPIView(APIView):
         lat = request.query_params.get('lat')
         lon = request.query_params.get('lon')
 
-        if lat is None or lon is None:
-            return Response({"error": "Latitude and longitude parameters are required."}, status=400)
+        user_coords = None
+        if lat and lon:
+            try:
+                lat = float(lat)
+                lon = float(lon)
+                if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+                    return Response({"error": "Latitude must be between -90 and 90, and longitude between -180 and 180."}, status=400)
+                user_coords = (lat, lon)
 
-        try:
-            lat = float(lat)
-            lon = float(lon)
-        except ValueError:
-            return Response({"error": "Latitude and longitude must be valid float values."}, status=400)
-
-        if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
-            return Response({"error": "Latitude must be between -90 and 90, and longitude between -180 and 180."}, status=400)
-
-        user_coords = (lat, lon)
-
-        try:
-            geolocator = Nominatim(user_agent="coord-debug")
-            location = geolocator.reverse(user_coords, exactly_one=True, timeout=10)
-            print(location.address if location else "Invalid coordinates")
-        except Exception as e:
-            print(f"Geolocation error: {e}")
+                try:
+                    geolocator = Nominatim(user_agent="coord-debug")
+                    location = geolocator.reverse(user_coords, exactly_one=True, timeout=10)
+                    print(location.address if location else "Invalid coordinates")
+                except Exception as e:
+                    print(f"Geolocation error: {e}")
+            except ValueError:
+                return Response({"error": "Latitude and longitude must be valid float values."}, status=400)
 
         packages = Package.objects.filter(sub_category=category)
         if not packages.exists():
             return Response({"error": f"No packages found under category '{category}'."}, status=404)
 
-        nearby_packages = []
-        for package in packages:
-            if package.latitude is not None and package.longitude is not None:
-                package_coords = (package.latitude, package.longitude)
-                distance_km = geodesic(user_coords, package_coords).kilometers
-                if distance_km <= 30:
-                    nearby_packages.append(package)
+        if user_coords:
+            nearby_packages = []
+            for package in packages:
+                if package.latitude is not None and package.longitude is not None:
+                    package_coords = (package.latitude, package.longitude)
+                    distance_km = geodesic(user_coords, package_coords).kilometers
+                    if distance_km <= 30:
+                        nearby_packages.append(package)
 
-        if not nearby_packages:
-            return Response({
-                "message": f"No packages found near your location within 30 km"
-                
-            }, status=200)
+            if not nearby_packages:
+                return Response({
+                    "message": f"No packages found near your location within 30 km"
+                }, status=200)
 
-        serializer = PackageSerializer(nearby_packages, many=True, context={'request': request})
+            serializer = PackageSerializer(nearby_packages, many=True, context={'request': request})
+            return Response(serializer.data)
+
+        serializer = PackageSerializer(packages, many=True, context={'request': request})
         return Response(serializer.data)
+
     
 class SinglePackageListAPIView(APIView):
     permission_classes = [AllowAny]
@@ -450,10 +451,10 @@ class CancelBookingView(APIView):
     permission_classes = [IsAuthenticated]
     
     def post(self, request, booking_type):
-        booking_id = request.data.get('booking_id')
+        id = request.data.get('booking_id')
         cancellation_reason = request.data.get('cancellation_reason')
         
-        if not booking_type or not booking_id:
+        if not booking_type or not id:
             return Response(
                 {"error": "Both booking_type and booking_id are required"}, 
                 status=status.HTTP_400_BAD_REQUEST
@@ -467,10 +468,10 @@ class CancelBookingView(APIView):
         
         try:
             if booking_type == 'bus':
-                booking = BusBooking.objects.get(booking_id=booking_id)
+                booking = BusBooking.objects.get(booking_id=id)
                 serializer_class = BusBookingSerializer
             else:
-                booking = PackageBooking.objects.get(booking_id=booking_id)
+                booking = PackageBooking.objects.get(booking_id=id)
                 serializer_class = PackageBookingSerializer
                 
             if booking.user != request.user:
@@ -486,12 +487,13 @@ class CancelBookingView(APIView):
                 )
                 
             booking.payment_status = 'cancelled'
+            booking.trip_status = 'cancelled'
             booking.cancelation_reason = cancellation_reason
             booking.save()
 
             send_notification(
                 user=request.user,
-                message=f"Your booking with ID {booking_id} has been successfully canceled."
+                message=f"Your booking with ID {id} has been successfully canceled."
             )
 
             
@@ -500,7 +502,7 @@ class CancelBookingView(APIView):
             
         except (BusBooking.DoesNotExist, PackageBooking.DoesNotExist):
             return Response(
-                {"error": f"{booking_type.capitalize()} booking with id {booking_id} does not exist"}, 
+                {"error": f"{booking_type.capitalize()} booking with id {id} does not exist"}, 
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
