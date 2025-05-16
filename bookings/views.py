@@ -21,7 +21,7 @@ from rest_framework import status as http_status
 from itertools import chain
 from vendors.models import PackageCategory,PackageSubCategory
 from vendors.serializers import PackageCategorySerializer,PackageSubCategorySerializer
-from .serializers import PackageFilterSerializer,BusFilterSerializer,PackageSerializer
+from .serializers import PackageFilterSerializer,BusFilterSerializer,PackageSerializer,SinglePackageBookingSerilizer
 
 
 from .utils import *
@@ -127,22 +127,21 @@ class PackageBookingDetailAPIView(APIView):
     
     def get(self, request, pk):
         booking = self.get_object(pk, request.user)
-        serializer = PackageBookingSerializer(booking)
+        serializer = SinglePackageBookingSerilizer(booking)
         return Response(serializer.data)
     
-    def put(self, request, pk):
+    def patch(self, request, pk):
         booking = self.get_object(pk, request.user)
         old_status = booking.payment_status
         serializer = PackageBookingSerializer(booking, data=request.data, partial=True)
+        
         if serializer.is_valid():
             booking = serializer.save()
-            
             if 'payment_status' in request.data and old_status != booking.payment_status:
                 send_notification(
                     user=request.user,
                     message=f"Your package booking #{pk} status has been updated to: {booking.payment_status}"
                 )
-                
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -426,10 +425,10 @@ class CancelBookingView(APIView):
         
         try:
             if booking_type == 'bus':
-                booking = BusBooking.objects.get(id=booking_id)
+                booking = BusBooking.objects.get(booking_id=booking_id)
                 serializer_class = BusBookingSerializer
             else:
-                booking = PackageBooking.objects.get(id=booking_id)
+                booking = PackageBooking.objects.get(booking_id=booking_id)
                 serializer_class = PackageBookingSerializer
                 
             if booking.user != request.user:
