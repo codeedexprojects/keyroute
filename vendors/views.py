@@ -545,6 +545,25 @@ class PackageAPIView(APIView):
 
 
 
+class DayPlanDeleteAPIView(APIView):
+    parser_classes = [JSONParser]
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, day_id):
+        vendor = Vendor.objects.filter(user=request.user).first()
+        if not vendor:
+            return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get the day plan ensuring it belongs to the vendor
+        day_plan = get_object_or_404(DayPlan, pk=day_id, package__vendor=vendor)
+
+        day_plan.delete()
+        return Response({"message": "Day plan deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+
+
 class BasicPackageAPIView(APIView):
     parser_classes = [MultiPartParser, JSONParser]
     authentication_classes = [JWTAuthentication]
@@ -831,6 +850,9 @@ class DayPlanCreateAPIView(APIView):
     #         return Response({"error": str(e)}, status=500)
 
 
+
+
+
     def post(self, request, package_id):
         try:
             data = request.data
@@ -931,129 +953,6 @@ class CreatePackageAndDayPlanAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    # def post(self, request):
-    #     try:
-    #         # Vendor check
-    #         vendor = Vendor.objects.filter(user=request.user).first()
-    #         if not vendor:
-    #             return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
-
-    #         # Basic Package Creation
-    #         data = request.data
-    #         buses_raw = request.data.getlist('buses')
-
-    #         if len(buses_raw) == 1:
-    #             try:
-    #                 buses_list = json.loads(buses_raw[0])
-    #                 data['buses'] = [int(b) for b in buses_list]
-    #             except:
-    #                 data['buses'] = [int(buses_raw[0])]
-    #         else:
-    #             data['buses'] = [int(b) for b in buses_raw]
-
-    #         package_images = request.FILES.getlist('package_images')
-
-    #         mutable_data = request.data.copy()
-    #         mutable_data.setlist('package_images', package_images)
-    #         mutable_data.setlist('buses', data['buses'])
-
-    #         # Serialize and create package
-    #         serializer = PackageBasicSerializer(data=mutable_data, context={'vendor': vendor})
-    #         if serializer.is_valid():
-    #             package = serializer.save()
-    #             package_id = package.id
-    #         else:
-    #             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    #         # Day Plan Creation
-    #         files = request.FILES
-    #         day_number = int(data.get("day") or 1)
-    #         description = data.get("description") or ''
-
-    #         # Package check
-    #         package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
-    #         if not package:
-    #             return Response({"error": "Package not found"}, status=404)
-
-    #         with transaction.atomic():
-    #             # Create Day Plan
-    #             day_plan = DayPlan.objects.create(package=package, day_number=day_number, description=description)
-
-    #             # Place
-    #             place = Place.objects.create(
-    #                 day_plan=day_plan,
-    #                 name=data.get("place_name") or "",
-    #                 description=data.get("place_description") or ""
-    #             )
-    #             for i in range(1, 5):
-    #                 img = files.get(f"place_image_{i}")
-    #                 if img:
-    #                     PlaceImage.objects.create(place=place, image=img)
-
-    #             # Stay
-    #             stay = Stay.objects.create(
-    #                 day_plan=day_plan,
-    #                 hotel_name=data.get("hotel_name") or "",
-    #                 description=data.get("stay_description") or "",
-    #                 location=data.get("location") or "",
-    #                 is_ac=(data.get("is_ac") or "").lower() == "true",
-    #                 has_breakfast=(data.get("has_breakfast") or "").lower() == "true"
-    #             )
-    #             for i in range(1, 5):
-    #                 img = files.get(f"stay_image_{i}")
-    #                 if img:
-    #                     StayImage.objects.create(stay=stay, image=img)
-
-    #             # Meal
-    #             meal_time_str = data.get("meal_time") or ""
-    #             meal_time = None
-    #             if meal_time_str:
-    #                 try:
-    #                     meal_time = datetime.strptime(meal_time_str.strip(), "%H:%M").time()
-    #                 except ValueError:
-    #                     return Response({"error": "Invalid meal_time format. Use HH:MM."}, status=400)
-
-    #             meal = Meal.objects.create(
-    #                 day_plan=day_plan,
-    #                 type=data.get("meal_type") or "breakfast",
-    #                 description=data.get("meal_description") or "",
-    #                 restaurant_name=data.get("restaurant_name") or "",
-    #                 location=data.get("meal_location") or "",
-    #                 time=meal_time
-    #             )
-    #             for i in range(1, 5):
-    #                 img = files.get(f"meal_image_{i}")
-    #                 if img:
-    #                     MealImage.objects.create(meal=meal, image=img)
-
-    #             # Activity
-    #             activity_time_str = data.get("activity_time") or ""
-    #             activity_time = None
-    #             if activity_time_str:
-    #                 try:
-    #                     activity_time = datetime.strptime(activity_time_str.strip(), "%H:%M").time()
-    #                 except ValueError:
-    #                     return Response({"error": "Invalid activity_time format. Use HH:MM."}, status=400)
-
-    #             activity = Activity.objects.create(
-    #                 day_plan=day_plan,
-    #                 name=data.get("activity_name") or "",
-    #                 description=data.get("activity_description") or "",
-    #                 time=activity_time,
-    #                 location=data.get("activity_location") or ""
-    #             )
-    #             for i in range(1, 5):
-    #                 img = files.get(f"activity_image_{i}")
-    #                 if img:
-    #                     ActivityImage.objects.create(activity=activity, image=img)
-
-    #         return Response({"message": "Package and Day plan created successfully."}, status=201)
-
-    #     except Exception as e:
-    #         return Response({"error": str(e)}, status=500)
-
-
-
 
 
     def post(self, request):
@@ -1071,6 +970,16 @@ class CreatePackageAndDayPlanAPIView(APIView):
             
             sub_category_id = data.get("sub_category")
             sub_category = PackageSubCategory.objects.get(id=sub_category_id)
+
+            day_indices = set()
+            for key in data.keys():
+                match = re.search(r"_(\d+)$", key)
+                if match:
+                    day_indices.add(int(match.group(1)))
+            total_days = len(day_indices)
+            print(total_days,'days')
+            
+
             # 1. CREATE PACKAGE
             package = Package.objects.create(
                 vendor=vendor,
@@ -1079,7 +988,7 @@ class CreatePackageAndDayPlanAPIView(APIView):
                 # description=data.get("description"),
                 header_image=data.get("header_image"),
                 nights=data.get("nights"),
-                days=data.get("days"),
+                days=total_days,
                 extra_charge_per_km=data.get("extra_charge_per_km"),
                 price_per_person=data.get("price_per_person"),
                 bus_location=data.get("bus_location"),
@@ -1189,7 +1098,278 @@ class CreatePackageAndDayPlanAPIView(APIView):
 
 
 
+class EditDayPlanAPIView(APIView):
+    parser_classes = [MultiPartParser, JSONParser]
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
+    def put(self, request, day_id):
+        try:
+            day_plan = DayPlan.objects.filter(id=day_id, package__vendor__user=request.user).first()
+            if not day_plan:
+                return Response({"error": "DayPlan not found or access denied"}, status=404)
+
+            data = request.data
+            files = request.FILES
+
+            day_plan.description = data.get("description", day_plan.description)
+            day_plan.save()
+
+            # Place
+            # place = day_plan.place
+            place = day_plan.places.first()
+            place.name = data.get("place_name", place.name)
+            place.description = data.get("place_description", place.description)
+            place.save()
+
+            if files.getlist("place_images"):
+                place.images.all().delete()
+                for img in files.getlist("place_images"):
+                    PlaceImage.objects.create(place=place, image=img)
+
+            # Stay
+            stay = day_plan.stay
+            stay.hotel_name = data.get("stay_name", stay.hotel_name)
+            stay.description = data.get("stay_description", stay.description)
+            stay.location = data.get("location", stay.location)
+            stay.is_ac = data.get("is_ac", str(stay.is_ac)).lower() == "true"
+            stay.has_breakfast = data.get("has_breakfast", str(stay.has_breakfast)).lower() == "true"
+            stay.save()
+
+            if files.getlist("stay_images"):
+                stay.images.all().delete()
+                for img in files.getlist("stay_images"):
+                    StayImage.objects.create(stay=stay, image=img)
+
+            # Meal
+            meal = day_plan.meals.first()
+            meal_time_str = data.get("meal_time")
+            if meal_time_str:
+                meal.time = datetime.strptime(meal_time_str, "%H:%M").time()
+            meal.type = data.get("meal_type", meal.type)
+            meal.description = data.get("meal_description", meal.description)
+            meal.restaurant_name = data.get("restaurant_name", meal.restaurant_name)
+            meal.location = data.get("meal_location", meal.location)
+            meal.save()
+
+            if files.getlist("meal_images"):
+                meal.images.all().delete()
+                for img in files.getlist("meal_images"):
+                    MealImage.objects.create(meal=meal, image=img)
+
+
+
+            # Activity
+            activity = day_plan.activities.first()
+            activity_time_str = data.get("activity_time")
+            if activity_time_str:
+                activity.time = datetime.strptime(activity_time_str, "%H:%M").time()
+            activity.name = data.get("activity_name", activity.name)
+            activity.description = data.get("activity_description", activity.description)
+            activity.location = data.get("activity_location", activity.location)
+            activity.save()
+
+            if files.getlist("activity_images"):
+                activity.images.all().delete()
+                for img in files.getlist("activity_images"):
+                    ActivityImage.objects.create(activity=activity, image=img)
+
+            return Response({"message": "Day plan updated successfully."}, status=200)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+
+
+
+
+
+class AddDayPlanAPIView(APIView):
+    parser_classes = [MultiPartParser, JSONParser]
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+   
+
+    # def post(self, request, package_id):
+    #     try:
+    #         package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
+    #         if not package:
+    #             return Response({"error": "Package not found or access denied"}, status=404)
+
+    #         data = request.data
+    #         files = request.FILES
+
+    #         # Get next day number
+    #         last_day = DayPlan.objects.filter(package=package).order_by("-day_number").first()
+    #         next_day_number = last_day.day_number + 1 if last_day else 1
+    #         suffix = f"_{next_day_number}"
+
+    #         day_description = data.get(f"description{suffix}", "")
+    #         day_plan = DayPlan.objects.create(
+    #             package=package,
+    #             day_number=next_day_number,
+    #             description=day_description
+    #         )
+
+    #         # Place
+    #         place = Place.objects.create(
+    #             day_plan=day_plan,
+    #             name=data.get(f"place_name{suffix}", ""),
+    #             description=data.get(f"place_description{suffix}", "")
+    #         )
+           
+    #         print("All files received:", request.FILES.keys())
+
+    #         for i in range(1, 5):
+    #             key = f"place_image{suffix}_{i}"  # e.g. place_image_3_1
+    #             img = files.get(key)
+    #             print(f"Uploading Place Image: {key} - {'Received' if img else 'Not Found'}")
+    #             if img:
+    #                 PlaceImage.objects.create(place=place, image=img)
+
+
+    #         # Stay
+    #         stay = Stay.objects.create(
+    #             day_plan=day_plan,
+    #             hotel_name=data.get(f"stay_name{suffix}", ""),
+    #             description=data.get(f"stay_description{suffix}", ""),
+    #             location=data.get(f"location{suffix}", ""),
+    #             is_ac=data.get(f"is_ac{suffix}", "false").lower() == "true",
+    #             has_breakfast=data.get(f"has_breakfast{suffix}", "false").lower() == "true"
+    #         )
+    #         for i in range(1, 5):
+    #             img = files.get(f"stay_image{suffix}_{i}")
+    #             if img:
+    #                 StayImage.objects.create(stay=stay, image=img)
+
+    #         # Meal
+    #         meal_time_str = data.get(f"meal_time{suffix}")
+    #         meal_time = datetime.strptime(meal_time_str, "%H:%M").time() if meal_time_str else None
+    #         meal = Meal.objects.create(
+    #             day_plan=day_plan,
+    #             type=data.get(f"meal_type{suffix}", "breakfast"),
+    #             description=data.get(f"meal_description{suffix}", ""),
+    #             restaurant_name=data.get(f"restaurant_name{suffix}", ""),
+    #             location=data.get(f"meal_location{suffix}", ""),
+    #             time=meal_time
+    #         )
+    #         for i in range(1, 5):
+    #             img = files.get(f"meal_image{suffix}_{i}")
+    #             if img:
+    #                 MealImage.objects.create(meal=meal, image=img)
+
+    #         # Activity
+    #         activity_time_str = data.get(f"activity_time{suffix}")
+    #         activity_time = datetime.strptime(activity_time_str, "%H:%M").time() if activity_time_str else None
+    #         activity = Activity.objects.create(
+    #             day_plan=day_plan,
+    #             name=data.get(f"activity_name{suffix}", ""),
+    #             description=data.get(f"activity_description{suffix}", ""),
+    #             location=data.get(f"activity_location{suffix}", ""),
+    #             time=activity_time
+    #         )
+    #         for i in range(1, 5):
+    #             img = files.get(f"activity_image{suffix}_{i}")
+    #             if img:
+    #                 ActivityImage.objects.create(activity=activity, image=img)
+
+    #         return Response({"message": "Day plan added successfully."}, status=201)
+
+    #     except Exception as e:
+    #         return Response({"error": str(e)}, status=500)
+
+
+
+    def _upload_images(self, files, prefix, related_obj):
+        """Helper to upload up to 4 images with keys like 'prefix_1', 'prefix_2', etc."""
+        for i in range(1, 5):
+            key = f"{prefix}_{i}"
+            img = files.get(key)
+            print(f"Uploading Image with key '{key}': {'Received' if img else 'Not Found'}")
+            if img:
+                # Create the image instance based on related_obj's type
+                if isinstance(related_obj, Place):
+                    PlaceImage.objects.create(place=related_obj, image=img)
+                elif isinstance(related_obj, Stay):
+                    StayImage.objects.create(stay=related_obj, image=img)
+                elif isinstance(related_obj, Meal):
+                    MealImage.objects.create(meal=related_obj, image=img)
+                elif isinstance(related_obj, Activity):
+                    ActivityImage.objects.create(activity=related_obj, image=img)
+
+    def post(self, request, package_id):
+        try:
+            package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
+            if not package:
+                return Response({"error": "Package not found or access denied"}, status=404)
+
+            data = request.data
+            files = request.FILES
+
+            print("Files received:", list(files.keys()))
+            print("Data received:", data)
+
+            # Get next day number
+            last_day = DayPlan.objects.filter(package=package).order_by("-day_number").first()
+            next_day_number = last_day.day_number + 1 if last_day else 1
+            suffix = f"_{next_day_number}"  # e.g. _3
+
+            day_description = data.get(f"description{suffix}", "")
+            day_plan = DayPlan.objects.create(
+                package=package,
+                day_number=next_day_number,
+                description=day_description
+            )
+
+            # Place
+            place = Place.objects.create(
+                day_plan=day_plan,
+                name=data.get(f"place_name{suffix}", ""),
+                description=data.get(f"place_description{suffix}", "")
+            )
+            self._upload_images(files, f"place_image{suffix}", place)
+
+            # Stay
+            stay = Stay.objects.create(
+                day_plan=day_plan,
+                hotel_name=data.get(f"stay_name{suffix}", ""),
+                description=data.get(f"stay_description{suffix}", ""),
+                location=data.get(f"location{suffix}", ""),
+                is_ac=data.get(f"is_ac{suffix}", "false").lower() == "true",
+                has_breakfast=data.get(f"has_breakfast{suffix}", "false").lower() == "true"
+            )
+            self._upload_images(files, f"stay_image{suffix}", stay)
+
+            # Meal
+            meal_time_str = data.get(f"meal_time{suffix}")
+            meal_time = datetime.strptime(meal_time_str, "%H:%M").time() if meal_time_str else None
+            meal = Meal.objects.create(
+                day_plan=day_plan,
+                type=data.get(f"meal_type{suffix}", "breakfast"),
+                description=data.get(f"meal_description{suffix}", ""),
+                restaurant_name=data.get(f"restaurant_name{suffix}", ""),
+                location=data.get(f"meal_location{suffix}", ""),
+                time=meal_time
+            )
+            self._upload_images(files, f"meal_image{suffix}", meal)
+
+            # Activity
+            activity_time_str = data.get(f"activity_time{suffix}")
+            activity_time = datetime.strptime(activity_time_str, "%H:%M").time() if activity_time_str else None
+            activity = Activity.objects.create(
+                day_plan=day_plan,
+                name=data.get(f"activity_name{suffix}", ""),
+                description=data.get(f"activity_description{suffix}", ""),
+                location=data.get(f"activity_location{suffix}", ""),
+                time=activity_time
+            )
+            self._upload_images(files, f"activity_image{suffix}", activity)
+
+            return Response({"message": "Day plan added successfully."}, status=201)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
 
 
 
@@ -1249,6 +1429,9 @@ class ChangePasswordAPIView(APIView):
         user.save()
 
         return Response({"message": "Password updated successfully!"}, status=status.HTTP_200_OK)
+
+
+
 
 
 
@@ -1408,7 +1591,7 @@ class VendorTotalRevenueView(APIView):
         package_revenue = PackageBooking.objects.filter(
             package__vendor=vendor,
             payment_status__in=["paid", "partial"]
-        ).aggregate(total=Sum('total_amount'), count=Count('id'))
+        ).aggregate(total=Sum('total_a mount'), count=Count('id'))
 
         # Calculate totals
         total_revenue = float(bus_revenue['total'] or 0) + float(package_revenue['total'] or 0)
@@ -3352,9 +3535,9 @@ class PackageBookingRequestView(APIView):
 
 
 
-class VendorLatestSingleBookingHistoryView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
+# class VendorLatestSingleBookingHistoryView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
 
     # def get(self, request):
     #     vendor = Vendor.objects.filter(user=request.user).first()
@@ -3376,37 +3559,6 @@ class VendorLatestSingleBookingHistoryView(APIView):
     #     serializer = CombinedBookingSerializer(latest)
     #     return Response(serializer.data, status=status.HTTP_200_OK)
 
-# class VendorLatestSingleBookingHistoryView(APIView):
-#     authentication_classes = [JWTAuthentication]
-#     permission_classes = [IsAuthenticated]
-
-  
-
-#     def get(self, request):
-#         vendor = Vendor.objects.filter(user=request.user).first()
-#         if not vendor:
-#             return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
-
-#         latest_completed_bus = BusBooking.objects.filter(
-#             bus__vendor=vendor, trip_status='completed'
-#         ).order_by('-created_at').first()
-
-#         latest_completed_package = PackageBooking.objects.filter(
-#             package__vendor=vendor, trip_status='completed'
-#         ).order_by('-created_at').first()
-
-#         latest = max(
-#             filter(None, [latest_completed_bus, latest_completed_package]),
-#             key=lambda x: x.created_at,
-#             default=None
-#         )
-
-#         if not latest:
-#             return Response({"message": "No completed bookings found."}, status=status.HTTP_204_NO_CONTENT)
-
-#         serializer = CombinedBookingSerializer(latest)
-#         return Response(serializer.data, status=status.HTTP_200_OK)
-    
 
 
 class VendorLatestSingleBookingHistoryView(APIView):
@@ -3635,7 +3787,7 @@ class PreAcceptPackageBookingDetailView(APIView):
             bus_booking = BusBooking.objects.filter(
                 id=booking_id,
                 bus__vendor=vendor,
-                booking_status='pending'  # pending = not accepted yet
+                booking_status='pending'   
             ).first()
 
             if bus_booking:
@@ -3648,6 +3800,8 @@ class PreAcceptPackageBookingDetailView(APIView):
                     "male": bus_booking.male,
                     "female": bus_booking.female,
                     "children": bus_booking.children,
+                    # 'way': bus_booking.one_way,
+                    "way": "One Way" if bus_booking.one_way else "Two Way",
                     "travelers": TravelerSerializer(bus_booking.travelers.all(), many=True).data
                 }
                 return Response(data, status=status.HTTP_200_OK)
@@ -3669,6 +3823,7 @@ class PreAcceptPackageBookingDetailView(APIView):
                     "male": package_booking.male,
                     "female": package_booking.female,
                     "children": package_booking.children,
+                    "way":'two way',
                     "travelers": TravelerSerializer(package_booking.travelers.all(), many=True).data
                 }
                 return Response(data, status=status.HTTP_200_OK)
@@ -3745,9 +3900,7 @@ class BookingDetailByIdView(APIView):
                     "male": package_booking.male,
                     "female": package_booking.female,
                     "children": package_booking.children,
-
                     "passenger": traveler_data,
-
                     "total_fare": package_booking.total_amount,
                     "paid_amount": package_booking.advance_amount,
                     "balance_amount": package_booking.balance_amount,
