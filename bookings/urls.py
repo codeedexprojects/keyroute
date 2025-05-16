@@ -9,7 +9,7 @@ from .views import (
 
 urlpatterns = [
     # Vendor resource endpoints
-    path('packages/', PackageListAPIView.as_view(), name='package-list'),
+    path('packages/<int:category>/', PackageListAPIView.as_view(), name='package-list'),
     path('buses/', BusListAPIView.as_view(), name='bus-list'),
 
     path('bus/details/<int:bus_id>/',SingleBusListAPIView.as_view(),name="bus detail"),
