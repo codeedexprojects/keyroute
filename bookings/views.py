@@ -22,17 +22,59 @@ from itertools import chain
 from vendors.models import PackageCategory,PackageSubCategory
 from vendors.serializers import PackageCategorySerializer,PackageSubCategorySerializer
 from .serializers import PackageFilterSerializer,BusFilterSerializer,PackageSerializer,SinglePackageBookingSerilizer
-
-
+from geopy.geocoders import Nominatim
+from geopy.distance import geodesic
 from .utils import *
+
+
 
 class PackageListAPIView(APIView):
     permission_classes = [AllowAny]
     
     def get(self, request, category):
-        location = request.query_params.get('location')
+        lat = request.query_params.get('lat')
+        lon = request.query_params.get('lon')
+
+        if lat is None or lon is None:
+            return Response({"error": "Latitude and longitude parameters are required."}, status=400)
+
+        try:
+            lat = float(lat)
+            lon = float(lon)
+        except ValueError:
+            return Response({"error": "Latitude and longitude must be valid float values."}, status=400)
+
+        if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+            return Response({"error": "Latitude must be between -90 and 90, and longitude between -180 and 180."}, status=400)
+
+        user_coords = (lat, lon)
+
+        try:
+            geolocator = Nominatim(user_agent="coord-debug")
+            location = geolocator.reverse(user_coords, exactly_one=True, timeout=10)
+            print(location.address if location else "Invalid coordinates")
+        except Exception as e:
+            print(f"Geolocation error: {e}")
+
         packages = Package.objects.filter(sub_category=category)
-        serializer = PackageSerializer(packages, many=True, context={'request': request})
+        if not packages.exists():
+            return Response({"error": f"No packages found under category '{category}'."}, status=404)
+
+        nearby_packages = []
+        for package in packages:
+            if package.latitude is not None and package.longitude is not None:
+                package_coords = (package.latitude, package.longitude)
+                distance_km = geodesic(user_coords, package_coords).kilometers
+                if distance_km <= 30:
+                    nearby_packages.append(package)
+
+        if not nearby_packages:
+            return Response({
+                "message": f"No packages found near your location within 30 km"
+                
+            }, status=200)
+
+        serializer = PackageSerializer(nearby_packages, many=True, context={'request': request})
         return Response(serializer.data)
     
 class SinglePackageListAPIView(APIView):
