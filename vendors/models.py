@@ -217,7 +217,6 @@ class PlaceImage(models.Model):
 class Stay(models.Model):
     day_plan = models.OneToOneField(DayPlan, on_delete=models.CASCADE, related_name='stay')
     hotel_name = models.CharField(max_length=255)
-    hotel_type = models.CharField(max_length=50,null=False,blank=False)
     description = models.TextField(blank=True, null=True)
     location = models.CharField(max_length=255, blank=True, null=True)  
     is_ac = models.BooleanField(default=False, blank=True, null=True)
