@@ -29,8 +29,9 @@ from .utils import *
 class PackageListAPIView(APIView):
     permission_classes = [AllowAny]
     
-    def get(self, request):
-        packages = Package.objects.all()
+    def get(self, request, category):
+        location = request.query_params.get('location')
+        packages = Package.objects.filter(sub_category=category)
         serializer = PackageSerializer(packages, many=True, context={'request': request})
         return Response(serializer.data)
     
