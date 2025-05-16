@@ -74,6 +74,8 @@ class Bus(models.Model):
     minimum_fare = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
     location = models.CharField(max_length=255, null=True, blank=True)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
     bus_type = models.CharField(max_length=50, blank=True, null=True)
 
 
@@ -158,7 +160,8 @@ class Package(models.Model):
     buses = models.ManyToManyField(Bus)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    latitude = models.FloatField()
+    longitude = models.FloatField()
     bus_location = models.CharField(max_length=255, blank=True, null=True)
     price_per_person = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     extra_charge_per_km = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
@@ -214,9 +217,10 @@ class PlaceImage(models.Model):
 class Stay(models.Model):
     day_plan = models.OneToOneField(DayPlan, on_delete=models.CASCADE, related_name='stay')
     hotel_name = models.CharField(max_length=255)
+    hotel_type = models.CharField(max_length=50,null=False,blank=False)
     description = models.TextField(blank=True, null=True)
     location = models.CharField(max_length=255, blank=True, null=True)  
-    is_ac = models.BooleanField(default=False, blank=True, null=True)  
+    is_ac = models.BooleanField(default=False, blank=True, null=True)
     has_breakfast = models.BooleanField(default=False, blank=True, null=True) 
 
 
