@@ -125,6 +125,7 @@ urlpatterns = [
     path('api/vendor/bus-booking-earnings/', BusBookingEarningsHistoryView.as_view(), name='vendor-bus-revenue'),   
     path('api/vendor/package-booking-earnings/', PackageBookingEarningsView.as_view(), name='package-booking-basic-history'),
 
+    path('api/vendor/packages/<int:pk>/edit/', PackageUpdateAPIView.as_view(), name='package-update'),
     # # SINGLE BUS BOOKING HISTORY
     # path('api/vendor/bus-booking-history/<int:booking_id>/', SingleBusBookingDetailView.as_view(), name='single-bus-booking-detail'),
     
