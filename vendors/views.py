@@ -1112,22 +1112,32 @@ class EditDayPlanAPIView(APIView):
             data = request.data
             files = request.FILES
 
+            # DayPlan Description
             day_plan.description = data.get("description", day_plan.description)
             day_plan.save()
 
-            # Place
-            # place = day_plan.place
+            # ----------------- PLACE -----------------
             place = day_plan.places.first()
             place.name = data.get("place_name", place.name)
             place.description = data.get("place_description", place.description)
             place.save()
 
-            if files.getlist("place_images"):
-                place.images.all().delete()
-                for img in files.getlist("place_images"):
-                    PlaceImage.objects.create(place=place, image=img)
+            # Update existing place images
+            for key in files:
+                if key.startswith("place_images_"):
+                    try:
+                        img_id = int(key.split("_")[-1])
+                        img_obj = PlaceImage.objects.get(id=img_id, place=place)
+                        img_obj.image = files[key]
+                        img_obj.save()
+                    except PlaceImage.DoesNotExist:
+                        continue
 
-            # Stay
+            # Add new place images
+            for img in files.getlist("new_place_images"):
+                PlaceImage.objects.create(place=place, image=img)
+
+            # ----------------- STAY -----------------
             stay = day_plan.stay
             stay.hotel_name = data.get("stay_name", stay.hotel_name)
             stay.description = data.get("stay_description", stay.description)
@@ -1136,12 +1146,22 @@ class EditDayPlanAPIView(APIView):
             stay.has_breakfast = data.get("has_breakfast", str(stay.has_breakfast)).lower() == "true"
             stay.save()
 
-            if files.getlist("stay_images"):
-                stay.images.all().delete()
-                for img in files.getlist("stay_images"):
-                    StayImage.objects.create(stay=stay, image=img)
+            # Update existing stay images
+            for key in files:
+                if key.startswith("stay_images_"):
+                    try:
+                        img_id = int(key.split("_")[-1])
+                        img_obj = StayImage.objects.get(id=img_id, stay=stay)
+                        img_obj.image = files[key]
+                        img_obj.save()
+                    except StayImage.DoesNotExist:
+                        continue
 
-            # Meal
+            # Add new stay images
+            for img in files.getlist("new_stay_images"):
+                StayImage.objects.create(stay=stay, image=img)
+
+            # ----------------- MEAL -----------------
             meal = day_plan.meals.first()
             meal_time_str = data.get("meal_time")
             if meal_time_str:
@@ -1152,14 +1172,22 @@ class EditDayPlanAPIView(APIView):
             meal.location = data.get("meal_location", meal.location)
             meal.save()
 
-            if files.getlist("meal_images"):
-                meal.images.all().delete()
-                for img in files.getlist("meal_images"):
-                    MealImage.objects.create(meal=meal, image=img)
+            # Update existing meal images
+            for key in files:
+                if key.startswith("meal_images_"):
+                    try:
+                        img_id = int(key.split("_")[-1])
+                        img_obj = MealImage.objects.get(id=img_id, meal=meal)
+                        img_obj.image = files[key]
+                        img_obj.save()
+                    except MealImage.DoesNotExist:
+                        continue
 
+            # Add new meal images
+            for img in files.getlist("new_meal_images"):
+                MealImage.objects.create(meal=meal, image=img)
 
-
-            # Activity
+            # ----------------- ACTIVITY -----------------
             activity = day_plan.activities.first()
             activity_time_str = data.get("activity_time")
             if activity_time_str:
@@ -1169,10 +1197,20 @@ class EditDayPlanAPIView(APIView):
             activity.location = data.get("activity_location", activity.location)
             activity.save()
 
-            if files.getlist("activity_images"):
-                activity.images.all().delete()
-                for img in files.getlist("activity_images"):
-                    ActivityImage.objects.create(activity=activity, image=img)
+            # Update existing activity images
+            for key in files:
+                if key.startswith("activity_images_"):
+                    try:
+                        img_id = int(key.split("_")[-1])
+                        img_obj = ActivityImage.objects.get(id=img_id, activity=activity)
+                        img_obj.image = files[key]
+                        img_obj.save()
+                    except ActivityImage.DoesNotExist:
+                        continue
+
+            # Add new activity images
+            for img in files.getlist("new_activity_images"):
+                ActivityImage.objects.create(activity=activity, image=img)
 
             return Response({"message": "Day plan updated successfully."}, status=200)
 
