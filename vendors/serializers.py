@@ -98,6 +98,17 @@ class VendorSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
+    
+
+class PackageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Package
+        fields = '__all__'
+
+    def validate(self, data):
+        if data.get('days', 0) + data.get('nights', 0) <= 0:
+            raise serializers.ValidationError("Total duration (days + nights) must be greater than zero.")
+        return data
 
 
 
