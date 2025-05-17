@@ -3,6 +3,7 @@ from vendors.models import Package, Bus
 from django.core.validators import FileExtensionValidator, MinValueValidator
 from django.contrib.auth import get_user_model
 from datetime import date
+import random
 
 User = get_user_model()
 
@@ -19,7 +20,6 @@ class BaseBooking(models.Model):
         ('declined', 'Declined'),
     )
     TRIP_STATUS_CHOICES = (
-        ('not_started', 'Not Started'),
         ('ongoing', 'Ongoing'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
@@ -32,7 +32,7 @@ class BaseBooking(models.Model):
     
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
     booking_status = models.CharField(max_length=20, choices=BOOKING_STATUS_CHOICES, default='pending') 
-    trip_status = models.CharField(max_length=20, choices=TRIP_STATUS_CHOICES, default='not_started')
+    trip_status = models.CharField(max_length=20, choices=TRIP_STATUS_CHOICES, default='ongoing')
 
     created_at = models.DateTimeField(auto_now_add=True)
     cancelation_reason = models.CharField(max_length=250,null=True,blank=True)
@@ -50,19 +50,33 @@ class BaseBooking(models.Model):
     def balance_amount(self):
         return self.total_amount - self.advance_amount
     
+    def generate_unique_booking_id(self):
+        while True:
+            booking_id = random.randint(10000, 99999)
+            if not self.__class__.objects.filter(booking_id=booking_id).exists():
+                return booking_id
+
+    def save(self, *args, **kwargs):
+        if not self.booking_id:
+            self.booking_id = self.generate_unique_booking_id()
+        super().save(*args, **kwargs)
+    
 
 class BusBooking(BaseBooking):
+    booking_id = models.PositiveIntegerField(unique=True, editable=False)
     bus = models.ForeignKey(Bus, on_delete=models.CASCADE, related_name='bookings')
     one_way = models.BooleanField(default=True)
     
     def __str__(self):
-        return f"Bus Booking #{self.id} - {self.from_location} to {self.to_location} ({self.start_date})"
+        return f"Bus Booking #{self.booking_id} - {self.from_location} to {self.to_location} ({self.start_date})"
 
 class PackageBooking(BaseBooking):
+    booking_id = models.PositiveIntegerField(unique=True, editable=False)
     package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='bookings')
     
     def __str__(self):
-        return f"Package Booking #{self.id} - {self.package.places} ({self.created_at})"
+        return f"Package Booking #{self.booking_id} - {self.package.places} ({self.created_at})"
+
 
 class Travelers(models.Model):
     """Model for individual travelers associated with a booking"""

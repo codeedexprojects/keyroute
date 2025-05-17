@@ -11,146 +11,149 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from admin_panel.models import *
 from .serializers import ReviewStatsSerializer
 
-class BusReviewView(APIView):
+
+class ReviewView(APIView):
+    """
+    Unified API view for handling both bus and package reviews.
+    Supports creating and retrieving reviews for both types.
+    """
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
         user = request.user
-        bus_id = request.data.get("bus_id")
+        item_type = request.data.get("item_type")
+        item_id = request.data.get("item_id")
         rating = request.data.get("rating")
         comment = request.data.get("comment", "")
 
-        if not bus_id or not rating:
-            return Response({"error": "Bus ID and Rating are required."}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            bus = Bus.objects.get(id=bus_id)
-            
-            if BusReview.objects.filter(user=user, bus=bus).exists():
-                return Response({"error": "You have already reviewed this bus."}, status=status.HTTP_400_BAD_REQUEST)
-
-            completed_booking = BusBooking.objects.filter(
-                user=user, 
-                bus=bus, 
-                trip_status='completed'
-            ).exists()
-
-            if not completed_booking:
-                return Response(
-                    {"error": "You can only review after completing the trip."}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            review = BusReview.objects.create(user=user, bus=bus, rating=rating, comment=comment)
-            serializer = BusReviewSerializer(review)
-
+        if not item_type or not item_id or not rating:
             return Response(
-                {"message": "Review submitted successfully.", "review": serializer.data},
-                status=status.HTTP_201_CREATED
+                {"error": "Item type, Item ID, and Rating are required."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if item_type not in ['bus', 'package']:
+            return Response(
+                {"error": "Item type must be either 'bus' or 'package'."}, 
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        except Bus.DoesNotExist:
-            return Response({"error": "Bus not found."}, status=status.HTTP_404_NOT_FOUND)
-    
-    def get(self, request, bus_id=None):
-        if not bus_id:
-            return Response({"error": "Bus ID is required"}, status=status.HTTP_400_BAD_REQUEST)
-            
         try:
-            bus = Bus.objects.get(id=bus_id)
-        except Bus.DoesNotExist:
-            return Response({"error": "Bus not found"}, status=status.HTTP_404_NOT_FOUND)
+            if item_type == 'bus':
+                item = Bus.objects.get(id=item_id)
+                
+                # Check if user already reviewed this bus
+                if BusReview.objects.filter(user=user, bus=item).exists():
+                    return Response(
+                        {"error": "You have already reviewed this bus."}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
-        reviews = BusReview.objects.filter(bus=bus).order_by('-created_at')
+                # Check if user completed a booking with this bus
+                completed_booking = BusBooking.objects.filter(
+                    user=user, 
+                    bus=item, 
+                    trip_status='completed'
+                ).exists()
+                
+                if not completed_booking:
+                    return Response(
+                        {"error": "You can only review after completing the trip."}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Create the review
+                review = BusReview.objects.create(user=user, bus=item, rating=rating, comment=comment)
+                serializer = BusReviewSerializer(review, context={'request': request})
+                
+            else:  # item_type == 'package'
+                item = Package.objects.get(id=item_id)
+                
+                # Check if user already reviewed this package
+                if PackageReview.objects.filter(user=user, package=item).exists():
+                    return Response(
+                        {"error": "You have already reviewed this package."}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
-        rating_breakdown = reviews.values("rating").annotate(count=Count("rating")).order_by("-rating")
-        rating_summary = {str(int(rating["rating"])) + "★": rating["count"] for rating in rating_breakdown}
-
-        average_rating = reviews.aggregate(average=Avg("rating"))["average"] or 0.0
-
-        review_serializer = BusReviewSerializer(reviews, many=True)
-
-        response_data = {
-            "bus_name": bus.bus_name,
-            "average_rating": round(average_rating, 1),
-            "total_reviews": reviews.count(),
-            "rating_breakdown": rating_summary,
-            "reviews": review_serializer.data
-        }
-
-        return Response(response_data, status=status.HTTP_200_OK)
-
-
-class PackageReviewView(APIView):
-    permission_classes = [IsAuthenticated]
-    
-    def post(self, request):
-        user = request.user
-        package_id = request.data.get("package_id")
-        rating = request.data.get("rating")
-        comment = request.data.get("comment", "")
-
-        if not package_id or not rating:
-            return Response({"error": "Package ID and Rating are required."}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            package = Package.objects.get(id=package_id)
+                # Check if user completed a booking with this package
+                completed_booking = PackageBooking.objects.filter(
+                    user=user, 
+                    package=item, 
+                    trip_status='completed'
+                ).exists()
+                
+                if not completed_booking:
+                    return Response(
+                        {"error": "You can only review after completing the trip."}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Create the review
+                review = PackageReview.objects.create(user=user, package=item, rating=rating, comment=comment)
+                serializer = PackageReviewSerializer(review, context={'request': request})
             
-            if PackageReview.objects.filter(user=user, package=package).exists():
-                return Response({"error": "You have already reviewed this package."}, status=status.HTTP_400_BAD_REQUEST)
-
-            completed_booking = PackageBooking.objects.filter(
-                user=user, 
-                package=package, 
-                trip_status='completed'
-            ).exists()
-
-            if not completed_booking:
-                return Response(
-                    {"error": "You can only review after completing the trip."}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            review = PackageReview.objects.create(user=user, package=package, rating=rating, comment=comment)
-            serializer = PackageReviewSerializer(review)
-
             return Response(
-                {"message": "Review submitted successfully.", "review": serializer.data},
+                {"message": f"{item_type.capitalize()} review submitted successfully.", "review": serializer.data},
                 status=status.HTTP_201_CREATED
             )
-
-        except Package.DoesNotExist:
-            return Response({"error": "Package not found."}, status=status.HTTP_404_NOT_FOUND)
+            
+        except (Bus.DoesNotExist, Package.DoesNotExist):
+            return Response(
+                {"error": f"{item_type.capitalize()} not found."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
     
-    def get(self, request, package_id=None):
-        if not package_id:
-            return Response({"error": "Package ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+    def get(self, request):
+        item_type = request.query_params.get("item_type")
+        item_id = request.query_params.get("item_id")
+        
+        if not item_type or not item_id:
+            return Response(
+                {"error": "Item type and Item ID are required."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if item_type not in ['bus', 'package']:
+            return Response(
+                {"error": "Item type must be either 'bus' or 'package'."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
             
         try:
-            package = Package.objects.get(id=package_id)
-        except Package.DoesNotExist:
-            return Response({"error": "Package not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        reviews = PackageReview.objects.filter(package=package).order_by('-created_at')
-
-        rating_breakdown = reviews.values("rating").annotate(count=Count("rating")).order_by("-rating")
-        rating_summary = {str(int(rating["rating"])) + "★": rating["count"] for rating in rating_breakdown}
-
-        average_rating = reviews.aggregate(average=Avg("rating"))["average"] or 0.0
-
-        review_serializer = PackageReviewSerializer(reviews, many=True)
-
-        response_data = {
-            "package_name": package.places,
-#             "package_name": package,
-            "average_rating": round(average_rating, 1),
-            "total_reviews": reviews.count(),
-            "rating_breakdown": rating_summary,
-            "reviews": review_serializer.data
-        }
-
-        return Response(response_data, status=status.HTTP_200_OK)
-    
+            if item_type == 'bus':
+                item = Bus.objects.get(id=item_id)
+                reviews = BusReview.objects.filter(bus=item).order_by('-created_at')
+                review_serializer = BusReviewSerializer(reviews, many=True, context={'request': request})
+                item_name = item.bus_name
+                
+            else:  # item_type == 'package'
+                item = Package.objects.get(id=item_id)
+                reviews = PackageReview.objects.filter(package=item).order_by('-created_at')
+                review_serializer = PackageReviewSerializer(reviews, many=True, context={'request': request})
+                item_name = item.places
+            
+            # Calculate rating breakdown and average
+            rating_breakdown = reviews.values("rating").annotate(count=Count("rating")).order_by("-rating")
+            rating_summary = {str(int(rating["rating"])) + "★": rating["count"] for rating in rating_breakdown}
+            average_rating = reviews.aggregate(average=Avg("rating"))["average"] or 0.0
+            
+            response_data = {
+                "item_type": item_type,
+                "item_name": item_name,
+                "average_rating": round(average_rating, 1),
+                "total_reviews": reviews.count(),
+                "rating_breakdown": rating_summary,
+                "reviews": review_serializer.data
+            }
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+            
+        except (Bus.DoesNotExist, Package.DoesNotExist):
+            return Response(
+                {"error": f"{item_type.capitalize()} not found."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )    
 
 
 class VendorAllReviewsView(APIView):

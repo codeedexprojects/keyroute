@@ -6,6 +6,13 @@ from admin_panel.models import AdminCommission
 from django.contrib.auth import get_user_model
 from users.models import Wallet, ReferralRewardTransaction
 from decimal import Decimal
+from vendors.models import Package, PackageImage, DayPlan, Place, PlaceImage, Stay, StayImage, Meal, MealImage, Activity, ActivityImage
+from django.db import models
+from users.models import Favourite
+from django.db.models import Avg
+from vendors.models import *
+from datetime import timedelta
+
 
 User = get_user_model()
 
@@ -29,7 +36,7 @@ class BaseBookingSerializer(serializers.ModelSerializer):
     
     class Meta:
         abstract = True
-        fields = ['id', 'user', 'start_date', 'total_amount', 'advance_amount', 
+        fields = ['booking_id', 'user', 'start_date', 'total_amount', 'advance_amount', 
                  'payment_status', 'booking_status', 'trip_status', 'created_at', 
                  'balance_amount', 'cancelation_reason', 'total_travelers', 
                  'male', 'female', 'children', 'from_location', 'to_location']
@@ -143,6 +150,28 @@ class BusBookingSerializer(BaseBookingSerializer):
             logger.error(f"Unexpected error during referral processing: {str(e)}")
 
         return booking
+    
+
+class SinglePackageBookingSerilizer(serializers.ModelSerializer):
+    end_date = serializers.SerializerMethodField()
+    paid_amount = serializers.SerializerMethodField()
+    bus_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PackageBooking
+        fields = ['booking_id','from_location','to_location','start_date','end_date','total_travelers','total_amount','paid_amount','bus_name']
+
+    def get_end_date(self, obj):
+        total_days = obj.package.days + obj.package.nights
+        end_date = obj.start_date + timedelta(days=total_days)
+        return end_date
+    
+    def get_paid_amount(self, obj):
+        return obj.advance_amount
+    
+    def get_bus_name(self, obj):
+        buses = obj.package.buses.all()
+        return [bus.bus_name for bus in buses]
 
 
 class PackageBookingSerializer(BaseBookingSerializer):
@@ -294,3 +323,255 @@ class TravelerCreateSerializer(serializers.ModelSerializer):
             traveler.package_booking.save()
             
         return traveler
+    
+class PackageFilterSerializer(serializers.ModelSerializer):
+    package_name = serializers.SerializerMethodField()
+    package_id = serializers.SerializerMethodField()
+    package_images = serializers.SerializerMethodField()
+    capacity = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    total_reviews = serializers.SerializerMethodField()
+    bus_name = serializers.SerializerMethodField()
+    bus_id = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = PackageBooking
+        fields = ['booking_id','package_name','total_travelers','start_date','total_amount','from_location',
+                  'to_location','created_at','average_rating', 'total_reviews','package_images','capacity','bus_name','package_id','bus_id']
+
+    def get_package_name(self, obj):
+        return obj.package.places
+    
+    def get_package_id(self, obj):
+        return obj.package.id
+    
+    def get_bus_id(self, obj):
+        buses = obj.package.buses.all()
+        return [bus.id for bus in buses]
+    
+    def get_bus_name(self, obj):
+        buses = obj.package.buses.all()
+        return [bus.bus_name for bus in buses]
+    
+    def get_capacity(self, obj):
+        buses = obj.package.buses.all()
+        total_capacity = sum(bus.capacity for bus in buses)
+        return total_capacity
+
+    
+    def get_average_rating(self, obj):
+        avg = obj.package.package_reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(avg, 1) if avg else 0.0
+
+    def get_total_reviews(self, obj):
+        return obj.package.package_reviews.count()
+    
+    def get_package_images(self, obj):
+        request = self.context.get('request')
+        images = obj.package.package_images.all()
+        return [request.build_absolute_uri(image.image.url) for image in images if image.image]
+    
+class BusFilterSerializer(serializers.ModelSerializer):
+    bus_name = serializers.SerializerMethodField()
+    bus_id = serializers.SerializerMethodField()
+    bus_images = serializers.SerializerMethodField()
+    capacity = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    total_reviews = serializers.SerializerMethodField()
+
+    class Meta:
+        model = BusBooking
+        fields = ['booking_id','bus_name','total_travelers','start_date','total_amount','from_location',
+                  'to_location','created_at','average_rating', 'total_reviews','bus_images','capacity','bus_id']
+
+    def get_bus_name(self, obj):
+        return obj.bus.bus_name
+    
+    def get_bus_id(self, obj):
+        return obj.bus.id
+    
+    def get_capacity(self,obj):
+        return obj.bus.capacity
+
+    def get_average_rating(self, obj):
+        avg = obj.bus.bus_reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(avg, 1) if avg else 0.0
+
+    def get_total_reviews(self, obj):
+        return obj.bus.bus_reviews.count()
+    
+    def get_bus_images(self, obj):
+        request = self.context.get('request')
+        images = obj.bus.images.all()
+        return [request.build_absolute_uri(image.bus_view_image.url) for image in images if image.bus_view_image]
+    
+
+
+class PackageImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageImage
+        fields = ['id', 'image', 'uploaded_at']
+
+
+class PlaceImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlaceImage
+        fields = ['id', 'image']
+
+
+class PlaceSerializer(serializers.ModelSerializer):
+    images = PlaceImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Place
+        fields = ['id', 'name', 'description', 'images']
+
+
+class StayImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StayImage
+        fields = ['id', 'image']
+
+
+class StaySerializer(serializers.ModelSerializer):
+    images = StayImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Stay
+        fields = ['id', 'hotel_name', 'description', 'location', 'is_ac', 'has_breakfast', 'images']
+
+
+class MealImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MealImage
+        fields = ['id', 'image']
+
+
+class MealSerializer(serializers.ModelSerializer):
+    images = MealImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Meal
+        fields = ['id', 'type', 'description', 'restaurant_name', 'location', 'time', 'images']
+
+
+class ActivityImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActivityImage
+        fields = ['id', 'image']
+
+
+class ActivitySerializer(serializers.ModelSerializer):
+    images = ActivityImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Activity
+        fields = ['id', 'name', 'description', 'time', 'location', 'images']
+
+
+class DayPlanSerializer(serializers.ModelSerializer):
+    places = PlaceSerializer(many=True, read_only=True)
+    stay = StaySerializer(read_only=True)
+    meals = MealSerializer(many=True, read_only=True)
+    activities = ActivitySerializer(many=True, read_only=True)
+
+    class Meta:
+        model = DayPlan
+        fields = ['id', 'day_number', 'description', 'places', 'stay', 'meals', 'activities']
+
+class AmenitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Amenity
+        fields = ['id', 'name', 'icon']
+
+
+class BusFeatureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusFeature
+        fields = ['id', 'name']
+
+
+class BusImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusImage
+        fields = ['id', 'bus_view_image']
+
+
+class BusTravelImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusTravelImage
+        fields = ['id', 'image']
+
+
+class BusDetailSerializer(serializers.ModelSerializer):
+    amenities = AmenitySerializer(many=True, read_only=True)
+    features = BusFeatureSerializer(many=True, read_only=True)
+    images = BusImageSerializer(many=True, read_only=True)
+    travel_images = BusTravelImageSerializer(many=True, read_only=True)
+
+    average_rating = serializers.SerializerMethodField()
+    total_reviews = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Bus
+        fields = [
+            'id', 'bus_name', 'bus_number', 'capacity', 'vehicle_description', 'vehicle_rc_number',
+            'travels_logo', 'rc_certificate', 'license', 'contract_carriage_permit', 'passenger_insurance',
+            'vehicle_insurance', 'base_price', 'price_per_km', 'minimum_fare', 'status',
+            'amenities', 'features', 'images', 'travel_images',
+            'average_rating', 'total_reviews'
+        ]
+
+    def get_average_rating(self, obj):
+        avg = obj.bus_reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(avg, 1) if avg else 0.0
+
+    def get_total_reviews(self, obj):
+        return obj.bus_reviews.count()
+
+
+
+class PackageSerializer(serializers.ModelSerializer):
+    package_images = PackageImageSerializer(many=True, read_only=True)
+    day_plans = DayPlanSerializer(many=True, read_only=True)
+
+    travels_name = serializers.SerializerMethodField()
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)
+    sub_category_name = serializers.CharField(source='sub_category.name', read_only=True)
+    buses = BusDetailSerializer(many=True, read_only=True)
+    is_favorite = serializers.SerializerMethodField()
+    price_per_person = serializers.SerializerMethodField()
+    extra_charge_per_km = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    total_reviews = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Package
+        fields = [
+            'id', 'vendor_name', 'sub_category_name', 'header_image', 'places', 'days', 'nights',
+            'ac_available', 'guide_included', 'buses', 'bus_location', 'price_per_person',
+            'extra_charge_per_km', 'status', 'average_rating', 'total_reviews',
+            'package_images', 'day_plans', 'created_at', 'updated_at', 'travels_name', 'is_favorite'
+        ]
+
+    def get_travels_name(self, obj):
+        return obj.vendor.travels_name
+
+    def get_is_favorite(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return Favourite.objects.filter(user=request.user, package=obj).exists()
+        return False
+
+    def get_price_per_person(self, obj):
+        return int(obj.price_per_person)
+
+    def get_extra_charge_per_km(self, obj):
+        return int(obj.extra_charge_per_km)
+
+    def get_average_rating(self, obj):
+        avg = obj.package_reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(avg, 1) if avg else 0.0
+
+    def get_total_reviews(self, obj):
+        return obj.package_reviews.count()
