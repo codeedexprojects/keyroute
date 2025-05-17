@@ -21,7 +21,7 @@ from rest_framework import status as http_status
 from itertools import chain
 from vendors.models import PackageCategory,PackageSubCategory
 from vendors.serializers import PackageCategorySerializer,PackageSubCategorySerializer
-from .serializers import PackageFilterSerializer,BusFilterSerializer,PackageSerializer,SinglePackageBookingSerilizer
+from .serializers import PackageFilterSerializer,BusFilterSerializer,PackageSerializer,SinglePackageBookingSerilizer,SingleBusBookingSerializer
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from .utils import *
@@ -249,7 +249,7 @@ class BusBookingDetailAPIView(APIView):
     
     def get(self, request, pk):
         booking = self.get_object(pk, request.user)
-        serializer = BusBookingSerializer(booking)
+        serializer = SingleBusBookingSerializer(booking)
         return Response(serializer.data)
     
     def put(self, request, pk):
