@@ -25,7 +25,7 @@ urlpatterns = [
     path('bookings/bus/<int:pk>/', BusBookingDetailAPIView.as_view(), name='bus-booking-detail'),
     path('bookings/bus/<int:booking_id>/travelers/', BusBookingTravelersAPIView.as_view(), name='bus-booking-travelers'),
 
-    path('bookings/<str:booking_type>/cancel/',CancelBookingView.as_view(),name="booking_cancel"),
+    path('bookings/cancel/',CancelBookingView.as_view(),name="booking_cancel"),
     
     # Bookstatus endpoints
     path('bookings/status/<str:status_filter>/', UserBookingsByStatus.as_view(), name='bookings-by-status'),
