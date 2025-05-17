@@ -450,8 +450,9 @@ class VendorPackageBookingByStatusAPI(APIView):
 class CancelBookingView(APIView):
     permission_classes = [IsAuthenticated]
     
-    def post(self, request, booking_type):
+    def post(self, request):
         id = request.data.get('booking_id')
+        booking_type = request.data.get('booking_type')
         cancellation_reason = request.data.get('cancellation_reason')
         
         if not booking_type or not id:
