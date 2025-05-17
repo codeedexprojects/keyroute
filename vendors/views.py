@@ -3953,3 +3953,11 @@ class BookingDetailByIdView(APIView):
 
 
 
+class PackageUpdateAPIView(APIView):
+    def put(self, request, pk):
+        package = get_object_or_404(Package, pk=pk)
+        serializer = PackageSerializer(package, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
