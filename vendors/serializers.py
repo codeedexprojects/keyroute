@@ -462,7 +462,7 @@ class PackageSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'vendor', 'vendor_name', 'sub_category', 'sub_category_name', 
             'places', 'days', 'nights', 'ac_available', 'guide_included', 
-            'buses', 'header_image', 'created_at', 'updated_at'
+            'buses', 'header_image', 'created_at', 'updated_at','latitude','longitude'
         ]
 
     def validate(self, data):
@@ -564,7 +564,7 @@ class PackageSerializer(serializers.ModelSerializer):
             'id',
             'sub_category', 'header_image', 'places', 'days', 'nights',
             'ac_available', 'guide_included', 'buses', 
-            'day_plans','day_plans_read','average_rating', 'total_reviews','price_per_person','is_favorite','travels_name','travels_location'
+            'day_plans','day_plans_read','average_rating', 'total_reviews','price_per_person','is_favorite','travels_name','travels_location','longitude','latitude'
         ]
     
     def get_travels_name(self, obj):
