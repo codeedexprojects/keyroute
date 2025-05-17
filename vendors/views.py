@@ -1138,6 +1138,12 @@ class EditDayPlanAPIView(APIView):
                 PlaceImage.objects.create(place=place, image=img)
 
             # ----------------- STAY -----------------
+#             if files.getlist("place_images"):
+#                 place.images.all().delete()
+#                 for img in files.getlist("place_images"):
+#                     PlaceImage.objects.create(place=place, image=img)
+
+
             stay = day_plan.stay
             stay.hotel_name = data.get("stay_name", stay.hotel_name)
             stay.description = data.get("stay_description", stay.description)
