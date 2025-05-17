@@ -331,14 +331,14 @@ class PackageFilterSerializer(serializers.ModelSerializer):
     capacity = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
     total_reviews = serializers.SerializerMethodField()
-    bus_name = serializers.SerializerMethodField()
+    package_bus_name = serializers.SerializerMethodField()
     bus_id = serializers.SerializerMethodField()
     travels_name = serializers.SerializerMethodField()
     
     class Meta:
         model = PackageBooking
         fields = ['booking_id','package_name','total_travelers','start_date','total_amount','from_location',
-                  'to_location','created_at','average_rating', 'total_reviews','package_images','capacity','bus_name','package_id','bus_id','travels_name']
+                  'to_location','created_at','average_rating', 'total_reviews','package_images','capacity','package_bus_name','package_id','bus_id','travels_name']
 
     def get_package_name(self, obj):
         return obj.package.places
@@ -353,7 +353,7 @@ class PackageFilterSerializer(serializers.ModelSerializer):
         buses = obj.package.buses.all()
         return [bus.id for bus in buses]
     
-    def get_bus_name(self, obj):
+    def get_package_bus_name(self, obj):
         buses = obj.package.buses.all()
         return [bus.bus_name for bus in buses]
     
