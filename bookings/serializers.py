@@ -12,6 +12,8 @@ from users.models import Favourite
 from django.db.models import Avg
 from vendors.models import *
 from datetime import timedelta
+from django.conf import settings
+import requests
 
 
 User = get_user_model()
@@ -155,6 +157,56 @@ class BusBookingSerializer(BaseBookingSerializer):
 
         return booking
     
+
+class SingleBusBookingSerializer(serializers.ModelSerializer):
+    booking_type = serializers.SerializerMethodField()
+    paid_amount = serializers.SerializerMethodField()
+    bus_name = serializers.SerializerMethodField()
+    end_date = serializers.SerializerMethodField()
+
+    class Meta:
+        model = BusBooking
+        fields = [
+            'booking_id', 'from_location', 'to_location', 'start_date', 
+            'end_date', 'total_travelers', 'total_amount', 
+            'paid_amount', 'bus_name', 'booking_type'
+        ]
+
+    def get_booking_type(self, obj):
+        return "bus"
+    
+    def get_paid_amount(self, obj):
+        return obj.advance_amount
+    
+    def get_bus_name(self, obj):
+        return obj.bus.bus_name
+
+    def get_end_date(self, obj):
+        origin = obj.from_location
+        destination = obj.to_location
+        api_key = settings.GOOGLE_MAPS_API_KEY
+
+        url = (
+            f'https://maps.googleapis.com/maps/api/distancematrix/json'
+            f'?origins={origin}&destinations={destination}'
+            f'&mode=driving&key={api_key}'
+        )
+        
+        try:
+            response = requests.get(url)
+            data = response.json()
+
+            if data['status'] == 'OK':
+                element = data['rows'][0]['elements'][0]
+                if element['status'] == 'OK':
+                    duration_seconds = element['duration']['value']
+                    duration = timedelta(seconds=duration_seconds)
+                    end_date = obj.start_date + duration
+                    return end_date
+        except Exception as e:
+            print("Error getting travel time:", e)
+
+        return obj.start_date
 
 class SinglePackageBookingSerilizer(serializers.ModelSerializer):
     end_date = serializers.SerializerMethodField()
@@ -340,13 +392,13 @@ class PackageFilterSerializer(serializers.ModelSerializer):
     average_rating = serializers.SerializerMethodField()
     total_reviews = serializers.SerializerMethodField()
     package_bus_name = serializers.SerializerMethodField()
-    bus_id = serializers.SerializerMethodField()
+    package_bus_id = serializers.SerializerMethodField()
     travels_name = serializers.SerializerMethodField()
     
     class Meta:
         model = PackageBooking
         fields = ['booking_id','package_name','total_travelers','start_date','total_amount','from_location',
-                  'to_location','created_at','average_rating', 'total_reviews','package_images','capacity','package_bus_name','package_id','bus_id','travels_name']
+                  'to_location','created_at','average_rating', 'total_reviews','package_images','capacity','package_bus_name','package_id','package_bus_id','travels_name']
 
     def get_package_name(self, obj):
         return obj.package.places
@@ -357,7 +409,7 @@ class PackageFilterSerializer(serializers.ModelSerializer):
     def get_package_id(self, obj):
         return obj.package.id
     
-    def get_bus_id(self, obj):
+    def get_package_bus_id(self, obj):
         buses = obj.package.buses.all()
         return [bus.id for bus in buses]
     

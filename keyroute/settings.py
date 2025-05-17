@@ -27,6 +27,8 @@ pymysql.install_as_MySQLdb()
 # Load environment variables from .env file
 load_dotenv()
 
+GOOGLE_MAPS_API_KEY = "AIzaSyCnNixdBmNb0cOCet3HofxffjMSKOsAm4w"
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
