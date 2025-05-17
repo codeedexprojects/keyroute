@@ -9,7 +9,7 @@ from .serializers import (
     TravelerSerializer, TravelerCreateSerializer
 )
 from vendors.models import Package, Bus
-from vendors.serializers import PackageSerializer, BusSerializer
+from vendors.serializers import BusSerializer
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from admin_panel.models import Vendor
 from users.models import Favourite
@@ -21,17 +21,62 @@ from rest_framework import status as http_status
 from itertools import chain
 from vendors.models import PackageCategory,PackageSubCategory
 from vendors.serializers import PackageCategorySerializer,PackageSubCategorySerializer
-
-
+from .serializers import PackageFilterSerializer,BusFilterSerializer,PackageSerializer,SinglePackageBookingSerilizer
+from geopy.geocoders import Nominatim
+from geopy.distance import geodesic
 from .utils import *
+
+
 
 class PackageListAPIView(APIView):
     permission_classes = [AllowAny]
     
-    def get(self, request):
-        packages = Package.objects.all()
+    def get(self, request, category):
+        lat = request.query_params.get('lat')
+        lon = request.query_params.get('lon')
+
+        user_coords = None
+        if lat and lon:
+            try:
+                lat = float(lat)
+                lon = float(lon)
+                if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+                    return Response({"error": "Latitude must be between -90 and 90, and longitude between -180 and 180."}, status=400)
+                user_coords = (lat, lon)
+
+                try:
+                    geolocator = Nominatim(user_agent="coord-debug")
+                    location = geolocator.reverse(user_coords, exactly_one=True, timeout=10)
+                    print(location.address if location else "Invalid coordinates")
+                except Exception as e:
+                    print(f"Geolocation error: {e}")
+            except ValueError:
+                return Response({"error": "Latitude and longitude must be valid float values."}, status=400)
+
+        packages = Package.objects.filter(sub_category=category)
+        if not packages.exists():
+            return Response({"error": f"No packages found under category '{category}'."}, status=404)
+
+        if user_coords:
+            nearby_packages = []
+            for package in packages:
+                if package.latitude is not None and package.longitude is not None:
+                    package_coords = (package.latitude, package.longitude)
+                    distance_km = geodesic(user_coords, package_coords).kilometers
+                    if distance_km <= 30:
+                        nearby_packages.append(package)
+
+            if not nearby_packages:
+                return Response({
+                    "message": f"No packages found near your location within 30 km"
+                }, status=200)
+
+            serializer = PackageSerializer(nearby_packages, many=True, context={'request': request})
+            return Response(serializer.data)
+
         serializer = PackageSerializer(packages, many=True, context={'request': request})
         return Response(serializer.data)
+
     
 class SinglePackageListAPIView(APIView):
     permission_classes = [AllowAny]
@@ -66,7 +111,17 @@ class PackageBookingListCreateAPIView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        serializer = PackageBookingSerializer(data=request.data, context={'request': request})
+        data = request.data.copy()
+        query_data = {
+            'start_date': request.query_params.get('start_date'),
+            'total_travelers': request.query_params.get('total_travelers'),
+            'from_location': request.query_params.get('from_location'),
+            'children': request.query_params.get('children'),
+            'female': request.query_params.get('female'),
+            'male': request.query_params.get('male'),
+        }
+        data.update(query_data)
+        serializer = PackageBookingSerializer(data=data, context={'request': request})
         if serializer.is_valid():
             package = serializer.validated_data['package']
             vendor = package.vendor
@@ -111,26 +166,25 @@ class PackageBookingDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get_object(self, pk, user):
-        return get_object_or_404(PackageBooking, pk=pk, user=user)
+        return get_object_or_404(PackageBooking, booking_id=pk, user=user)
     
     def get(self, request, pk):
         booking = self.get_object(pk, request.user)
-        serializer = PackageBookingSerializer(booking)
+        serializer = SinglePackageBookingSerilizer(booking)
         return Response(serializer.data)
     
-    def put(self, request, pk):
+    def patch(self, request, pk):
         booking = self.get_object(pk, request.user)
         old_status = booking.payment_status
         serializer = PackageBookingSerializer(booking, data=request.data, partial=True)
+        
         if serializer.is_valid():
             booking = serializer.save()
-            
             if 'payment_status' in request.data and old_status != booking.payment_status:
                 send_notification(
                     user=request.user,
                     message=f"Your package booking #{pk} status has been updated to: {booking.payment_status}"
                 )
-                
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -191,7 +245,7 @@ class BusBookingDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get_object(self, pk, user):
-        return get_object_or_404(BusBooking, pk=pk, user=user)
+        return get_object_or_404(BusBooking, booking_id=pk, user=user)
     
     def get(self, request, pk):
         booking = self.get_object(pk, request.user)
@@ -322,11 +376,11 @@ class UserBookingsByStatus(APIView):
 
     def get(self, request, status_filter):
         user = request.user
-        package_bookings = PackageBooking.objects.filter(payment_status=status_filter, user=user)
-        bus_bookings = BusBooking.objects.filter(payment_status=status_filter, user=user)
+        package_bookings = PackageBooking.objects.filter(trip_status=status_filter, user=user)
+        bus_bookings = BusBooking.objects.filter(trip_status=status_filter, user=user)
 
-        package_serializer = PackageBookingSerializer(package_bookings, many=True)
-        bus_serializer = BusBookingSerializer(bus_bookings, many=True)
+        package_serializer = PackageFilterSerializer(package_bookings, many=True,context={'request': request})
+        bus_serializer = BusFilterSerializer(bus_bookings, many=True,context={'request': request})
 
         for item in package_serializer.data:
             item['booking_type'] = 'package'
@@ -397,10 +451,10 @@ class CancelBookingView(APIView):
     permission_classes = [IsAuthenticated]
     
     def post(self, request, booking_type):
-        booking_id = request.data.get('booking_id')
+        id = request.data.get('booking_id')
         cancellation_reason = request.data.get('cancellation_reason')
         
-        if not booking_type or not booking_id:
+        if not booking_type or not id:
             return Response(
                 {"error": "Both booking_type and booking_id are required"}, 
                 status=status.HTTP_400_BAD_REQUEST
@@ -414,10 +468,10 @@ class CancelBookingView(APIView):
         
         try:
             if booking_type == 'bus':
-                booking = BusBooking.objects.get(id=booking_id)
+                booking = BusBooking.objects.get(booking_id=id)
                 serializer_class = BusBookingSerializer
             else:
-                booking = PackageBooking.objects.get(id=booking_id)
+                booking = PackageBooking.objects.get(booking_id=id)
                 serializer_class = PackageBookingSerializer
                 
             if booking.user != request.user:
@@ -433,12 +487,13 @@ class CancelBookingView(APIView):
                 )
                 
             booking.payment_status = 'cancelled'
+            booking.trip_status = 'cancelled'
             booking.cancelation_reason = cancellation_reason
             booking.save()
 
             send_notification(
                 user=request.user,
-                message=f"Your booking with ID {booking_id} has been successfully canceled."
+                message=f"Your booking with ID {id} has been successfully canceled."
             )
 
             
@@ -447,7 +502,7 @@ class CancelBookingView(APIView):
             
         except (BusBooking.DoesNotExist, PackageBooking.DoesNotExist):
             return Response(
-                {"error": f"{booking_type.capitalize()} booking with id {booking_id} does not exist"}, 
+                {"error": f"{booking_type.capitalize()} booking with id {id} does not exist"}, 
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
