@@ -49,11 +49,12 @@ class BaseBookingSerializer(serializers.ModelSerializer):
 class BusBookingSerializer(BaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     bus_details = serializers.SerializerMethodField(read_only=True)
+    booking_type = serializers.SerializerMethodField()
 
     class Meta:
         model = BusBooking
         fields = BaseBookingSerializer.Meta.fields + [
-            'bus', 'bus_details', 'one_way', 'travelers',
+            'bus', 'bus_details', 'one_way', 'travelers','booking_type'
         ]
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
@@ -63,6 +64,9 @@ class BusBookingSerializer(BaseBookingSerializer):
     def get_bus_details(self, obj):
         from vendors.serializers import BusSerializer
         return BusSerializer(obj.bus).data
+    
+    def get_booking_type(self, obj):
+        return "bus"
 
     def create(self, validated_data):
         import logging
@@ -156,15 +160,19 @@ class SinglePackageBookingSerilizer(serializers.ModelSerializer):
     end_date = serializers.SerializerMethodField()
     paid_amount = serializers.SerializerMethodField()
     bus_name = serializers.SerializerMethodField()
+    booking_type = serializers.SerializerMethodField()
 
     class Meta:
         model = PackageBooking
-        fields = ['booking_id','from_location','to_location','start_date','end_date','total_travelers','total_amount','paid_amount','bus_name']
+        fields = ['booking_id','from_location','to_location','start_date','end_date','total_travelers','total_amount','paid_amount','bus_name','booking_type']
 
     def get_end_date(self, obj):
         total_days = obj.package.days + obj.package.nights
         end_date = obj.start_date + timedelta(days=total_days)
         return end_date
+    
+    def get_booking_type(self, obj):
+        return "package"
     
     def get_paid_amount(self, obj):
         return obj.advance_amount
