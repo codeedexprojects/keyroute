@@ -2,11 +2,12 @@ from django.urls import path
 from .views import (UserLogoutView, UserProfileAPIView,  AuthenticationView, 
                     VerifyOTPView,FavouriteAPIView,ListFavourites, GetReferralCodeView,
                     GetWalletView,OngoingReferralsView,ReferralHistoryView,
-                    ExperianceView,SightView,GreetingAPIView)
+                    ExperianceView,SightView,GreetingAPIView,ResendOTPView)
 
 urlpatterns = [
     path("auth/", AuthenticationView.as_view(), name="user-authentication"),
     path("verify-otp/", VerifyOTPView.as_view(), name="verify-otp"),
+     path('auth/resend-otp/', ResendOTPView.as_view()),
     path('logout/', UserLogoutView.as_view(), name='user-logout'),
 
     # path('reviews/create/', CreateReviewView.as_view(), name='create-review'),
