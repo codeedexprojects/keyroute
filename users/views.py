@@ -31,7 +31,6 @@ User = get_user_model()
 class AuthenticationView(APIView):
     def post(self, request):
         mobile = request.data.get('mobile')
-        
         user_exists = User.objects.filter(mobile=mobile).exists()
         
         if user_exists:
@@ -48,25 +47,19 @@ class AuthenticationView(APIView):
         response = send_otp(mobile)
         
         if response.get("Status") == "Success":
-            session_id = response.get("Details")
-            expiry_time = datetime.now() + timedelta(minutes=10)
+            user_data = {
+                "mobile": mobile,
+                "is_new_user": is_new_user,
+                "expiry_time": (datetime.now() + timedelta(minutes=10)).timestamp(),
+                "name": serializer.validated_data.get('name'),
+                "referral_code": serializer.validated_data.get('referral_code'),
+                "referrer": serializer.validated_data.get('referrer'),
+            }
             
-            cache.set(
-                f"otp_{session_id}", 
-                {
-                    "mobile": mobile,
-                    "is_new_user": is_new_user,
-                    "expiry_time": expiry_time.timestamp(),
-                    "name": serializer.validated_data.get('name'),
-                    "referral_code": serializer.validated_data.get('referral_code'),
-                    "referrer": serializer.validated_data.get('referrer'),
-                }, 
-                timeout=600
-            )
+            cache.set(f"otp_{mobile}", user_data, timeout=600)
             
             return Response({
                 "message": "OTP sent to your mobile",
-                "session_id": session_id,
                 "is_new_user": is_new_user,
                 "temp_data": {
                     "name": serializer.validated_data.get('name'),
@@ -82,21 +75,21 @@ class VerifyOTPView(APIView):
     def post(self, request):
         mobile = request.data.get("mobile")
         otp = request.data.get("otp")
-        session_id = request.data.get("session_id")
 
-        if not mobile or not otp or not session_id:
-            return Response({"error": "Mobile number, OTP, and session ID are required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not mobile or not otp:
+            return Response({"error": "Mobile number and OTP are required"}, status=status.HTTP_400_BAD_REQUEST)
             
-        otp_data = cache.get(f"otp_{session_id}")
+        otp_data = cache.get(f"otp_{mobile}")
         
         if not otp_data:
             return Response({"error": "OTP session expired or invalid"}, status=status.HTTP_400_BAD_REQUEST)
             
         current_time = datetime.now().timestamp()
         if current_time > otp_data.get("expiry_time", 0):
-            cache.delete(f"otp_{session_id}")
+            cache.delete(f"otp_{mobile}")
             return Response({"error": "OTP has expired"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Verify OTP
         response = verify_otp(mobile, otp)
         
         if response.get("Status") == "Success":
@@ -123,7 +116,7 @@ class VerifyOTPView(APIView):
                 except User.DoesNotExist:
                     return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-            cache.delete(f"otp_{session_id}")
+            cache.delete(f"otp_{mobile}")
 
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
