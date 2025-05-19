@@ -1112,7 +1112,6 @@ class EditDayPlanAPIView(APIView):
             data = request.data
             files = request.FILES
 
-            # DayPlan Description
             day_plan.description = data.get("description", day_plan.description)
             day_plan.save()
 
@@ -1122,7 +1121,6 @@ class EditDayPlanAPIView(APIView):
             place.description = data.get("place_description", place.description)
             place.save()
 
-            # Update existing place images
             for key in files:
                 if key.startswith("place_images_"):
                     try:
@@ -1133,7 +1131,6 @@ class EditDayPlanAPIView(APIView):
                     except PlaceImage.DoesNotExist:
                         continue
 
-            # Add new place images
             for img in files.getlist("new_place_images"):
                 PlaceImage.objects.create(place=place, image=img)
 
@@ -1152,7 +1149,6 @@ class EditDayPlanAPIView(APIView):
             stay.has_breakfast = data.get("has_breakfast", str(stay.has_breakfast)).lower() == "true"
             stay.save()
 
-            # Update existing stay images
             for key in files:
                 if key.startswith("stay_images_"):
                     try:
@@ -1163,7 +1159,6 @@ class EditDayPlanAPIView(APIView):
                     except StayImage.DoesNotExist:
                         continue
 
-            # Add new stay images
             for img in files.getlist("new_stay_images"):
                 StayImage.objects.create(stay=stay, image=img)
 
@@ -1178,7 +1173,6 @@ class EditDayPlanAPIView(APIView):
             meal.location = data.get("meal_location", meal.location)
             meal.save()
 
-            # Update existing meal images
             for key in files:
                 if key.startswith("meal_images_"):
                     try:
@@ -1189,7 +1183,6 @@ class EditDayPlanAPIView(APIView):
                     except MealImage.DoesNotExist:
                         continue
 
-            # Add new meal images
             for img in files.getlist("new_meal_images"):
                 MealImage.objects.create(meal=meal, image=img)
 
@@ -1203,7 +1196,6 @@ class EditDayPlanAPIView(APIView):
             activity.location = data.get("activity_location", activity.location)
             activity.save()
 
-            # Update existing activity images
             for key in files:
                 if key.startswith("activity_images_"):
                     try:
@@ -1214,7 +1206,6 @@ class EditDayPlanAPIView(APIView):
                     except ActivityImage.DoesNotExist:
                         continue
 
-            # Add new activity images
             for img in files.getlist("new_activity_images"):
                 ActivityImage.objects.create(activity=activity, image=img)
 

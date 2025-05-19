@@ -61,7 +61,6 @@ class AuthenticationView(APIView):
                 },
                 timeout=600
             )
-
             return Response({
                 "message": "OTP sent to your mobile",
                 "is_new_user": is_new_user,
@@ -70,6 +69,7 @@ class AuthenticationView(APIView):
                     "name": serializer.validated_data.get('name'),
                     "mobile": mobile,
                     "referral_code": serializer.validated_data.get('referral_code'),
+                    
                 }
             }, status=status.HTTP_200_OK)
 
