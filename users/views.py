@@ -56,7 +56,7 @@ class AuthenticationView(APIView):
                 "referrer": serializer.validated_data.get('referrer'),
             }
             
-            cache.set(f"otp_{mobile}", user_data, timeout=600)
+
             
             return Response({
                 "message": "OTP sent to your mobile",
@@ -65,6 +65,7 @@ class AuthenticationView(APIView):
                     "name": serializer.validated_data.get('name'),
                     "mobile": mobile,
                     "referral_code": serializer.validated_data.get('referral_code'),
+                    
                 }
             }, status=status.HTTP_200_OK)
         
