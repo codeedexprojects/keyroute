@@ -8,6 +8,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 from .models import *
 from django.core.mail import send_mail
 from .serializers import *
@@ -26,6 +27,7 @@ from django.utils.timezone import now
 from .serializers import PackageBasicSerializer
 from admin_panel.models import *
 from calendar import monthrange
+from django.core.exceptions import ObjectDoesNotExist
 
 # Create your views here.
 
@@ -1506,6 +1508,46 @@ class AddDayPlanAPIView(APIView):
 
 
 
+
+class PackageEditAPIView(APIView):
+    parser_classes = [MultiPartParser, JSONParser, FormParser]
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, package_id):
+        try:
+            package = Package.objects.get(id=package_id, vendor__user=request.user)
+        except ObjectDoesNotExist:
+            return Response({"error": "Package not found or access denied."}, status=HTTP_404_NOT_FOUND)
+
+        data = request.data
+        files = request.FILES
+
+        # Update fields
+        package.places = data.get("places", package.places)
+        package.days = data.get("days", package.days)
+        package.nights = data.get("nights", package.nights)
+        package.ac_available = data.get("ac_available", str(package.ac_available)).lower() == "true"
+        package.guide_included = data.get("guide_included", str(package.guide_included)).lower() == "true"
+        package.latitude = data.get("latitude", package.latitude)
+        package.longitude = data.get("longitude", package.longitude)
+        package.bus_location = data.get("bus_location", package.bus_location)
+        package.price_per_person = data.get("price_per_person", package.price_per_person)
+        package.extra_charge_per_km = data.get("extra_charge_per_km", package.extra_charge_per_km)
+        package.status = data.get("status", package.status)
+
+        # Handle image update
+        if 'header_image' in files:
+            package.header_image = files['header_image']
+
+        # Handle buses (ManyToMany)
+        if 'buses' in data:
+            bus_ids = data.getlist('buses')
+            package.buses.set(bus_ids)
+
+        package.save()
+
+        return Response({"message": "Package updated successfully."}, status=HTTP_200_OK)
 
 
 
