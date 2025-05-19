@@ -37,6 +37,7 @@ urlpatterns = [
 
     # NEW
     path('api/vendor/packages/create/', BasicPackageAPIView.as_view(), name='create-package'),
+    # ADD DAYS
     path('api/vendor/packages/<int:package_id>/add-day-plans/', DayPlanCreateAPIView.as_view(), name='add-day-plans'),
 
 
