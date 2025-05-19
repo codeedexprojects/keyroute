@@ -45,14 +45,31 @@ class AuthenticationView(APIView):
         mobile = serializer.validated_data['mobile']
         is_new_user = serializer.validated_data['is_new_user']
         
+        # Clear any existing memory backups to avoid confusion
+        try:
+            for attr in dir(VerifyOTPView):
+                if attr.startswith(f"memory_otp_{mobile}_"):
+                    delattr(VerifyOTPView, attr)
+        except:
+            pass
+            
         # Clear any existing OTP sessions for this mobile number
-        existing_keys = [k for k in cache._cache.keys() if isinstance(k, str) and k.startswith("otp_")]
-        for key in existing_keys:
-            data = cache.get(key)
-            if data and data.get("mobile") == mobile:
-                cache.delete(key)
+        try:
+            existing_keys = [k for k in cache._cache.keys() if isinstance(k, str) and k.startswith("otp_")]
+            for key in existing_keys:
+                data = cache.get(key)
+                if data and data.get("mobile") == mobile:
+                    cache.delete(key)
+        except:
+            pass
         
-        response = send_otp(mobile)
+        # Send the OTP
+        try:
+            response = send_otp(mobile)
+            print(f"OTP send response: {response}")
+        except Exception as e:
+            print(f"OTP send error: {str(e)}")
+            return Response({"error": f"Failed to send OTP: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         if response.get("Status") == "Success":
             session_id = response.get("Details")
@@ -60,7 +77,7 @@ class AuthenticationView(APIView):
             
             cache_key = f"otp_{session_id}"
             
-            # Store all necessary data including mobile and session_id
+            # Store all necessary data
             otp_data = {
                 "mobile": mobile,
                 "is_new_user": is_new_user,
@@ -69,12 +86,18 @@ class AuthenticationView(APIView):
                 "referral_code": serializer.validated_data.get('referral_code'),
                 "referrer": serializer.validated_data.get('referrer'),
                 "session_id": session_id,  # Include the session_id in the cache data
+                "created_at": datetime.now().timestamp(),  # Add creation timestamp
             }
             
+            # Save to both cache and class-level memory
             cache.set(cache_key, otp_data, timeout=600)
             
-            # Debug message (remove in production)
-            print(f"OTP session created: {session_id} for mobile: {mobile}")
+            # Also store in class-level attribute as backup
+            memory_key = f"memory_otp_{mobile}_{session_id}"
+            setattr(VerifyOTPView, memory_key, otp_data)
+            
+            # Important debug log
+            print(f"OTP session created: {session_id} for mobile: {mobile}, cache_key: {cache_key}")
             
             return Response({
                 "message": "OTP sent to your mobile",
@@ -99,43 +122,76 @@ class VerifyOTPView(APIView):
         if not mobile or not otp or not session_id:
             return Response({"error": "Mobile number, OTP, and session ID are required"}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Debug log (you can remove this in production)
-        print(f"Verifying OTP for session: {session_id}, mobile: {mobile}")
+        # Important debug log - keep this in production for troubleshooting
+        print(f"VerifyOTP attempt: session={session_id}, mobile={mobile}")
             
-        # Get the OTP data with the exact cache key format
+        # First try the direct cache key approach
         cache_key = f"otp_{session_id}"
         otp_data = cache.get(cache_key)
         
+        # Store session data in memory if verification fails on first attempt
+        # This creates a temporary backup to help with race conditions
+        memory_key = f"memory_otp_{mobile}_{session_id}"
         if not otp_data:
-            # Check if there's a race condition or key format issue
-            all_keys = [k for k in cache._cache.keys() if str(session_id) in k]
-            if all_keys:
-                # Try to recover from alternative keys that might contain this session
-                for key in all_keys:
-                    potential_data = cache.get(key)
-                    if potential_data and potential_data.get("mobile") == mobile:
-                        otp_data = potential_data
-                        cache_key = key
-                        break
+            otp_data = getattr(VerifyOTPView, memory_key, None)
+            if otp_data:
+                print(f"Retrieved OTP data from memory backup: {memory_key}")
+        
+        # If still not found, try a broader search in the cache
+        if not otp_data:
+            try:
+                # Try to find by mobile number in any active OTP session
+                for key in cache._cache.keys():
+                    if isinstance(key, str) and key.startswith("otp_"):
+                        data = cache.get(key)
+                        if data and data.get("mobile") == mobile:
+                            print(f"Found alternative session key: {key}")
+                            otp_data = data
+                            cache_key = key
+                            break
+            except (AttributeError, TypeError):
+                # Handle cases where cache doesn't expose keys method
+                pass
                         
         if not otp_data:
-            return Response({"error": "OTP session expired or invalid. Please request a new OTP."}, 
-                           status=status.HTTP_400_BAD_REQUEST)
+            # Store the request parameters to help debugging
+            print(f"Session not found. Request data: {request.data}")
+            return Response({
+                "error": "OTP session expired or invalid. Please request a new OTP.",
+                "code": "SESSION_NOT_FOUND",
+                "session_id": session_id
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+        # Keep a memory backup for subsequent attempts
+        setattr(VerifyOTPView, memory_key, otp_data)
             
         current_time = datetime.now().timestamp()
         if current_time > otp_data.get("expiry_time", 0):
             cache.delete(cache_key)
-            return Response({"error": "OTP has expired. Please request a new OTP."}, 
-                           status=status.HTTP_400_BAD_REQUEST)
+            delattr(VerifyOTPView, memory_key)
+            return Response({
+                "error": "OTP has expired. Please request a new OTP.",
+                "code": "OTP_EXPIRED"
+            }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validate that the mobile number matches what's in the cache)
-        print(otp_data)
-        print(mobile)
+        # Validate that the mobile number matches what's in the cache
         if otp_data.get("mobile") != str(mobile):
-            return Response({"error": "Mobile number mismatch. Please restart authentication."}, 
-                           status=status.HTTP_400_BAD_REQUEST)
+            print(f"Mobile mismatch: {otp_data.get('mobile')} vs {mobile}")
+            return Response({
+                "error": "Mobile number mismatch. Please restart authentication.",
+                "code": "MOBILE_MISMATCH"
+            }, status=status.HTTP_400_BAD_REQUEST)
 
-        response = verify_otp(mobile, otp)
+        # Attempt to verify the OTP
+        try:
+            response = verify_otp(mobile, otp)
+            print(f"OTP verification response: {response}")
+        except Exception as e:
+            print(f"OTP verification exception: {str(e)}")
+            return Response({
+                "error": f"Error verifying OTP: {str(e)}",
+                "code": "VERIFICATION_ERROR"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         if response.get("Status") == "Success":
             is_new_user = otp_data.get("is_new_user", False)
@@ -154,6 +210,7 @@ class VerifyOTPView(APIView):
                 if serializer.is_valid():
                     user = serializer.save()
                 else:
+                    print(f"User creation errors: {serializer.errors}")
                     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             else:
                 try:
@@ -161,8 +218,12 @@ class VerifyOTPView(APIView):
                 except User.DoesNotExist:
                     return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-            # Delete the cache entry AFTER successful authentication
-            cache.delete(cache_key)
+            # Delete the cache and memory backup after successful authentication
+            try:
+                cache.delete(cache_key)
+                delattr(VerifyOTPView, f"memory_otp_{mobile}_{session_id}")
+            except (AttributeError, KeyError):
+                pass
 
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
@@ -182,7 +243,10 @@ class VerifyOTPView(APIView):
                 }
             }, status=status.HTTP_200_OK)
 
-        return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            "error": "Invalid OTP", 
+            "code": "INVALID_OTP"
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserLogoutView(APIView):
@@ -212,18 +276,41 @@ class ResendOTPView(APIView):
         if not mobile or not session_id:
             return Response({"error": "Mobile number and session ID are required"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Important debugging
+        print(f"Resend OTP request: mobile={mobile}, session_id={session_id}")
+
+        # First look in the direct cache
         cache_key = f"otp_{session_id}"
         otp_data = cache.get(cache_key)
 
+        # If not in cache, check the memory backup
+        memory_key = f"memory_otp_{mobile}_{session_id}"
         if not otp_data:
-            # Try to find any related session data for this mobile
-            existing_keys = [k for k in cache._cache.keys() if isinstance(k, str) and k.startswith("otp_")]
-            for key in existing_keys:
-                data = cache.get(key)
-                if data and data.get("mobile") == mobile:
-                    otp_data = data
-                    cache_key = key
-                    break
+            otp_data = getattr(VerifyOTPView, memory_key, None)
+            if otp_data:
+                print(f"Retrieved OTP data from memory for resend: {memory_key}")
+        
+        # If still not found, try to find any session for this mobile
+        if not otp_data:
+            try:
+                # Try memory backups first
+                for attr in dir(VerifyOTPView):
+                    if attr.startswith(f"memory_otp_{mobile}_"):
+                        otp_data = getattr(VerifyOTPView, attr)
+                        memory_key = attr
+                        break
+                        
+                # Then try cache
+                if not otp_data:
+                    for key in cache._cache.keys():
+                        if isinstance(key, str) and key.startswith("otp_"):
+                            data = cache.get(key)
+                            if data and data.get("mobile") == mobile:
+                                otp_data = data
+                                cache_key = key
+                                break
+            except:
+                pass
 
         if not otp_data:
             return Response({
@@ -231,31 +318,41 @@ class ResendOTPView(APIView):
                 "code": "SESSION_NOT_FOUND"
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        response = send_otp(mobile)
+        # Send a new OTP
+        try:
+            response = send_otp(mobile)
+            print(f"Resend OTP response: {response}")
+        except Exception as e:
+            print(f"Resend OTP error: {str(e)}")
+            return Response({"error": f"Failed to resend OTP: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         if response.get("Status") == "Success":
             new_session_id = response.get("Details")
             expiry_time = datetime.now() + timedelta(minutes=10)
             
             new_cache_key = f"otp_{new_session_id}"
+            new_memory_key = f"memory_otp_{mobile}_{new_session_id}"
 
-            # Create a fresh OTP data record with the new session ID
-            cache.set(
-                new_cache_key,
-                {
-                    **otp_data,
-                    "expiry_time": expiry_time.timestamp(),
-                    "session_id": new_session_id,  # Store the session ID in the cache
-                },
-                timeout=600
-            )
+            # Create a fresh OTP data record
+            new_otp_data = {
+                **otp_data,
+                "expiry_time": expiry_time.timestamp(),
+                "session_id": new_session_id,
+                "resent_at": datetime.now().timestamp(),
+            }
+            
+            # Save to both cache and memory
+            cache.set(new_cache_key, new_otp_data, timeout=600)
+            setattr(VerifyOTPView, new_memory_key, new_otp_data)
 
-            # Only delete the old cache entry if it exists and after successfully creating the new one
-            if cache_key != new_cache_key:
+            # Clean up old data
+            try:
                 cache.delete(cache_key)
+                delattr(VerifyOTPView, memory_key)
+            except:
+                pass
 
-            # Debug message (remove in production)
-            print(f"OTP resent: old_session={session_id}, new_session={new_session_id}, mobile={mobile}")
+            print(f"OTP resent: old={session_id}, new={new_session_id}, mobile={mobile}")
 
             return Response({
                 "message": "OTP resent successfully",
