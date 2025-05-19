@@ -35,25 +35,22 @@ class AuthenticationView(APIView):
     def post(self, request):
         mobile = request.data.get('mobile')
         user_exists = User.objects.filter(mobile=mobile).exists()
-        if user_exists:
-            serializer = LoginSerializer(data=request.data)
-        else:
-            serializer = SignupSerializer(data=request.data)
-            
+        
+        serializer_class = LoginSerializer if user_exists else SignupSerializer
+        serializer = serializer_class(data=request.data)
+        
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            
+
         mobile = serializer.validated_data['mobile']
         is_new_user = serializer.validated_data['is_new_user']
         
-        response = send_otp(mobile)
-        
+        response = send_otp(mobile)  # Assuming this sends and returns {"Status": "Success"}
+
         if response.get("Status") == "Success":
-            session_id = response.get("Details")
             expiry_time = datetime.now() + timedelta(minutes=10)
-            
             cache.set(
-                f"otp_{session_id}", 
+                f"otp_{mobile}",
                 {
                     "mobile": mobile,
                     "is_new_user": is_new_user,
@@ -61,21 +58,21 @@ class AuthenticationView(APIView):
                     "name": serializer.validated_data.get('name'),
                     "referral_code": serializer.validated_data.get('referral_code'),
                     "referrer": serializer.validated_data.get('referrer'),
-                }, 
+                },
                 timeout=600
             )
-            
+
             return Response({
                 "message": "OTP sent to your mobile",
-                "session_id": session_id,
                 "is_new_user": is_new_user,
+                "mobile": mobile,
                 "temp_data": {
                     "name": serializer.validated_data.get('name'),
                     "mobile": mobile,
                     "referral_code": serializer.validated_data.get('referral_code'),
                 }
             }, status=status.HTTP_200_OK)
-        
+
         return Response({"error": "Failed to send OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -83,37 +80,36 @@ class VerifyOTPView(APIView):
     def post(self, request):
         mobile = request.data.get("mobile")
         otp = request.data.get("otp")
-        session_id = request.data.get("session_id")
 
-        if not mobile or not otp or not session_id:
-            return Response({"error": "Mobile number, OTP, and session ID are required"}, status=status.HTTP_400_BAD_REQUEST)
-            
-        otp_data = cache.get(f"otp_{session_id}")
-        
+        if not mobile or not otp:
+            return Response({"error": "Mobile number and OTP are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        otp_data = cache.get(f"otp_{mobile}")
+
         if not otp_data:
             return Response({"error": "OTP session expired or invalid"}, status=status.HTTP_400_BAD_REQUEST)
-            
+
         current_time = datetime.now().timestamp()
         if current_time > otp_data.get("expiry_time", 0):
-            cache.delete(f"otp_{session_id}")
+            cache.delete(f"otp_{mobile}")
             return Response({"error": "OTP has expired"}, status=status.HTTP_400_BAD_REQUEST)
 
         response = verify_otp(mobile, otp)
-        
+
         if response.get("Status") == "Success":
             is_new_user = otp_data.get("is_new_user", False)
-            
+
             if is_new_user:
                 user_data = {
                     "name": otp_data.get("name"),
                     "mobile": mobile,
                 }
-                
+
                 serializer = UserCreateSerializer(
                     data=user_data,
                     context={"referrer": otp_data.get("referrer")}
                 )
-                
+
                 if serializer.is_valid():
                     user = serializer.save()
                 else:
@@ -124,7 +120,7 @@ class VerifyOTPView(APIView):
                 except User.DoesNotExist:
                     return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-            cache.delete(f"otp_{session_id}")
+            cache.delete(f"otp_{mobile}")
 
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
