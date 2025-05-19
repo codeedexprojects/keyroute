@@ -90,7 +90,6 @@ class VerifyOTPView(APIView):
             cache.delete(f"otp_{mobile}")
             return Response({"error": "OTP has expired"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Verify OTP
         response = verify_otp(mobile, otp)
         
         if response.get("Status") == "Success":
