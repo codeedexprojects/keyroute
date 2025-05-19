@@ -141,6 +141,34 @@ class VerifyOTPView(APIView):
             }, status=status.HTTP_200_OK)
 
         return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
+    
+
+class ResendOTPView(APIView):
+    def post(self, request):
+        mobile = request.data.get("mobile")
+
+        if not mobile:
+            return Response({"error": "Mobile number is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        otp_data = cache.get(f"otp_{mobile}")
+
+        if not otp_data:
+            return Response({"error": "No OTP session found. Please initiate authentication again."}, status=status.HTTP_400_BAD_REQUEST)
+
+        response = send_otp(mobile)
+
+        if response.get("Status") == "Success":
+            expiry_time = datetime.now() + timedelta(minutes=10)
+            otp_data["expiry_time"] = expiry_time.timestamp()
+
+            cache.set(f"otp_{mobile}", otp_data, timeout=600)
+
+            return Response({
+                "message": "OTP resent successfully",
+                "mobile": mobile,
+            }, status=status.HTTP_200_OK)
+
+        return Response({"error": "Failed to resend OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserLogoutView(APIView):
