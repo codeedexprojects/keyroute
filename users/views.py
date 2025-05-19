@@ -26,10 +26,7 @@ from django.db.models import Sum
 from admin_panel.models import Experience,Sight
 import pytz
 
-
 User = get_user_model()
-
-
 
 class AuthenticationView(APIView):
     def post(self, request):
