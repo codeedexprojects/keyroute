@@ -989,7 +989,7 @@ class CreatePackageAndDayPlanAPIView(APIView):
                 sub_category=sub_category,
                 # description=data.get("description"),
                 header_image=data.get("header_image"),
-                nights=data.get("nights"),
+               
                 days=total_days,
                 extra_charge_per_km=data.get("extra_charge_per_km"),
                 price_per_person=data.get("price_per_person"),
