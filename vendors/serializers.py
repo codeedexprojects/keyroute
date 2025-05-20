@@ -472,8 +472,8 @@ class PackageSerializer(serializers.ModelSerializer):
         model = Package
         fields = [
             'id', 'vendor', 'vendor_name', 'sub_category', 'sub_category_name', 
-            'places', 'days', 'nights', 'ac_available', 'guide_included', 
-            'buses', 'header_image', 'created_at', 'updated_at','latitude','longitude'
+            'places', 'days', 'ac_available', 'guide_included', 
+            'buses', 'header_image', 'created_at', 'updated_at',
         ]
 
     def validate(self, data):
@@ -573,9 +573,9 @@ class PackageSerializer(serializers.ModelSerializer):
         model = Package
         fields = [
             'id',
-            'sub_category', 'header_image', 'places', 'days', 'nights',
+            'sub_category', 'header_image', 'places', 'days',
             'ac_available', 'guide_included', 'buses', 
-            'day_plans','day_plans_read','average_rating', 'total_reviews','price_per_person','is_favorite','travels_name','travels_location','longitude','latitude'
+            'day_plans','day_plans_read','average_rating', 'total_reviews','price_per_person','is_favorite','travels_name','travels_location'
         ]
     
     def get_travels_name(self, obj):
@@ -664,8 +664,8 @@ class PackageBasicSerializer(serializers.ModelSerializer):
         model = Package
         fields = [
             'id',
-            'sub_category', 'header_image', 'places', 'days', 'nights',
-            'ac_available', 'guide_included', 'buses', 'package_images','bus_location', 'price_per_person','extra_charge_per_km','latitude','longitude'
+            'sub_category', 'header_image', 'places', 'days',
+            'ac_available', 'guide_included', 'buses', 'package_images','bus_location', 'price_per_person','extra_charge_per_km'
         ]
 
     def create(self, validated_data):
@@ -808,7 +808,7 @@ class PackageReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Package
         fields = [
-            'id', 'sub_category', 'header_image', 'places', 'days', 'nights',
+            'id', 'sub_category', 'header_image', 'places', 'days', 
             'ac_available', 'guide_included', 'buses', 'day_plans',
             'created_at', 'updated_at','bus_location', 'price_per_person', 'extra_charge_per_km'
         ]
