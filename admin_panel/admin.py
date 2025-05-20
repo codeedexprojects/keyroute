@@ -13,3 +13,4 @@ admin.site.register(LimitedDealImage)
 admin.site.register(AdminCommission)
 
 admin.site.register(AdminCommissionSlab)
+admin.site.register(SeasonTime)
