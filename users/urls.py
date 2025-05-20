@@ -5,10 +5,10 @@ from .views import (UserLogoutView, UserProfileAPIView,  AuthenticationView,
                     ExperianceView,SightView,GreetingAPIView,ResendOTPView)
 
 urlpatterns = [
-    path("auth/", AuthenticationView.as_view(), name="user-authentication"),
-    path("verify-otp/", VerifyOTPView.as_view(), name="verify-otp"),
-     path('auth/resend-otp/', ResendOTPView.as_view()),
-    path('logout/', UserLogoutView.as_view(), name='user-logout'),
+    path('auth/', AuthenticationView.as_view(), name='authentication'),
+    path('verify-otp/', VerifyOTPView.as_view(), name='verify-otp'),
+    path('resend-otp/', ResendOTPView.as_view(), name='resend-otp'),
+    path('logout/', UserLogoutView.as_view(), name='logout'),
 
     # path('reviews/create/', CreateReviewView.as_view(), name='create-review'),
     
