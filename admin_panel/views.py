@@ -611,6 +611,42 @@ class ExploreSectionCreateView(APIView):
     authentication_classes = [JWTAuthentication]
     parser_classes = [MultiPartParser, FormParser]
 
+    # def post(self, request, *args, **kwargs):
+    #     data = request.data
+
+    #     sight_data = {
+    #         'title': data.get('sight[title]'),
+    #         'description': data.get('sight[description]'),
+    #         'season_description': data.get('sight[season_description]'),
+    #         'image': data.get('sight[image]')
+    #     }
+
+    #     experience_data = []
+    #     index = 0
+    #     while f'experiences[{index}][description]' in data:
+    #         exp = {
+    #             'description': data.get(f'experiences[{index}][description]'),
+    #             'image': data.get(f'experiences[{index}][image]')
+    #         }
+    #         experience_data.append(exp)
+    #         index += 1
+
+    #     sight_serializer = SightSerializer(data=sight_data)
+    #     if sight_serializer.is_valid():
+    #         sight_instance = sight_serializer.save()
+
+    #         for exp in experience_data:
+    #             exp_serializer = ExperienceSerializer(data=exp)
+    #             if exp_serializer.is_valid():
+    #                 exp_serializer.save(sight=sight_instance)
+    #             else:
+    #                 return Response({"error": exp_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    #         return Response({"message": "Sight and experiences created successfully!"}, status=status.HTTP_201_CREATED)
+
+    #     return Response({"error": sight_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
     def post(self, request, *args, **kwargs):
         data = request.data
 
@@ -631,6 +667,18 @@ class ExploreSectionCreateView(APIView):
             experience_data.append(exp)
             index += 1
 
+        season_data = {
+            'from_date': data.get('season[from_date]'),
+            'to_date': data.get('season[to_date]'),
+            'description': data.get('season[description]'),
+            'icon1': data.get('season[icon1]'),
+            'icon1_description': data.get('season[icon1_description]'),
+            'icon2': data.get('season[icon2]'),
+            'icon2_description': data.get('season[icon2_description]'),
+            'icon3': data.get('season[icon3]'),
+            'icon3_description': data.get('season[icon3_description]'),
+        }
+
         sight_serializer = SightSerializer(data=sight_data)
         if sight_serializer.is_valid():
             sight_instance = sight_serializer.save()
@@ -642,10 +690,16 @@ class ExploreSectionCreateView(APIView):
                 else:
                     return Response({"error": exp_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-            return Response({"message": "Sight and experiences created successfully!"}, status=status.HTTP_201_CREATED)
+            season_data['sight'] = sight_instance.id  
+            season_serializer = SeasonTimeSerializer(data=season_data)
+            if season_serializer.is_valid():
+                season_serializer.save(sight=sight_instance)
+            else:
+                return Response({"error": season_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response({"message": "Sight, experiences, and season created successfully!"}, status=status.HTTP_201_CREATED)
 
         return Response({"error": sight_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 
