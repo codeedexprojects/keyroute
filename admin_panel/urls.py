@@ -52,7 +52,7 @@ urlpatterns = [
 
 
     # EXPLORE
-    path('api/admin/explore/crete/', ExploreSectionCreateView.as_view(), name='create-explore-section'),
+    path('api/admin/explore/create/', ExploreSectionCreateView.as_view(), name='create-explore-section'),
     # edit
     path('api/admin/explore/<int:pk>/', ExploreSectionCreateView.as_view(), name='create-explore-section'),
 
