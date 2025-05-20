@@ -7,6 +7,7 @@ from admin_panel.utils import send_otp
 from vendors.models import Bus, Package
 from .models import ReferralRewardTransaction
 from admin_panel.models import Experience,Sight
+from admin_panel.models import *
 
 User = get_user_model()
 
@@ -87,6 +88,13 @@ class UserCreateSerializer(serializers.ModelSerializer):
             Wallet.objects.create(user=user, referred_by=referrer)
         
         return user
+
+
+# OTP Session model (Add this to your models.py)
+class OTPSessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OTPSession
+        fields = ['id', 'mobile', 'session_id', 'is_new_user', 'name', 'referral_code']
         
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:

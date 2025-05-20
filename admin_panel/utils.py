@@ -20,7 +20,12 @@ def verify_otp(mobile, otp):
     response = requests.get(url)
     return response.json()
 
-
+def generate_referral_code(length=7):
+    """
+    Generate a unique referral code
+    """
+    characters = string.ascii_letters + string.digits
+    return ''.join(random.choices(characters, k=length))
 
 
 
