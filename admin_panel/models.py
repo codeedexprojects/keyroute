@@ -192,7 +192,23 @@ class Experience(models.Model):
         return f"Experience for {self.sight.title}"
 
 
+class SeasonTime(models.Model):
+    sight = models.ForeignKey(Sight, related_name='seasons', on_delete=models.CASCADE)
+    from_date = models.DateField()
+    to_date = models.DateField()
+    description = models.TextField()
 
+    icon1 = models.ImageField(upload_to='season_icons/', null=True, blank=True)
+    icon1_description = models.CharField(max_length=255, blank=True)
+
+    icon2 = models.ImageField(upload_to='season_icons/', null=True, blank=True)
+    icon2_description = models.CharField(max_length=255, blank=True)
+
+    icon3 = models.ImageField(upload_to='season_icons/', null=True, blank=True)
+    icon3_description = models.CharField(max_length=255, blank=True)
+
+    def __str__(self):
+        return f"Season from {self.from_date} to {self.to_date} for {self.sight.title}"
 
 
 

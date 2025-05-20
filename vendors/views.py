@@ -8,6 +8,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 from .models import *
 from django.core.mail import send_mail
 from .serializers import *
@@ -26,6 +27,7 @@ from django.utils.timezone import now
 from .serializers import PackageBasicSerializer
 from admin_panel.models import *
 from calendar import monthrange
+from django.core.exceptions import ObjectDoesNotExist
 
 # Create your views here.
 
@@ -1316,14 +1318,113 @@ class AddDayPlanAPIView(APIView):
 
 
 
+    # def _upload_images(self, files, prefix, related_obj):
+    #     """Helper to upload up to 4 images with keys like 'prefix_1', 'prefix_2', etc."""
+    #     for i in range(1, 5):
+    #         key = f"{prefix}_{i}"
+    #         img = files.get(key)
+    #         print(f"Uploading Image with key '{key}': {'Received' if img else 'Not Found'}")
+    #         if img:
+    #             # Create the image instance based on related_obj's type
+    #             if isinstance(related_obj, Place):
+    #                 PlaceImage.objects.create(place=related_obj, image=img)
+    #             elif isinstance(related_obj, Stay):
+    #                 StayImage.objects.create(stay=related_obj, image=img)
+    #             elif isinstance(related_obj, Meal):
+    #                 MealImage.objects.create(meal=related_obj, image=img)
+    #             elif isinstance(related_obj, Activity):
+    #                 ActivityImage.objects.create(activity=related_obj, image=img)
+
+    # def post(self, request, package_id):
+    #     try:
+    #         package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
+    #         if not package:
+    #             return Response({"error": "Package not found or access denied"}, status=404)
+
+    #         data = request.data
+    #         files = request.FILES
+
+         
+
+
+
+    #         # Get next day number
+    #         last_day = DayPlan.objects.filter(package=package).order_by("-day_number").first()
+    #         next_day_number = last_day.day_number + 1 if last_day else 1
+    #         suffix = f"_{next_day_number}"  # e.g. _3
+
+    #         print("Files received:", list(files.keys()))
+    #         print("Data received:", data)
+    #         print("Data Keys:", list(data.keys()))
+    #         print("Place Name:", data.get(f"place_name{suffix}"))
+    #         print("Stay Name:", data.get(f"stay_name{suffix}"))
+    #         print("Meal Type:", data.get(f"meal_type{suffix}"))
+    #         print("Activity Name:", data.get(f"activity_name{suffix}"))
+
+
+    #         day_description = data.get(f"description{suffix}", "")
+    #         day_plan = DayPlan.objects.create(
+    #             package=package,
+    #             day_number=next_day_number,
+    #             description=day_description
+    #         )
+
+    #         # Place
+    #         place = Place.objects.create(
+    #             day_plan=day_plan,
+    #             name=data.get(f"place_name_{suffix}", ""),
+    #             description=data.get(f"place_description_{suffix}", "")
+    #         )
+    #         self._upload_images(files, f"place_image{suffix}", place)
+
+    #         # Stay
+    #         stay = Stay.objects.create(
+    #             day_plan=day_plan,
+    #             hotel_name=data.get(f"stay_name{suffix}", ""),
+    #             description=data.get(f"stay_description{suffix}", ""),
+    #             location=data.get(f"location{suffix}", ""),
+    #             is_ac=data.get(f"is_ac{suffix}", "false").lower() == "true",
+    #             has_breakfast=data.get(f"has_breakfast{suffix}", "false").lower() == "true"
+    #         )
+    #         self._upload_images(files, f"stay_image{suffix}", stay)
+
+    #         # Meal
+    #         meal_time_str = data.get(f"meal_time{suffix}")
+    #         meal_time = datetime.strptime(meal_time_str, "%H:%M").time() if meal_time_str else None
+    #         meal = Meal.objects.create(
+    #             day_plan=day_plan,
+    #             type=data.get(f"meal_type{suffix}", "breakfast"),
+    #             description=data.get(f"meal_description{suffix}", ""),
+    #             restaurant_name=data.get(f"restaurant_name{suffix}", ""),
+    #             location=data.get(f"meal_location{suffix}", ""),
+    #             time=meal_time
+    #         )
+    #         self._upload_images(files, f"meal_image{suffix}", meal)
+
+    #         # Activity
+    #         activity_time_str = data.get(f"activity_time{suffix}")
+    #         activity_time = datetime.strptime(activity_time_str, "%H:%M").time() if activity_time_str else None
+    #         activity = Activity.objects.create(
+    #             day_plan=day_plan,
+    #             name=data.get(f"activity_name{suffix}", ""),
+    #             description=data.get(f"activity_description{suffix}", ""),
+    #             location=data.get(f"activity_location{suffix}", ""),
+    #             time=activity_time
+    #         )
+    #         self._upload_images(files, f"activity_image{suffix}", activity)
+
+    #         return Response({"message": "Day plan added successfully."}, status=201)
+
+    #     except Exception as e:
+    #         return Response({"error": str(e)}, status=500)
+
+
+
     def _upload_images(self, files, prefix, related_obj):
-        """Helper to upload up to 4 images with keys like 'prefix_1', 'prefix_2', etc."""
         for i in range(1, 5):
             key = f"{prefix}_{i}"
             img = files.get(key)
-            print(f"Uploading Image with key '{key}': {'Received' if img else 'Not Found'}")
             if img:
-                # Create the image instance based on related_obj's type
                 if isinstance(related_obj, Place):
                     PlaceImage.objects.create(place=related_obj, image=img)
                 elif isinstance(related_obj, Stay):
@@ -1342,64 +1443,63 @@ class AddDayPlanAPIView(APIView):
             data = request.data
             files = request.FILES
 
-            print("Files received:", list(files.keys()))
-            print("Data received:", data)
-
-            # Get next day number
+            # Determine next day number
             last_day = DayPlan.objects.filter(package=package).order_by("-day_number").first()
             next_day_number = last_day.day_number + 1 if last_day else 1
-            suffix = f"_{next_day_number}"  # e.g. _3
 
-            day_description = data.get(f"description{suffix}", "")
+            # Create DayPlan
+            day_description = data.get("description", "")
             day_plan = DayPlan.objects.create(
                 package=package,
                 day_number=next_day_number,
                 description=day_description
             )
 
-            # Place
+            # Create Place
             place = Place.objects.create(
                 day_plan=day_plan,
-                name=data.get(f"place_name{suffix}", ""),
-                description=data.get(f"place_description{suffix}", "")
+                name=data.get("place_name", ""),
+                description=data.get("place_description", "")
             )
-            self._upload_images(files, f"place_image{suffix}", place)
+            self._upload_images(files, "place_image", place)
 
-            # Stay
+            # Create Stay
             stay = Stay.objects.create(
                 day_plan=day_plan,
-                hotel_name=data.get(f"stay_name{suffix}", ""),
-                description=data.get(f"stay_description{suffix}", ""),
-                location=data.get(f"location{suffix}", ""),
-                is_ac=data.get(f"is_ac{suffix}", "false").lower() == "true",
-                has_breakfast=data.get(f"has_breakfast{suffix}", "false").lower() == "true"
+                hotel_name=data.get("stay_name", ""),
+                description=data.get("stay_description", ""),
+                location=data.get("location", ""),
+                is_ac=data.get("is_ac", "false").lower() == "true",
+                has_breakfast=data.get("has_breakfast", "false").lower() == "true"
             )
-            self._upload_images(files, f"stay_image{suffix}", stay)
+            self._upload_images(files, "stay_image", stay)
 
-            # Meal
-            meal_time_str = data.get(f"meal_time{suffix}")
+            # Create Meal
+            meal_time_str = data.get("meal_time")
             meal_time = datetime.strptime(meal_time_str, "%H:%M").time() if meal_time_str else None
+
             meal = Meal.objects.create(
                 day_plan=day_plan,
-                type=data.get(f"meal_type{suffix}", "breakfast"),
-                description=data.get(f"meal_description{suffix}", ""),
-                restaurant_name=data.get(f"restaurant_name{suffix}", ""),
-                location=data.get(f"meal_location{suffix}", ""),
+                type=data.get("meal_type", "breakfast"),
+                description=data.get("meal_description", ""),
+                restaurant_name=data.get("restaurant_name", ""),
+                location=data.get("meal_location", ""),
                 time=meal_time
             )
-            self._upload_images(files, f"meal_image{suffix}", meal)
+            self._upload_images(files, "meal_image", meal)
 
-            # Activity
-            activity_time_str = data.get(f"activity_time{suffix}")
+            # Create Activity
+            activity_time_str = data.get("activity_time")
             activity_time = datetime.strptime(activity_time_str, "%H:%M").time() if activity_time_str else None
+
             activity = Activity.objects.create(
                 day_plan=day_plan,
-                name=data.get(f"activity_name{suffix}", ""),
-                description=data.get(f"activity_description{suffix}", ""),
-                location=data.get(f"activity_location{suffix}", ""),
+                name=data.get("activity_name", ""),
+                description=data.get("activity_description", ""),
+                location=data.get("activity_location", ""),
                 time=activity_time
             )
-            self._upload_images(files, f"activity_image{suffix}", activity)
+            self._upload_images(files, "activity_image", activity)
 
             return Response({"message": "Day plan added successfully."}, status=201)
 
@@ -1409,7 +1509,45 @@ class AddDayPlanAPIView(APIView):
 
 
 
+class PackageEditAPIView(APIView):
+    parser_classes = [MultiPartParser, JSONParser, FormParser]
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
+    def put(self, request, package_id):
+        try:
+            package = Package.objects.get(id=package_id, vendor__user=request.user)
+        except ObjectDoesNotExist:
+            return Response({"error": "Package not found or access denied."}, status=HTTP_404_NOT_FOUND)
+
+        data = request.data
+        files = request.FILES
+
+        # Update fields
+        package.places = data.get("places", package.places)
+        package.days = data.get("days", package.days)
+        package.nights = data.get("nights", package.nights)
+        package.ac_available = data.get("ac_available", str(package.ac_available)).lower() == "true"
+        package.guide_included = data.get("guide_included", str(package.guide_included)).lower() == "true"
+        package.latitude = data.get("latitude", package.latitude)
+        package.longitude = data.get("longitude", package.longitude)
+        package.bus_location = data.get("bus_location", package.bus_location)
+        package.price_per_person = data.get("price_per_person", package.price_per_person)
+        package.extra_charge_per_km = data.get("extra_charge_per_km", package.extra_charge_per_km)
+        package.status = data.get("status", package.status)
+
+        # Handle image update
+        if 'header_image' in files:
+            package.header_image = files['header_image']
+
+        # Handle buses (ManyToMany)
+        if 'buses' in data:
+            bus_ids = data.getlist('buses')
+            package.buses.set(bus_ids)
+
+        package.save()
+
+        return Response({"message": "Package updated successfully."}, status=HTTP_200_OK)
 
 
 
