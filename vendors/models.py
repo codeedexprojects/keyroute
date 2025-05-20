@@ -154,7 +154,6 @@ class Package(models.Model):
     )
     places = models.CharField(max_length=255)
     days = models.PositiveIntegerField(default=0)
-    nights = models.PositiveIntegerField(default=0)
     ac_available = models.BooleanField(default=True, verbose_name="AC Available")
     guide_included = models.BooleanField(default=False, verbose_name="Includes Guide")
     buses = models.ManyToManyField(Bus)
