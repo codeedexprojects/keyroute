@@ -200,6 +200,7 @@ class DayPlan(models.Model):
     package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='day_plans')
     day_number = models.PositiveIntegerField()
     description = models.TextField(blank=True, null=True)
+    night = models.BooleanField(default=False)
 
 
 class Place(models.Model):
