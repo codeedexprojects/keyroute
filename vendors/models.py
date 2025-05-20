@@ -77,6 +77,7 @@ class Bus(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
     bus_type = models.CharField(max_length=50, blank=True, null=True)
+    is_popular = models.BooleanField(default=False)
 
 
     @property
@@ -159,7 +160,6 @@ class Package(models.Model):
     buses = models.ManyToManyField(Bus)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-   
     bus_location = models.CharField(max_length=255, blank=True, null=True)
     price_per_person = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     extra_charge_per_km = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)

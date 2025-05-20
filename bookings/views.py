@@ -21,7 +21,7 @@ from rest_framework import status as http_status
 from itertools import chain
 from vendors.models import PackageCategory,PackageSubCategory
 from vendors.serializers import PackageCategorySerializer,PackageSubCategorySerializer
-from .serializers import PackageFilterSerializer,BusFilterSerializer,PackageSerializer,SinglePackageBookingSerilizer,SingleBusBookingSerializer
+from .serializers import PackageFilterSerializer,BusFilterSerializer,PackageSerializer,SinglePackageBookingSerilizer,SingleBusBookingSerializer,PopularBusSerializer
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from .utils import *
@@ -592,4 +592,10 @@ class PackageSubCategoryListAPIView(APIView):
     def get(self, request,category):
         subcategories = PackageSubCategory.objects.filter(category=category)
         serializer = PackageSubCategorySerializer(subcategories, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class PopularBusApi(APIView):
+    def get(self,request):
+        buses = Bus.objects.filter(is_popular=True)
+        serializer = PopularBusSerializer(buses,many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

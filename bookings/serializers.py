@@ -684,3 +684,18 @@ class PackageSerializer(serializers.ModelSerializer):
 
     def get_price_per_person(self, obj):
         return int(obj.price_per_person)
+
+class PopularBusSerializer(serializers.ModelSerializer):
+    average_rating = serializers.SerializerMethodField()
+    total_reviews = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Bus
+        fields = ['id','bus_name','capacity','average_rating','total_reviews','is_popular']
+
+    def get_average_rating(self, obj):
+        avg = obj.bus_reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(avg, 1) if avg else 0.0
+
+    def get_total_reviews(self, obj):
+        return obj.bus_reviews.count()
