@@ -19,7 +19,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from .models import Wallet
 from .models import ReferralRewardTransaction
-from .serializers import OngoingReferralSerializer, ReferralHistorySerializer,ExploreSerializer,SightSerializer
+from .serializers import OngoingReferralSerializer, ReferralHistorySerializer,SightSerializer
 from datetime import datetime, timedelta,timezone
 from django.core.cache import cache
 from django.db.models import Sum
@@ -36,7 +36,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from .serializers import *
 from admin_panel.models import OTPSession
 
 User = get_user_model()
@@ -408,19 +408,100 @@ class ReferralHistoryView(APIView):
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
-    
-class ExperianceView(APIView):
 
-    def get(self,request,sight):
-        experience = Experience.objects.filter(sight=sight)
-        serializer = ExploreSerializer(experience,many=True)
+
+class SightView(APIView):
+    def get(self, request):
+        sights = Sight.objects.all()
+        serializer = SightSerializer(sights, many=True)
         return Response(serializer.data)
     
-class SightView(APIView):
+    def post(self, request):
+        serializer = SightSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def get(self,request):
-        sight = Sight.objects.all()
-        serializer = SightSerializer(sight,many=True)
+
+class SightDetailView(APIView):
+    def get_object(self, pk):
+        try:
+            return Sight.objects.get(pk=pk)
+        except Sight.DoesNotExist:
+            return None
+    
+    def get(self, request, pk):
+        sight = self.get_object(pk)
+        if not sight:
+            return Response({'error': 'Sight not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = SightDetailSerializer(sight)
+        return Response(serializer.data)
+    
+    def put(self, request, pk):
+        sight = self.get_object(pk)
+        if not sight:
+            return Response({'error': 'Sight not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = SightSerializer(sight, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def delete(self, request, pk):
+        sight = self.get_object(pk)
+        if not sight:
+            return Response({'error': 'Sight not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        sight.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ExperienceView(APIView):
+    def get(self, request, sight_id):
+        experiences = Experience.objects.filter(sight_id=sight_id)
+        serializer = ExperienceSerializer(experiences, many=True)
+        return Response(serializer.data)
+
+
+class ExperienceDetailView(APIView):
+    def get_object(self, pk):
+        try:
+            return Experience.objects.get(pk=pk)
+        except Experience.DoesNotExist:
+            return None
+    
+    def get(self, request, pk):
+        experience = self.get_object(pk)
+        if not experience:
+            return Response({'error': 'Experience not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = ExperienceSerializer(experience)
+        return Response(serializer.data)
+
+
+class SeasonTimeView(APIView):
+    def get(self, request, sight_id):
+        seasons = SeasonTime.objects.filter(sight_id=sight_id)
+        serializer = SeasonTimeSerializer(seasons, many=True)
+        return Response(serializer.data)
+
+
+class SeasonTimeDetailView(APIView):
+    def get_object(self, pk):
+        try:
+            return SeasonTime.objects.get(pk=pk)
+        except SeasonTime.DoesNotExist:
+            return None
+    
+    def get(self, request, pk):
+        season = self.get_object(pk)
+        if not season:
+            return Response({'error': 'Season time not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        serializer = SeasonTimeSerializer(season)
         return Response(serializer.data)
     
 
