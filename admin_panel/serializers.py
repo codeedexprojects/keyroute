@@ -360,7 +360,7 @@ class SightSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Sight
-        fields = ['title', 'description', 'season_description','image']
+        fields = ['title', 'description', 'season_description']
 
 class SeasonTimeSerializer(serializers.ModelSerializer):
     class Meta:

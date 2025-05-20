@@ -152,13 +152,19 @@ class FooterSection(models.Model):
 
 class Sight(models.Model):
     title = models.CharField(max_length=255)
-    image = models.ImageField(upload_to='sight_images/', null=True, blank=True)
     description = models.TextField()
     season_description = models.TextField()
 
     def __str__(self):
         return self.title
 
+
+class SightImage(models.Model):
+    sight = models.ForeignKey(Sight, related_name='images', on_delete=models.CASCADE)
+    image = models.ImageField(upload_to='sight_images/')
+
+    def __str__(self):
+        return f"Image for {self.sight.title}"
 
 class Experience(models.Model):
     sight = models.ForeignKey(Sight, related_name='experiences', on_delete=models.CASCADE)
