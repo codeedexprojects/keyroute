@@ -163,6 +163,8 @@ class Sight(models.Model):
 class Experience(models.Model):
     sight = models.ForeignKey(Sight, related_name='experiences', on_delete=models.CASCADE)
     image = models.ImageField(upload_to='experiences/')
+    header = models.CharField(max_length=255, blank=True, null=True)
+    sub_header = models.CharField(max_length=255, blank=True, null=True)
     description = models.TextField()
 
     def __str__(self):
@@ -173,7 +175,8 @@ class SeasonTime(models.Model):
     sight = models.ForeignKey(Sight, related_name='seasons', on_delete=models.CASCADE)
     from_date = models.DateField()
     to_date = models.DateField()
-    description = models.TextField()
+
+    header = models.CharField(max_length=255, blank=True, null=True)
 
     icon1 = models.ImageField(upload_to='season_icons/', null=True, blank=True)
     icon1_description = models.CharField(max_length=255, blank=True)
