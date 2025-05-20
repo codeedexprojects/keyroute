@@ -997,7 +997,7 @@ class CreatePackageAndDayPlanAPIView(APIView):
                 # ac_available=data.get("ac_available"),
                 # guide_included=data.get("guide_included"),
                 ac_available=str_to_bool(data.get("ac_available")),
-                guide_included=str_to_bool(data.get("guide_included"))
+
             )
 
             # 2. SET BUSES
