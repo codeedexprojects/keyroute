@@ -4,7 +4,8 @@ from .views import (
     PackageBookingListCreateAPIView, PackageBookingDetailAPIView,
     BusBookingListCreateAPIView, BusBookingDetailAPIView,
     TravelerCreateAPIView, PackageBookingTravelersAPIView, BusBookingTravelersAPIView,
-    TravelerDetailAPIView, UserBookingsByStatus,CancelBookingView,PackageCategoryListAPIView,PackageSubCategoryListAPIView,SingleBusListAPIView,SinglePackageListAPIView
+    TravelerDetailAPIView, UserBookingsByStatus,CancelBookingView,PackageCategoryListAPIView,PackageSubCategoryListAPIView,SingleBusListAPIView,SinglePackageListAPIView,
+    PopularBusApi
 )
 
 urlpatterns = [
@@ -36,4 +37,6 @@ urlpatterns = [
 
     path('services/categories/', PackageCategoryListAPIView.as_view(), name='package-category-list'),
     path('services/subcategories/<int:category>/', PackageSubCategoryListAPIView.as_view(), name='package-subcategory-list'),
+
+    path('popular-buses/',PopularBusApi.as_view(),name="Popular-buses")
 ]
