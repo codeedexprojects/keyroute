@@ -662,7 +662,9 @@ class ExploreSectionCreateView(APIView):
         while f'experiences[{index}][description]' in data:
             exp = {
                 'description': data.get(f'experiences[{index}][description]'),
-                'image': data.get(f'experiences[{index}][image]')
+                'image': data.get(f'experiences[{index}][image]'),
+                'header': data.get(f'experiences[{index}][header]'),
+                'sub_header': data.get(f'experiences[{index}][sub_header]'),
             }
             experience_data.append(exp)
             index += 1
@@ -670,7 +672,7 @@ class ExploreSectionCreateView(APIView):
         season_data = {
             'from_date': data.get('season[from_date]'),
             'to_date': data.get('season[to_date]'),
-            'description': data.get('season[description]'),
+            'header': data.get('season[header]'),
             'icon1': data.get('season[icon1]'),
             'icon1_description': data.get('season[icon1_description]'),
             'icon2': data.get('season[icon2]'),
