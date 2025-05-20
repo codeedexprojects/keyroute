@@ -31,4 +31,5 @@ class UserAdmin(admin.ModelAdmin):
     list_display = ('name', 'mobile', 'email', 'role', 'referral_code', 'created_at')
     list_filter = ('role', 'is_active')
     search_fields = ('name', 'mobile', 'email', 'referral_code')
-
+    
+admin.site.register(SeasonTime)
