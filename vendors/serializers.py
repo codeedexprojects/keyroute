@@ -473,7 +473,7 @@ class PackageSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'vendor', 'vendor_name', 'sub_category', 'sub_category_name', 
             'places', 'days', 'ac_available', 'guide_included', 
-            'buses', 'header_image', 'created_at', 'updated_at','latitude','longitude'
+            'buses', 'header_image', 'created_at', 'updated_at',
         ]
 
     def validate(self, data):
@@ -575,7 +575,7 @@ class PackageSerializer(serializers.ModelSerializer):
             'id',
             'sub_category', 'header_image', 'places', 'days',
             'ac_available', 'guide_included', 'buses', 
-            'day_plans','day_plans_read','average_rating', 'total_reviews','price_per_person','is_favorite','travels_name','travels_location','longitude','latitude'
+            'day_plans','day_plans_read','average_rating', 'total_reviews','price_per_person','is_favorite','travels_name','travels_location'
         ]
     
     def get_travels_name(self, obj):
@@ -665,7 +665,7 @@ class PackageBasicSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'sub_category', 'header_image', 'places', 'days',
-            'ac_available', 'guide_included', 'buses', 'package_images','bus_location', 'price_per_person','extra_charge_per_km','latitude','longitude'
+            'ac_available', 'guide_included', 'buses', 'package_images','bus_location', 'price_per_person','extra_charge_per_km'
         ]
 
     def create(self, validated_data):
