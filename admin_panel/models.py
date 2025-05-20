@@ -34,9 +34,32 @@ class UserManager(BaseUserManager):
         return self.create_user(mobile=mobile, email=email, password=password, **extra_fields)
     
 
-def generate_referral_code(length=7):
-    characters = string.ascii_letters + string.digits
-    return ''.join(random.choices(characters, k=length))
+class OTPSession(models.Model):
+    """
+    Model to store OTP session data instead of using cache
+    """
+    mobile = models.CharField(max_length=15)
+    session_id = models.CharField(max_length=100, unique=True)
+    is_new_user = models.BooleanField(default=False)
+    name = models.CharField(max_length=150, null=True, blank=True)
+    referral_code = models.CharField(max_length=10, null=True, blank=True)
+    referrer = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True, related_name='referred_otp_sessions')
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    
+    class Meta:
+        # Optional index to improve lookup performance
+        indexes = [
+            models.Index(fields=['mobile']),
+            models.Index(fields=['session_id']),
+        ]
+    
+    def __str__(self):
+        return f"OTP Session for {self.mobile} - {self.session_id}"
+        
+    def is_expired(self):
+        """Check if the OTP session has expired"""
+        return timezone.now() > self.expires_at
 
 
 class User(AbstractBaseUser, PermissionsMixin):
