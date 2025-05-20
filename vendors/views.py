@@ -998,6 +998,8 @@ class CreatePackageAndDayPlanAPIView(APIView):
                 # guide_included=data.get("guide_included"),
                 ac_available=str_to_bool(data.get("ac_available")),
                 guide_included=str_to_bool(data.get("guide_included")),
+                longitude=data.get("longitude"),
+                latitude=data.get("latitude"),
             )
 
             # 2. SET BUSES
@@ -1023,12 +1025,19 @@ class CreatePackageAndDayPlanAPIView(APIView):
             for day in sorted(day_indices):
                 day_number = int(data.get(f"day_{day}", day))
                 day_description = data.get(f"description_{day}", "")
+                day_night = data.get(f"night_option_{day}", "")
+
+            
+                print(day_night,'nyt')
 
                 day_plan = DayPlan.objects.create(
                     package=package,
                     day_number=day_number,
-                    description=day_description
+                    description=day_description,
+                    night=str_to_bool(day_night)
                 )
+                print('after days')
+
 
                 # --- PLACE ---
                 place = Place.objects.create(
