@@ -353,14 +353,14 @@ class FooterSectionSerializer(serializers.ModelSerializer):
 class ExperienceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Experience
-        fields = ['image', 'description',]
+        fields = ['image', 'description','header','sub_header']
 
 
 class SightSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Sight
-        fields = ['title', 'description', 'season_description','image']
+        fields = ['title', 'description', 'season_description']
 
 class SeasonTimeSerializer(serializers.ModelSerializer):
     class Meta:

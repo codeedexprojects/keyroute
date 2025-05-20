@@ -154,7 +154,6 @@ class Package(models.Model):
     )
     places = models.CharField(max_length=255)
     days = models.PositiveIntegerField(default=0)
-    nights = models.PositiveIntegerField(default=0)
     ac_available = models.BooleanField(default=True, verbose_name="AC Available")
     guide_included = models.BooleanField(default=False, verbose_name="Includes Guide")
     buses = models.ManyToManyField(Bus)
@@ -200,6 +199,7 @@ class DayPlan(models.Model):
     package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='day_plans')
     day_number = models.PositiveIntegerField()
     description = models.TextField(blank=True, null=True)
+    night = models.BooleanField(default=False)
 
 
 class Place(models.Model):
