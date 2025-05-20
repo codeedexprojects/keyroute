@@ -154,14 +154,12 @@ class Package(models.Model):
     )
     places = models.CharField(max_length=255)
     days = models.PositiveIntegerField(default=0)
-    nights = models.PositiveIntegerField(default=0)
     ac_available = models.BooleanField(default=True, verbose_name="AC Available")
     guide_included = models.BooleanField(default=False, verbose_name="Includes Guide")
     buses = models.ManyToManyField(Bus)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    latitude = models.FloatField()
-    longitude = models.FloatField()
+   
     bus_location = models.CharField(max_length=255, blank=True, null=True)
     price_per_person = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     extra_charge_per_km = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
@@ -200,6 +198,7 @@ class DayPlan(models.Model):
     package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='day_plans')
     day_number = models.PositiveIntegerField()
     description = models.TextField(blank=True, null=True)
+    night = models.BooleanField(default=False)
 
 
 class Place(models.Model):

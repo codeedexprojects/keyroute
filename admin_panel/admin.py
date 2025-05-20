@@ -33,3 +33,4 @@ class UserAdmin(admin.ModelAdmin):
     search_fields = ('name', 'mobile', 'email', 'referral_code')
     
 admin.site.register(SeasonTime)
+admin.site.register(SightImage)
