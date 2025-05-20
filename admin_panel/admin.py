@@ -14,3 +14,4 @@ admin.site.register(AdminCommission)
 
 admin.site.register(AdminCommissionSlab)
 admin.site.register(SeasonTime)
+admin.site.register(SightImage)
