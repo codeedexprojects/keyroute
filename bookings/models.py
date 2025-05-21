@@ -36,7 +36,7 @@ class BaseBooking(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     cancelation_reason = models.CharField(max_length=250,null=True,blank=True)
-    total_travelers = models.PositiveIntegerField()
+    total_travelers = models.PositiveIntegerField(default=0)
     male  = models.PositiveIntegerField(default=1)
     female  = models.PositiveIntegerField(default=1)
     children  = models.PositiveIntegerField(default=1)
