@@ -724,7 +724,7 @@ class PackageSerializer(serializers.ModelSerializer):
         ]
 
     def get_night(self, obj):
-        night_count = obj.package.day_plans.filter(night=True).count()
+        night_count = obj.day_plans.filter(night=True).count()
         return night_count
 
     def get_travels_name(self, obj):
@@ -820,3 +820,40 @@ class ListPackageSerializer(serializers.ModelSerializer):
                 buses_data.append(bus_data)
                 
         return buses_data
+    
+
+class ListBusSerializer(serializers.ModelSerializer):
+    average_rating = serializers.FloatField(read_only=True)
+    total_reviews = serializers.IntegerField(read_only=True)
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)
+    amenities_list = serializers.SerializerMethodField()
+    features_list = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Bus
+        fields = [
+            'id', 'bus_name', 'bus_number', 'capacity', 'vehicle_description',
+            'bus_type', 'average_rating', 'total_reviews', 'vendor_name',
+            'base_price', 'price_per_km', 'minimum_fare', 'status',
+            'location', 'latitude', 'longitude', 'travels_logo',
+            'amenities_list', 'features_list', 'is_popular'
+        ]
+    
+    def get_amenities_list(self, obj):
+        return [
+            {
+                'id': amenity.id,
+                'name': amenity.name,
+                'description': amenity.description,
+                'icon': self.context['request'].build_absolute_uri(amenity.icon.url) if amenity.icon else None
+            } for amenity in obj.amenities.all()
+        ]
+    
+    def get_features_list(self, obj):
+        return [
+            {
+                'id': feature.id,
+                'name': feature.name,
+                'description': feature.description
+            } for feature in obj.features.all()
+        ]
