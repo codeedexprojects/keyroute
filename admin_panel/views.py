@@ -597,6 +597,9 @@ class ExploreSectionCreateView(APIView):
     authentication_classes = [JWTAuthentication]
     parser_classes = [MultiPartParser, FormParser]
 
+
+
+
     # def post(self, request, *args, **kwargs):
     #     data = request.data
 
@@ -604,44 +607,15 @@ class ExploreSectionCreateView(APIView):
     #         'title': data.get('sight[title]'),
     #         'description': data.get('sight[description]'),
     #         'season_description': data.get('sight[season_description]'),
-    #         'image': data.get('sight[image]')
+    #         # 'image': data.get('sight[image]')
     #     }
 
-    #     experience_data = []
-    #     index = 0
-    #     while f'experiences[{index}][description]' in data:
-    #         exp = {
-    #             'description': data.get(f'experiences[{index}][description]'),
-    #             'image': data.get(f'experiences[{index}][image]')
-    #         }
-    #         experience_data.append(exp)
+    #     # Collect multiple separate sight image fields like sight_image_1, sight_image_2, ...
+    #     sight_images = []
+    #     index = 1
+    #     while f'sight_image_{index}' in request.FILES:
+    #         sight_images.append(request.FILES[f'sight_image_{index}'])
     #         index += 1
-
-    #     sight_serializer = SightSerializer(data=sight_data)
-    #     if sight_serializer.is_valid():
-    #         sight_instance = sight_serializer.save()
-
-    #         for exp in experience_data:
-    #             exp_serializer = ExperienceSerializer(data=exp)
-    #             if exp_serializer.is_valid():
-    #                 exp_serializer.save(sight=sight_instance)
-    #             else:
-    #                 return Response({"error": exp_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
-    #         return Response({"message": "Sight and experiences created successfully!"}, status=status.HTTP_201_CREATED)
-
-    #     return Response({"error": sight_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
-
-    # def post(self, request, *args, **kwargs):
-    #     data = request.data
-
-    #     sight_data = {
-    #         'title': data.get('sight[title]'),
-    #         'description': data.get('sight[description]'),
-    #         'season_description': data.get('sight[season_description]'),
-    #         'image': data.get('sight[image]')
-    #     }
 
     #     experience_data = []
     #     index = 0
@@ -671,6 +645,10 @@ class ExploreSectionCreateView(APIView):
     #     if sight_serializer.is_valid():
     #         sight_instance = sight_serializer.save()
 
+    #         # Save each separate sight image
+    #         for img in sight_images:
+    #             SightImage.objects.create(sight=sight_instance, image=img)
+
     #         for exp in experience_data:
     #             exp_serializer = ExperienceSerializer(data=exp)
     #             if exp_serializer.is_valid():
@@ -685,7 +663,7 @@ class ExploreSectionCreateView(APIView):
     #         else:
     #             return Response({"error": season_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-    #         return Response({"message": "Sight, experiences, and season created successfully!"}, status=status.HTTP_201_CREATED)
+    #         return Response({"message": "Sight, images, experiences, and season created successfully!"}, status=status.HTTP_201_CREATED)
 
     #     return Response({"error": sight_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -695,32 +673,39 @@ class ExploreSectionCreateView(APIView):
     def post(self, request, *args, **kwargs):
         data = request.data
 
+        # 1. SIGHT DATA
         sight_data = {
             'title': data.get('sight[title]'),
             'description': data.get('sight[description]'),
             'season_description': data.get('sight[season_description]'),
-            # 'image': data.get('sight[image]')
         }
 
-        # Collect multiple separate sight image fields like sight_image_1, sight_image_2, ...
         sight_images = []
         index = 1
         while f'sight_image_{index}' in request.FILES:
             sight_images.append(request.FILES[f'sight_image_{index}'])
             index += 1
 
+        # 2. EXPERIENCE DATA
         experience_data = []
-        index = 0
-        while f'experiences[{index}][description]' in data:
+        exp_index = 0
+        while f'experiences[{exp_index}][description]' in data:
             exp = {
-                'description': data.get(f'experiences[{index}][description]'),
-                'image': data.get(f'experiences[{index}][image]'),
-                'header': data.get(f'experiences[{index}][header]'),
-                'sub_header': data.get(f'experiences[{index}][sub_header]'),
+                'description': data.get(f'experiences[{exp_index}][description]'),
+                'header': data.get(f'experiences[{exp_index}][header]'),
+                'sub_header': data.get(f'experiences[{exp_index}][sub_header]'),
+                'images': []
             }
-            experience_data.append(exp)
-            index += 1
 
+            img_index = 0
+            while f'experiences[{exp_index}][images][{img_index}]' in request.FILES:
+                exp['images'].append(request.FILES[f'experiences[{exp_index}][images][{img_index}]'])
+                img_index += 1
+
+            experience_data.append(exp)
+            exp_index += 1
+
+        # 3. SEASON DATA
         season_data = {
             'from_date': data.get('season[from_date]'),
             'to_date': data.get('season[to_date]'),
@@ -733,31 +718,57 @@ class ExploreSectionCreateView(APIView):
             'icon3_description': data.get('season[icon3_description]'),
         }
 
+        # 4. SAVE DATA
         sight_serializer = SightSerializer(data=sight_data)
         if sight_serializer.is_valid():
             sight_instance = sight_serializer.save()
 
-            # Save each separate sight image
             for img in sight_images:
                 SightImage.objects.create(sight=sight_instance, image=img)
 
+            # Save each experience and its images
             for exp in experience_data:
-                exp_serializer = ExperienceSerializer(data=exp)
+                exp_data = {
+                    'description': exp['description'],
+                    'header': exp['header'],
+                    'sub_header': exp['sub_header'],
+                }
+                exp_serializer = ExperienceSerializer(data=exp_data)
                 if exp_serializer.is_valid():
-                    exp_serializer.save(sight=sight_instance)
+                    experience_instance = exp_serializer.save(sight=sight_instance)
+                    for image in exp['images']:
+                        ExperienceImage.objects.create(experience=experience_instance, image=image)
                 else:
                     return Response({"error": exp_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-            season_data['sight'] = sight_instance.id  
+            season_data['sight'] = sight_instance.id
             season_serializer = SeasonTimeSerializer(data=season_data)
             if season_serializer.is_valid():
                 season_serializer.save(sight=sight_instance)
             else:
                 return Response({"error": season_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-            return Response({"message": "Sight, images, experiences, and season created successfully!"}, status=status.HTTP_201_CREATED)
+            return Response({"message": "Sight, images, experiences (with multiple images), and season created successfully!"}, status=status.HTTP_201_CREATED)
 
         return Response({"error": sight_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     def patch(self, request, *args, **kwargs):
