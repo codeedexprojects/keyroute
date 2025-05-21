@@ -21,7 +21,7 @@ from rest_framework import status as http_status
 from itertools import chain
 from vendors.models import PackageCategory,PackageSubCategory
 from vendors.serializers import PackageCategorySerializer,PackageSubCategorySerializer
-from .serializers import PackageFilterSerializer,BusFilterSerializer,ListPackageSerializer,PackageSerializer,SinglePackageBookingSerilizer,SingleBusBookingSerializer,PopularBusSerializer
+from .serializers import PackageFilterSerializer,BusFilterSerializer,ListPackageSerializer,ListingUserPackageSerializer,PackageSerializer,SinglePackageBookingSerilizer,SingleBusBookingSerializer,PopularBusSerializer
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from .utils import *
@@ -108,7 +108,7 @@ class SinglePackageListAPIView(APIView):
     
     def get(self, request,package_id):
         packages = Package.objects.get(id=package_id)
-        serializer = PackageSerializer(packages, many=False, context={'request': request})
+        serializer = ListingUserPackageSerializer(packages, many=False, context={'request': request})
         return Response(serializer.data)
 
 class BusListAPIView(APIView):
