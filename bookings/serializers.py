@@ -289,7 +289,7 @@ class SinglePackageBookingSerilizer(serializers.ModelSerializer):
 
 
 class PackageBookingSerializer(BaseBookingSerializer):
-    total_travelers = TravelerSerializer(many=True, required=False, read_only=True)
+    travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
     booking_type = serializers.SerializerMethodField()
     first_time_discount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
@@ -306,7 +306,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
     class Meta:
         model = PackageBooking
         fields = BaseBookingSerializer.Meta.fields + [
-            'package', 'package_details', 'total_travelers', 'partial_amount', 'booking_type', 'first_time_discount'
+            'package', 'package_details', 'travelers', 'partial_amount', 'booking_type', 'first_time_discount','total_travelers'
         ]
         read_only_fields = BaseBookingSerializer.Meta.read_only_fields
         extra_kwargs = {
