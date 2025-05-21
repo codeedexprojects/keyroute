@@ -735,7 +735,7 @@ class StaySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Stay
-        fields = ['id', 'hotel_name', 'description', 'images']
+        fields = ['id', 'hotel_name', 'description', 'images','has_breakfast','is_ac','location']
 
 
 class MealImageSerializer(serializers.ModelSerializer):
@@ -748,7 +748,7 @@ class MealSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Meal
-        fields = ['id', 'type', 'description', 'images']
+        fields = ['id', 'type', 'description', 'images','time','location','restaurant_name']
 
 
 class ActivityImageSerializer(serializers.ModelSerializer):
@@ -761,7 +761,7 @@ class ActivitySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Activity
-        fields = ['id', 'name', 'description', 'images']
+        fields = ['id', 'name', 'description', 'images','time','location']
 
 
 class DayPlanSerializer(serializers.ModelSerializer):
@@ -772,7 +772,9 @@ class DayPlanSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DayPlan
-        fields = ['id', 'day_number', 'description', 'places', 'stay', 'meals', 'activities']
+        fields = ['id', 'day_number','night', 'description', 'places', 'stay', 'meals', 'activities']
+
+
 
 
 class BusSerializer2(serializers.ModelSerializer):
