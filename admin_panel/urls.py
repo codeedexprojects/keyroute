@@ -57,7 +57,7 @@ urlpatterns = [
     path('api/admin/explore/<int:pk>/', ExploreSectionCreateView.as_view(), name='create-explore-section'),
 
     # EXPLORE LISTING
-    path('explore/list/', ExploreSectionListView.as_view(), name='explore-list'),
+    path('api/admin/explore/list/', ExploreSectionListView.as_view(), name='explore-list'),
 
 
     #ALL BOOKINGS
