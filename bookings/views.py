@@ -113,10 +113,57 @@ class SinglePackageListAPIView(APIView):
 
 class BusListAPIView(APIView):
     permission_classes = [AllowAny]
-    
+
     def get(self, request):
-        buses = Bus.objects.all()
-        serializer = BusSerializer(buses, many=True, context={'request': request})
+        lat = request.query_params.get('lat')
+        lon = request.query_params.get('lon')
+
+        if lat is None or lon is None:
+            return Response(
+                {"error": "Latitude (lat) and Longitude (lon) query parameters are required."},
+                status=400
+            )
+
+        try:
+            lat = float(lat)
+            lon = float(lon)
+            if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+                return Response(
+                    {"error": "Latitude must be between -90 and 90, and longitude between -180 and 180."},
+                    status=400
+                )
+            user_coords = (lat, lon)
+
+            # Optional: Print resolved location (for debugging)
+            try:
+                geolocator = Nominatim(user_agent="bus-locator")
+                location = geolocator.reverse(user_coords, exactly_one=True, timeout=10)
+                print("User Location:", location.address if location else "Unknown")
+            except Exception as e:
+                print(f"Geolocation error: {e}")
+
+        except ValueError:
+            return Response(
+                {"error": "Latitude and longitude must be valid float values."},
+                status=400
+            )
+
+        # Filter buses with valid coordinates
+        buses = Bus.objects.filter(latitude__isnull=False, longitude__isnull=False)
+
+        # Find nearby buses (within 30km)
+        nearby_buses = []
+        for bus in buses:
+            bus_coords = (bus.latitude, bus.longitude)
+            distance_km = geodesic(user_coords, bus_coords).kilometers
+            if distance_km <= 30:
+                nearby_buses.append(bus)
+
+        if not nearby_buses:
+            return Response({"message": "No buses found near your location within 30 km."}, status=200)
+
+        # Serialize the nearby buses
+        serializer = BusSerializer(nearby_buses, many=True, context={'request': request})
         return Response(serializer.data)
     
 class SingleBusListAPIView(APIView):
