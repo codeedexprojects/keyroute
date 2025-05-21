@@ -146,6 +146,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
 #         validated_data['user'] = user
 #         return Review.objects.create(**validated_data)
 
+
+
 class FavouriteSerializer(serializers.ModelSerializer):
     bus_details = serializers.SerializerMethodField(read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
@@ -189,6 +191,7 @@ class FavouriteSerializer(serializers.ModelSerializer):
         else:
             favourite, created = Favourite.objects.get_or_create(user=user, package=package)
         return favourite
+    
     
 class WalletSerializer(serializers.ModelSerializer):
     class Meta:

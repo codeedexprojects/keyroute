@@ -347,6 +347,10 @@ class FooterSectionSerializer(serializers.ModelSerializer):
 
 
 # --------------------------------------------------------
+class SightImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SightImage
+        fields = ['id', 'image']
 
 
 
@@ -378,10 +382,13 @@ class SeasonTimeSerializer2(serializers.ModelSerializer):
 class SightListSerializer(serializers.ModelSerializer):
     experiences = ExperienceSerializer(many=True, read_only=True)
     season_times = SeasonTimeSerializer(many=True, read_only=True)
+    images = SightImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = Sight
-        fields = ['id', 'title', 'description', 'season_description', 'experiences','image','season_times']
+        fields = ['id', 'title', 'description', 'season_description', 'experiences','season_times','images']
+
+
 
 
 
