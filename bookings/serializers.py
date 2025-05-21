@@ -268,7 +268,7 @@ class SinglePackageBookingSerilizer(serializers.ModelSerializer):
         fields = [
             'booking_id', 'from_location', 'to_location',
             'start_date', 'end_date', 'total_travelers',
-            'total_amount', 'paid_amount', 'bus_name', 'booking_type'
+            'total_amount', 'paid_amount', 'bus_name', 'booking_type','male','female','children'
         ]
 
     def get_end_date(self, obj):
@@ -908,3 +908,181 @@ class ListingUserPackageSerializer(serializers.ModelSerializer):
 
     def get_total_reviews(self, obj):
         return obj.package_reviews.count()
+    
+
+
+
+class PackageBookingUpdateSerializer(BaseBookingSerializer):
+    travelers = TravelerSerializer(many=True, required=False, read_only=True)
+    package_details = serializers.SerializerMethodField(read_only=True)
+    booking_type = serializers.SerializerMethodField()
+    first_time_discount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    
+    # Partial payment field  
+    partial_amount = serializers.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        required=False, 
+        write_only=True,
+        help_text="Amount user chooses to pay initially. Must be >= advance_amount."
+    )
+    
+    class Meta:
+        model = PackageBooking
+        fields = BaseBookingSerializer.Meta.fields + [
+            'package', 'package_details', 'travelers', 'partial_amount', 'booking_type', 'first_time_discount'
+        ]
+        read_only_fields = BaseBookingSerializer.Meta.read_only_fields
+        extra_kwargs = {
+            'user': {'write_only': True, 'required': False},
+            'advance_amount': {'write_only': False, 'required': False},
+        }
+    
+    def get_package_details(self, obj):
+        from vendors.serializers import PackageSerializer
+        return PackageSerializer(obj.package).data
+    
+    def get_booking_type(self, obj):
+        return "package"
+
+    def update(self, instance, validated_data):
+        import logging
+        logger = logging.getLogger(__name__)
+
+        user = self.context['request'].user
+        total_amount = validated_data.get('total_amount', instance.total_amount)
+        
+        # If total amount is being updated, check for first-time booking discount
+        if 'total_amount' in validated_data:
+            # Check if this is the user's first booking
+            first_time_booking = False
+            first_time_discount = Decimal('0.00')
+            
+            # Check if user has any previous bookings (excluding this one)
+            bus_bookings = BusBooking.objects.filter(user=user).exists()
+            package_bookings = PackageBooking.objects.filter(user=user).exclude(id=instance.id).exists()
+            
+            if not bus_bookings and not package_bookings:
+                # This is the first booking for this user
+                first_time_booking = True
+                # Apply 10% discount
+                first_time_discount = Decimal(str(total_amount)) * Decimal('0.10')
+                total_amount -= first_time_discount
+                validated_data['total_amount'] = total_amount
+                validated_data['first_time_discount'] = first_time_discount
+                
+                logger.info(f"Applied first-time booking discount of {first_time_discount} for user {user.id}. New total: {total_amount}")
+
+        # Apply wallet balance if available (only if total amount is being updated)
+        if 'total_amount' in validated_data:
+            try:
+                wallet = Wallet.objects.get(user=user)
+                if wallet.balance >= MINIMUM_WALLET_AMOUNT:
+                    wallet_amount_used = wallet.balance
+                    total_amount = total_amount - wallet_amount_used
+                    validated_data['total_amount'] = total_amount
+
+                    # Update wallet balance
+                    wallet.balance = Decimal('0.00')
+                    wallet.save()
+
+                    logger.info(f"Used wallet balance of {wallet_amount_used} for package booking update. New total: {total_amount}")
+            except Wallet.DoesNotExist:
+                logger.info(f"No wallet found for user {user.id}")
+            except Exception as e:
+                logger.error(f"Error processing wallet: {str(e)}")
+
+        # Calculate minimum advance amount required
+        if 'total_amount' in validated_data:
+            advance_percent, min_advance_amount = get_advance_amount_from_db(total_amount)
+        else:
+            advance_percent, min_advance_amount = get_advance_amount_from_db(instance.total_amount)
+
+        # Get partial amount from validated data or initial data
+        partial_amount = validated_data.pop('partial_amount', None)
+        if partial_amount is None:
+            # Try to get from initial data if not in validated_data
+            partial_amount = self.initial_data.get('partial_amount')
+
+        # Validate and set advance amount if provided
+        if partial_amount:
+            try:
+                partial_amount = Decimal(str(partial_amount))
+                if partial_amount < min_advance_amount:
+                    raise serializers.ValidationError(
+                        f"Partial amount ({partial_amount}) must be greater than or equal to the minimum advance amount ({min_advance_amount})."
+                    )
+                validated_data['advance_amount'] = partial_amount
+            except (ValueError, TypeError):
+                raise serializers.ValidationError("Invalid partial amount format.")
+
+        # Update booking
+        booking = super().update(instance, validated_data)
+
+        # Update admin commission if total amount changed
+        if 'total_amount' in validated_data:
+            commission_percent, revenue = get_admin_commission_from_db(total_amount)
+            try:
+                admin_commission = AdminCommission.objects.get(booking_type='package', booking_id=booking.id)
+                admin_commission.advance_amount = booking.advance_amount
+                admin_commission.commission_percentage = commission_percent
+                admin_commission.revenue_to_admin = revenue
+                admin_commission.save()
+                logger.info(f"Updated admin commission for package booking {booking.id}")
+            except AdminCommission.DoesNotExist:
+                AdminCommission.objects.create(
+                    booking_type='package',
+                    booking_id=booking.id,
+                    advance_amount=booking.advance_amount,
+                    commission_percentage=commission_percent,
+                    revenue_to_admin=revenue
+                )
+                logger.info(f"Created admin commission for package booking {booking.id}")
+
+        # Process referral if applicable and not already used
+        try:
+            wallet = Wallet.objects.get(user=user)
+            if wallet.referred_by and not wallet.referral_used:
+                logger.info(f"Processing referral for user {user.id}, referred by {wallet.referred_by}")
+                
+                referrer = None
+                try:
+                    referrer = User.objects.get(mobile=wallet.referred_by)
+                except User.DoesNotExist:
+                    try:
+                        referrer = User.objects.get(email=wallet.referred_by)
+                    except User.DoesNotExist:
+                        referrer = User.objects.filter(mobile=wallet.referred_by).first()
+                
+                if referrer:
+                    # Check if there's already a pending reward for this booking
+                    existing_reward = ReferralRewardTransaction.objects.filter(
+                        referred_user=user,
+                        booking_type='package',
+                        booking_id=booking.id
+                    ).exists()
+                    
+                    if not existing_reward:
+                        reward = 300
+                        try:
+                            ReferralRewardTransaction.objects.create(
+                                referrer=referrer,
+                                referred_user=user,
+                                booking_type='package',
+                                booking_id=booking.id,
+                                reward_amount=reward,
+                                status='pending'
+                            )
+                            wallet.referral_used = True
+                            wallet.save()
+                            logger.info(f"Created referral reward for referrer {referrer.id} from package booking update {booking.id}")
+                        except Exception as e:
+                            logger.error(f"Error creating referral transaction: {str(e)}")
+                else:
+                    logger.warning(f"Could not find referrer with any identifier '{wallet.referred_by}'")
+        except Wallet.DoesNotExist:
+            pass
+        except Exception as e:
+            logger.error(f"Unexpected error during referral processing: {str(e)}")
+
+        return booking
