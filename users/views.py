@@ -320,7 +320,8 @@ class FavouriteAPIView(APIView):
         serializer = FavouriteSerializer(favourite)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    def delete(self, request):
+class RemoveFavouriteAPIView(APIView):
+    def get(self, request):
         bus_id = request.data.get('bus_id')
         package_id = request.data.get('package_id')
 
