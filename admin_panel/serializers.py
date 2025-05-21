@@ -315,20 +315,16 @@ class AdvertisementSerializer(serializers.ModelSerializer):
 class LimitedDealImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = LimitedDealImage
-        fields = ['image']
+        fields = ['id','image']
 
 
 class LimitedDealSerializer(serializers.ModelSerializer):
-    # images = serializers.ListField(
-    #     child=serializers.ImageField(),
-    #     write_only=True,
-    #     required=False 
-    # )
+   
     images = LimitedDealImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = LimitedDeal
-        fields = ['title', 'description', 'images']
+        fields = ['id','title', 'description', 'images']
 
     def create(self, validated_data):
         images = validated_data.pop('images', [])   
@@ -343,7 +339,7 @@ class LimitedDealSerializer(serializers.ModelSerializer):
 class FooterSectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = FooterSection
-        fields = ['title', 'description', 'image']
+        fields = ['id','title', 'description', 'image']
 
 
 # --------------------------------------------------------
