@@ -247,13 +247,20 @@ class SeasonTimeSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class SightImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SightImage
+        fields = ['id', 'image']
+
+
 class SightDetailSerializer(serializers.ModelSerializer):
+    images = SightImageSerializer(many=True, read_only=True)
     experiences = ExperienceSerializer(many=True, read_only=True)
     seasons = SeasonTimeSerializer(many=True, read_only=True)
-    
+
     class Meta:
         model = Sight
-        fields = ['id', 'title', 'image', 'description', 'season_description', 'experiences', 'seasons']
+        fields = ['id', 'title', 'description', 'season_description', 'images', 'experiences', 'seasons']
 
 
 class SightSerializer(serializers.ModelSerializer):

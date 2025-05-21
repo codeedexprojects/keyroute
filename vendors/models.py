@@ -312,6 +312,3 @@ class VendorBusyDate(models.Model):
         if self.from_time and self.to_time:
             return f"{self.vendor.user.name} - {self.date} ({self.from_time} to {self.to_time})"
         return f"{self.vendor.user.name} - {self.date} (Full Day)"
-
-
-
