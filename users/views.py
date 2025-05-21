@@ -306,6 +306,7 @@ class FavouriteAPIView(APIView):
         if not bus_id and not package_id:
             return Response({'error': 'bus_id or package_id is required'}, status=status.HTTP_400_BAD_REQUEST)
 
+
         if bus_id:
             bus = get_object_or_404(Bus, id=bus_id)
             favourite, created = Favourite.objects.get_or_create(user=request.user, bus=bus)
