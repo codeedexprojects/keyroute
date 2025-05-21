@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (UserLogoutView, UserProfileAPIView,  AuthenticationView, 
                     VerifyOTPView,FavouriteAPIView,ListFavourites, GetReferralCodeView,
                     GetWalletView,OngoingReferralsView,ReferralHistoryView,
-                    SightDetailView,ExperienceView,ExperienceDetailView,SeasonTimeDetailView,SeasonTimeView,SightView,GreetingAPIView,ResendOTPView)
+                    SightDetailView,ExperienceView,ExperienceDetailView,RemoveFavouriteAPIView,SeasonTimeDetailView,SeasonTimeView,SightView,GreetingAPIView,ResendOTPView)
 
 urlpatterns = [
     path('auth/', AuthenticationView.as_view(), name='authentication'),
@@ -15,6 +15,7 @@ urlpatterns = [
     path('profile/', UserProfileAPIView.as_view(), name='user-profile'),
 
     path('favourites/', FavouriteAPIView.as_view(), name='favourite-api'),
+    path('favourites/remove/', RemoveFavouriteAPIView.as_view(), name='favourite-api-remove'),
 
     path('list-favourite/<str:bus_or_package>/',ListFavourites.as_view(),name='list-favourite'),
 

@@ -218,10 +218,18 @@ class ReferralHistorySerializer(serializers.ModelSerializer):
     def get_referred_user_name(self, obj):
         return getattr(obj.referred_user, 'name', None)
 
+
+class ExperienceImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExperienceImage
+        fields = ['id', 'image']
+
 class ExperienceSerializer(serializers.ModelSerializer):
+    images = ExperienceImageSerializer(many=True, read_only=True)
+
     class Meta:
         model = Experience
-        fields = '__all__'
+        fields = ['id', 'sight', 'header', 'sub_header', 'description', 'images']
 
 
 class SeasonTimeSerializer(serializers.ModelSerializer):

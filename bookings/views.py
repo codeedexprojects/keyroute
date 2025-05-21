@@ -191,7 +191,7 @@ class PackageBookingUpdateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, booking_id):
-        booking = get_object_or_404(PackageBooking, id=booking_id, user=request.user)
+        booking = get_object_or_404(PackageBooking, booking_id=booking_id, user=request.user)
         serializer = PackageBookingSerializer(
             booking,
             data=request.data,

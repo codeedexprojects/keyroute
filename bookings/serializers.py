@@ -877,10 +877,10 @@ class ListingUserPackageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Package
         fields = [
-            'id', 'vendor_name', 'sub_category_name', 'header_image', 'places', 'days', 'night',
+            'id','package_images','vendor_name', 'sub_category_name', 'header_image', 'places', 'days', 'night',
             'ac_available', 'guide_included', 'buses', 'bus_location', 'price_per_person',
             'extra_charge_per_km', 'status', 'average_rating', 'total_reviews',
-            'package_images', 'day_plans', 'created_at', 'updated_at', 'travels_name', 'is_favorite'
+            'day_plans', 'created_at', 'updated_at', 'travels_name', 'is_favorite'
         ]
 
     def get_travels_name(self, obj):
