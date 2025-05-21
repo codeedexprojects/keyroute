@@ -21,7 +21,7 @@ from rest_framework import status as http_status
 from itertools import chain
 from vendors.models import PackageCategory,PackageSubCategory
 from vendors.serializers import PackageCategorySerializer,PackageSubCategorySerializer
-from .serializers import PackageFilterSerializer,BusFilterSerializer,PackageSerializer,SinglePackageBookingSerilizer,SingleBusBookingSerializer,PopularBusSerializer
+from .serializers import PackageFilterSerializer,BusFilterSerializer,ListPackageSerializer,PackageSerializer,SinglePackageBookingSerilizer,SingleBusBookingSerializer,PopularBusSerializer
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from .utils import *
@@ -32,51 +32,82 @@ class PackageListAPIView(APIView):
     permission_classes = [AllowAny]
     
     def get(self, request, category):
+        # Retrieve lat/lon from query params
         lat = request.query_params.get('lat')
         lon = request.query_params.get('lon')
 
-        user_coords = None
-        if lat and lon:
+        # Check if lat/lon are provided (required now)
+        if lat is None or lon is None:
+            return Response(
+                {"error": "Latitude (lat) and Longitude (lon) query parameters are required."},
+                status=400
+            )
+
+        # Validate and convert to float
+        try:
+            lat = float(lat)
+            lon = float(lon)
+            if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+                return Response(
+                    {"error": "Latitude must be between -90 and 90, and longitude between -180 and 180."},
+                    status=400
+                )
+            user_coords = (lat, lon)
+
+            # Optional: Reverse geocoding (can be removed if not needed)
             try:
-                lat = float(lat)
-                lon = float(lon)
-                if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
-                    return Response({"error": "Latitude must be between -90 and 90, and longitude between -180 and 180."}, status=400)
-                user_coords = (lat, lon)
+                geolocator = Nominatim(user_agent="coord-debug")
+                location = geolocator.reverse(user_coords, exactly_one=True, timeout=10)
+                print(location.address if location else "Invalid coordinates")
+            except Exception as e:
+                print(f"Geolocation error: {e}")
 
-                try:
-                    geolocator = Nominatim(user_agent="coord-debug")
-                    location = geolocator.reverse(user_coords, exactly_one=True, timeout=10)
-                    print(location.address if location else "Invalid coordinates")
-                except Exception as e:
-                    print(f"Geolocation error: {e}")
-            except ValueError:
-                return Response({"error": "Latitude and longitude must be valid float values."}, status=400)
+        except ValueError:
+            return Response(
+                {"error": "Latitude and longitude must be valid float values."},
+                status=400
+            )
 
+        # Filter packages by category
         packages = Package.objects.filter(sub_category=category)
         if not packages.exists():
             return Response({"error": f"No packages found under category '{category}'."}, status=404)
 
-        if user_coords:
-            nearby_packages = []
-            for package in packages:
-                if package.latitude is not None and package.longitude is not None:
-                    package_coords = (package.latitude, package.longitude)
-                    distance_km = geodesic(user_coords, package_coords).kilometers
+        # Filter packages by distance
+        nearby_packages = []
+        for package in packages:
+            if package.buses.exists():  # Check if package has any buses
+                # Get buses associated with this package
+                buses_with_coords = package.buses.filter(
+                    latitude__isnull=False, 
+                    longitude__isnull=False
+                )
+                
+                # Check if at least one bus is within range
+                is_nearby = False
+                for bus in buses_with_coords:
+                    bus_coords = (bus.latitude, bus.longitude)
+                    distance_km = geodesic(user_coords, bus_coords).kilometers
                     if distance_km <= 30:
-                        nearby_packages.append(package)
+                        is_nearby = True
+                        break
+                
+                if is_nearby:
+                    nearby_packages.append(package)
 
-            if not nearby_packages:
-                return Response({
-                    "message": f"No packages found near your location within 30 km"
-                }, status=200)
+        if not nearby_packages:
+            return Response({
+                "message": f"No packages found near your location within 30 km"
+            }, status=200)
 
-            serializer = PackageSerializer(nearby_packages, many=True, context={'request': request})
-            return Response(serializer.data)
-
-        serializer = PackageSerializer(packages, many=True, context={'request': request})
+        # Create a custom serializer context with user location for distance calculation
+        context = {
+            'request': request,
+            'user_location': user_coords
+        }
+        
+        serializer = ListPackageSerializer(nearby_packages, many=True, context=context)
         return Response(serializer.data)
-
     
 class SinglePackageListAPIView(APIView):
     permission_classes = [AllowAny]
