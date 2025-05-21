@@ -21,7 +21,7 @@ from rest_framework import status as http_status
 from itertools import chain
 from vendors.models import PackageCategory,PackageSubCategory
 from vendors.serializers import PackageCategorySerializer,PackageSubCategorySerializer
-from .serializers import PackageFilterSerializer,BusFilterSerializer,ListPackageSerializer,ListingUserPackageSerializer,PackageSerializer,SinglePackageBookingSerilizer,SingleBusBookingSerializer,PopularBusSerializer
+from .serializers import PackageFilterSerializer,PackageBookingUpdateSerializer,BusFilterSerializer,ListPackageSerializer,ListingUserPackageSerializer,PackageSerializer,SinglePackageBookingSerilizer,SingleBusBookingSerializer,PopularBusSerializer
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from .utils import *
@@ -192,14 +192,24 @@ class PackageBookingUpdateAPIView(APIView):
 
     def patch(self, request, booking_id):
         booking = get_object_or_404(PackageBooking, booking_id=booking_id, user=request.user)
-        serializer = PackageBookingSerializer(
+        
+        # Use the dedicated update serializer
+        serializer = PackageBookingUpdateSerializer(
             booking,
             data=request.data,
             partial=True,
             context={'request': request}
         )
+        
         if serializer.is_valid():
-            serializer.save()
+            booking = serializer.save()
+            
+            package_name = booking.package.name if hasattr(booking.package, 'name') else "Tour package"
+            send_notification(
+                user=request.user,
+                message=f"Your booking for {package_name} has been successfully updated! Booking ID: {booking.id}"
+            )
+            
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
