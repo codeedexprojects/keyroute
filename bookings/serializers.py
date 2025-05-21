@@ -15,6 +15,7 @@ from vendors.models import *
 from datetime import timedelta
 from django.conf import settings
 import requests
+from geopy.distance import geodesic
 
 
 User = get_user_model()
@@ -723,7 +724,8 @@ class PackageSerializer(serializers.ModelSerializer):
         ]
 
     def get_night(self, obj):
-        return obj.day_plans.filter(night=True).exists()
+        night_count = obj.package.day_plans.filter(night=True).count()
+        return night_count
 
     def get_travels_name(self, obj):
         return obj.vendor.travels_name
@@ -751,3 +753,70 @@ class PopularBusSerializer(serializers.ModelSerializer):
 
     def get_total_reviews(self, obj):
         return obj.bus_reviews.count()
+    
+
+class ListPackageSerializer(serializers.ModelSerializer):
+    average_rating = serializers.FloatField(read_only=True)
+    total_reviews = serializers.IntegerField(read_only=True)
+    buses_location_data = serializers.SerializerMethodField()
+    is_favorite = serializers.SerializerMethodField()
+    travels_name = serializers.SerializerMethodField()
+    night = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Package
+        fields = [
+            'id',
+            'header_image', 'places', 'days',
+            'price_per_person',
+            'average_rating', 'total_reviews', 'buses_location_data','is_favorite','travels_name',
+            'bus_location','night'
+        ]
+
+    def get_night(self, obj):
+        night_count = obj.day_plans.filter(night=True).count()
+        return night_count
+
+    def get_travels_name(self, obj):
+        return obj.vendor.travels_name
+
+    def get_is_favorite(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return Favourite.objects.filter(user=request.user, package=obj).exists()
+        return False
+
+    def get_average_rating(self, obj):
+        avg = obj.bus_reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(avg, 1) if avg else 0.0
+
+    def get_total_reviews(self, obj):
+        return obj.bus_reviews.count()
+    
+    def get_buses_location_data(self, obj):
+        """
+        Return location data for all buses associated with this package
+        """
+        buses_data = []
+        user_location = self.context.get('user_location')
+        
+        for bus in obj.buses.all():
+            if bus.latitude is not None and bus.longitude is not None:
+                bus_data = {
+                    'id': bus.id,
+                    'bus_name': bus.bus_name,
+                    'bus_number': bus.bus_number,
+                    'latitude': bus.latitude,
+                    'longitude': bus.longitude,
+                    'location': bus.location
+                }
+                
+                # Calculate distance if user location is provided
+                if user_location:
+                    bus_coords = (bus.latitude, bus.longitude)
+                    distance_km = geodesic(user_location, bus_coords).kilometers
+                    bus_data['distance_km'] = round(distance_km, 1)
+                
+                buses_data.append(bus_data)
+                
+        return buses_data
