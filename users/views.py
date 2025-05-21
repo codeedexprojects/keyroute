@@ -415,13 +415,6 @@ class SightView(APIView):
         sights = Sight.objects.all()
         serializer = SightSerializer(sights, many=True)
         return Response(serializer.data)
-    
-    def post(self, request):
-        serializer = SightSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class SightDetailView(APIView):
@@ -438,26 +431,6 @@ class SightDetailView(APIView):
         
         serializer = SightDetailSerializer(sight)
         return Response(serializer.data)
-    
-    def put(self, request, pk):
-        sight = self.get_object(pk)
-        if not sight:
-            return Response({'error': 'Sight not found'}, status=status.HTTP_404_NOT_FOUND)
-        
-        serializer = SightSerializer(sight, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    def delete(self, request, pk):
-        sight = self.get_object(pk)
-        if not sight:
-            return Response({'error': 'Sight not found'}, status=status.HTTP_404_NOT_FOUND)
-        
-        sight.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
 
 class ExperienceView(APIView):
     def get(self, request, sight_id):
