@@ -321,9 +321,11 @@ class FavouriteAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 class RemoveFavouriteAPIView(APIView):
-    def get(self, request):
-        bus_id = request.data.get('bus_id')
-        package_id = request.data.get('package_id')
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        bus_id = request.query_params.get('bus_id')
+        package_id = request.query_params.get('package_id')
 
         if not bus_id and not package_id:
             return Response({'error': 'bus_id or package_id is required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -339,7 +341,7 @@ class RemoveFavouriteAPIView(APIView):
             return Response({'message': 'Item is not in your favourites'}, status=status.HTTP_404_NOT_FOUND)
 
         favourite.delete()
-        return Response({'message': 'Removed from favourites'}, status=status.HTTP_204_NO_CONTENT)
+        return Response({'message': 'Removed from favourites'}, status=status.HTTP_200_OK)
 
 
 class ListFavourites(APIView):
