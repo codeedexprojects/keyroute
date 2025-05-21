@@ -233,6 +233,9 @@ class SingleBusBookingSerializer(serializers.ModelSerializer):
 
         return obj.start_date
 
+from datetime import timedelta
+from django.db.models import Count, Q
+
 class SinglePackageBookingSerilizer(serializers.ModelSerializer):
     end_date = serializers.SerializerMethodField()
     paid_amount = serializers.SerializerMethodField()
@@ -241,19 +244,24 @@ class SinglePackageBookingSerilizer(serializers.ModelSerializer):
 
     class Meta:
         model = PackageBooking
-        fields = ['booking_id','from_location','to_location','start_date','end_date','total_travelers','total_amount','paid_amount','bus_name','booking_type']
+        fields = [
+            'booking_id', 'from_location', 'to_location',
+            'start_date', 'end_date', 'total_travelers',
+            'total_amount', 'paid_amount', 'bus_name', 'booking_type'
+        ]
 
     def get_end_date(self, obj):
-        total_days = obj.package.days + obj.package.nights
+        night_count = obj.package.day_plans.filter(night=True).count()
+        total_days = obj.package.days + night_count
         end_date = obj.start_date + timedelta(days=total_days)
         return end_date
-    
+
     def get_booking_type(self, obj):
         return "package"
-    
+
     def get_paid_amount(self, obj):
         return obj.advance_amount
-    
+
     def get_bus_name(self, obj):
         buses = obj.package.buses.all()
         return [bus.bus_name for bus in buses]
@@ -664,14 +672,18 @@ class PackageSerializer(serializers.ModelSerializer):
     buses = BusMinimalSerializer(many=True, read_only=True)
     is_favorite = serializers.SerializerMethodField()
     price_per_person = serializers.SerializerMethodField()
+    night = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
         fields = [
-            'id','header_image', 'places', 'days', 'nights',
+            'id', 'header_image', 'places', 'days', 'night',
             'ac_available', 'guide_included', 'buses', 'bus_location',
             'price_per_person', 'travels_name', 'is_favorite'
         ]
+
+    def get_night(self, obj):
+        return obj.day_plans.filter(night=True).exists()
 
     def get_travels_name(self, obj):
         return obj.vendor.travels_name
