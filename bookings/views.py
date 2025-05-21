@@ -32,18 +32,15 @@ class PackageListAPIView(APIView):
     permission_classes = [AllowAny]
     
     def get(self, request, category):
-        # Retrieve lat/lon from query params
         lat = request.query_params.get('lat')
         lon = request.query_params.get('lon')
 
-        # Check if lat/lon are provided (required now)
         if lat is None or lon is None:
             return Response(
                 {"error": "Latitude (lat) and Longitude (lon) query parameters are required."},
                 status=400
             )
 
-        # Validate and convert to float
         try:
             lat = float(lat)
             lon = float(lon)
@@ -54,7 +51,6 @@ class PackageListAPIView(APIView):
                 )
             user_coords = (lat, lon)
 
-            # Optional: Reverse geocoding (can be removed if not needed)
             try:
                 geolocator = Nominatim(user_agent="coord-debug")
                 location = geolocator.reverse(user_coords, exactly_one=True, timeout=10)
@@ -68,12 +64,10 @@ class PackageListAPIView(APIView):
                 status=400
             )
 
-        # Filter packages by category
         packages = Package.objects.filter(sub_category=category)
         if not packages.exists():
             return Response({"error": f"No packages found under category '{category}'."}, status=404)
 
-        # Filter packages by distance
         nearby_packages = []
         for package in packages:
             if package.buses.exists():  # Check if package has any buses
@@ -191,6 +185,22 @@ class PackageBookingListCreateAPIView(APIView):
             else:
                 booking.delete()
                 return Response(travelerSerializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class PackageBookingUpdateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, booking_id):
+        booking = get_object_or_404(PackageBooking, id=booking_id, user=request.user)
+        serializer = PackageBookingSerializer(
+            booking,
+            data=request.data,
+            partial=True,
+            context={'request': request}
+        )
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class PackageBookingDetailAPIView(APIView):
