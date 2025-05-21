@@ -29,8 +29,7 @@ import requests
 import string
 import random
 from django.contrib.auth import login
-from django.core.exceptions import ObjectDoesNotExist
-
+from django.core.exceptions import ObjectDoesNotExist   
 from rest_framework import serializers, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -71,6 +70,7 @@ class AuthenticationView(APIView):
         
         if response.get("Status") == "Success":
             session_id = response.get("Details")
+            from datetime import timezone
             now = datetime.now(timezone.utc)
             expiry_time = now + timedelta(minutes=10)
             
@@ -126,6 +126,7 @@ class VerifyOTPView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
             
         # Check if the OTP has expired
+        from datetime import timezone
         now = datetime.now(timezone.utc)
         if now > otp_session.expires_at:
             otp_session.delete()
