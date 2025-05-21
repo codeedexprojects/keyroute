@@ -27,7 +27,9 @@ urlpatterns = [
 
     path('sights/', SightView.as_view(), name='sight-list'),
     path('sights/<int:pk>/', SightDetailView.as_view(), name='sight-detail'),
+
     path('sights/<int:sight_id>/experiences/', ExperienceView.as_view(), name='experience-list'),
+    
     path('experiences/<int:pk>/', ExperienceDetailView.as_view(), name='experience-detail'),
     path('sights/<int:sight_id>/seasons/', SeasonTimeView.as_view(), name='season-list'),
     path('seasons/<int:pk>/', SeasonTimeDetailView.as_view(), name='season-detail'),
