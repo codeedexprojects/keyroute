@@ -872,11 +872,12 @@ class ListingUserPackageSerializer(serializers.ModelSerializer):
     extra_charge_per_km = serializers.SerializerMethodField()
     average_rating = serializers.SerializerMethodField()
     total_reviews = serializers.SerializerMethodField()
+    night = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
         fields = [
-            'id', 'vendor_name', 'sub_category_name', 'header_image', 'places', 'days', 'nights',
+            'id', 'vendor_name', 'sub_category_name', 'header_image', 'places', 'days', 'night',
             'ac_available', 'guide_included', 'buses', 'bus_location', 'price_per_person',
             'extra_charge_per_km', 'status', 'average_rating', 'total_reviews',
             'package_images', 'day_plans', 'created_at', 'updated_at', 'travels_name', 'is_favorite'
@@ -884,6 +885,10 @@ class ListingUserPackageSerializer(serializers.ModelSerializer):
 
     def get_travels_name(self, obj):
         return obj.vendor.travels_name
+    
+    def get_night(self, obj):
+        night_count = obj.day_plans.filter(night=True).count()
+        return night_count
 
     def get_is_favorite(self, obj):
         request = self.context.get('request')
