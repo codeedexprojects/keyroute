@@ -51,7 +51,7 @@ class BaseBookingSerializer(serializers.ModelSerializer):
         }
 
 class BusBookingSerializer(BaseBookingSerializer):
-    travelers = TravelerSerializer(many=True, required=False, read_only=True)
+    total_travelers = TravelerSerializer(many=True, required=False, read_only=True)
     bus_details = serializers.SerializerMethodField(read_only=True)
     booking_type = serializers.SerializerMethodField()
     first_time_discount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
@@ -289,7 +289,7 @@ class SinglePackageBookingSerilizer(serializers.ModelSerializer):
 
 
 class PackageBookingSerializer(BaseBookingSerializer):
-    travelers = TravelerSerializer(many=True, required=False, read_only=True)
+    total_travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
     booking_type = serializers.SerializerMethodField()
     first_time_discount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
@@ -913,7 +913,7 @@ class ListingUserPackageSerializer(serializers.ModelSerializer):
 
 
 class PackageBookingUpdateSerializer(BaseBookingSerializer):
-    travelers = TravelerSerializer(many=True, required=False, read_only=True)
+    total_travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
     booking_type = serializers.SerializerMethodField()
     first_time_discount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
@@ -930,7 +930,7 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
     class Meta:
         model = PackageBooking
         fields = BaseBookingSerializer.Meta.fields + [
-            'package', 'package_details', 'travelers', 'partial_amount', 'booking_type', 'first_time_discount'
+            'package', 'package_details', 'total_travelers', 'partial_amount', 'booking_type', 'first_time_discount'
         ]
         read_only_fields = BaseBookingSerializer.Meta.read_only_fields
         extra_kwargs = {
