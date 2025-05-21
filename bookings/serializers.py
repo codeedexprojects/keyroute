@@ -15,6 +15,7 @@ from vendors.models import *
 from datetime import timedelta
 from django.conf import settings
 import requests
+from geopy.distance import geodesic
 
 
 User = get_user_model()
@@ -53,6 +54,7 @@ class BusBookingSerializer(BaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     bus_details = serializers.SerializerMethodField(read_only=True)
     booking_type = serializers.SerializerMethodField()
+    first_time_discount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     # Partial payment field
     partial_amount = serializers.DecimalField(
@@ -66,7 +68,7 @@ class BusBookingSerializer(BaseBookingSerializer):
     class Meta:
         model = BusBooking
         fields = BaseBookingSerializer.Meta.fields + [
-            'bus', 'bus_details', 'one_way', 'travelers', 'booking_type', 'partial_amount'
+            'bus', 'bus_details', 'one_way', 'travelers', 'booking_type', 'partial_amount', 'first_time_discount'
         ]
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
@@ -87,6 +89,25 @@ class BusBookingSerializer(BaseBookingSerializer):
         # Get the total amount from validated data
         total_amount = validated_data.get('total_amount')
         user = self.context['request'].user
+
+        # Check if this is the user's first booking
+        first_time_booking = False
+        first_time_discount = Decimal('0.00')
+        
+        # Check if user has any previous bookings
+        bus_bookings = BusBooking.objects.filter(user=user).exists()
+        package_bookings = PackageBooking.objects.filter(user=user).exists()
+        
+        if not bus_bookings and not package_bookings:
+            # This is the first booking for this user
+            first_time_booking = True
+            # Apply 10% discount
+            first_time_discount = Decimal(str(total_amount)) * Decimal('0.10')
+            total_amount -= first_time_discount
+            validated_data['total_amount'] = total_amount
+            validated_data['first_time_discount'] = first_time_discount
+            
+            logger.info(f"Applied first-time booking discount of {first_time_discount} for user {user.id}. New total: {total_amount}")
 
         # Apply wallet balance if available
         try:
@@ -271,6 +292,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
     booking_type = serializers.SerializerMethodField()
+    first_time_discount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     
     # Partial payment field  
     partial_amount = serializers.DecimalField(
@@ -284,7 +306,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
     class Meta:
         model = PackageBooking
         fields = BaseBookingSerializer.Meta.fields + [
-            'package', 'package_details', 'travelers', 'partial_amount', 'booking_type'
+            'package', 'package_details', 'travelers', 'partial_amount', 'booking_type', 'first_time_discount'
         ]
         read_only_fields = BaseBookingSerializer.Meta.read_only_fields
         extra_kwargs = {
@@ -306,6 +328,25 @@ class PackageBookingSerializer(BaseBookingSerializer):
         # Get the total amount from validated data
         total_amount = validated_data.get('total_amount')
         user = self.context['request'].user
+
+        # Check if this is the user's first booking
+        first_time_booking = False
+        first_time_discount = Decimal('0.00')
+        
+        # Check if user has any previous bookings
+        bus_bookings = BusBooking.objects.filter(user=user).exists()
+        package_bookings = PackageBooking.objects.filter(user=user).exists()
+        
+        if not bus_bookings and not package_bookings:
+            # This is the first booking for this user
+            first_time_booking = True
+            # Apply 10% discount
+            first_time_discount = Decimal(str(total_amount)) * Decimal('0.10')
+            total_amount -= first_time_discount
+            validated_data['total_amount'] = total_amount
+            validated_data['first_time_discount'] = first_time_discount
+            
+            logger.info(f"Applied first-time booking discount of {first_time_discount} for user {user.id}. New total: {total_amount}")
 
         # Apply wallet balance if available
         try:
@@ -683,7 +724,8 @@ class PackageSerializer(serializers.ModelSerializer):
         ]
 
     def get_night(self, obj):
-        return obj.day_plans.filter(night=True).exists()
+        night_count = obj.package.day_plans.filter(night=True).count()
+        return night_count
 
     def get_travels_name(self, obj):
         return obj.vendor.travels_name
@@ -711,3 +753,70 @@ class PopularBusSerializer(serializers.ModelSerializer):
 
     def get_total_reviews(self, obj):
         return obj.bus_reviews.count()
+    
+
+class ListPackageSerializer(serializers.ModelSerializer):
+    average_rating = serializers.FloatField(read_only=True)
+    total_reviews = serializers.IntegerField(read_only=True)
+    buses_location_data = serializers.SerializerMethodField()
+    is_favorite = serializers.SerializerMethodField()
+    travels_name = serializers.SerializerMethodField()
+    night = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Package
+        fields = [
+            'id',
+            'header_image', 'places', 'days',
+            'price_per_person',
+            'average_rating', 'total_reviews', 'buses_location_data','is_favorite','travels_name',
+            'bus_location','night'
+        ]
+
+    def get_night(self, obj):
+        night_count = obj.day_plans.filter(night=True).count()
+        return night_count
+
+    def get_travels_name(self, obj):
+        return obj.vendor.travels_name
+
+    def get_is_favorite(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return Favourite.objects.filter(user=request.user, package=obj).exists()
+        return False
+
+    def get_average_rating(self, obj):
+        avg = obj.bus_reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(avg, 1) if avg else 0.0
+
+    def get_total_reviews(self, obj):
+        return obj.bus_reviews.count()
+    
+    def get_buses_location_data(self, obj):
+        """
+        Return location data for all buses associated with this package
+        """
+        buses_data = []
+        user_location = self.context.get('user_location')
+        
+        for bus in obj.buses.all():
+            if bus.latitude is not None and bus.longitude is not None:
+                bus_data = {
+                    'id': bus.id,
+                    'bus_name': bus.bus_name,
+                    'bus_number': bus.bus_number,
+                    'latitude': bus.latitude,
+                    'longitude': bus.longitude,
+                    'location': bus.location
+                }
+                
+                # Calculate distance if user location is provided
+                if user_location:
+                    bus_coords = (bus.latitude, bus.longitude)
+                    distance_km = geodesic(user_location, bus_coords).kilometers
+                    bus_data['distance_km'] = round(distance_km, 1)
+                
+                buses_data.append(bus_data)
+                
+        return buses_data
