@@ -822,7 +822,7 @@ class ListPackageSerializer(serializers.ModelSerializer):
         return buses_data
     
 
-class ListBusSerializer(serializers.ModelSerializer):
+class BusSerializer(serializers.ModelSerializer):
     average_rating = serializers.FloatField(read_only=True)
     total_reviews = serializers.IntegerField(read_only=True)
     vendor_name = serializers.CharField(source='vendor.name', read_only=True)
