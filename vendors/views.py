@@ -1351,6 +1351,79 @@ class AddDayPlanAPIView(APIView):
                 elif isinstance(related_obj, Activity):
                     ActivityImage.objects.create(activity=related_obj, image=img)
 
+    # def post(self, request, package_id):
+    #     try:
+    #         package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
+    #         if not package:
+    #             return Response({"error": "Package not found or access denied"}, status=404)
+
+    #         data = request.data
+    #         files = request.FILES
+
+    #         # Determine next day number
+    #         last_day = DayPlan.objects.filter(package=package).order_by("-day_number").first()
+    #         next_day_number = last_day.day_number + 1 if last_day else 1
+
+    #         # Create DayPlan
+    #         day_description = data.get("description", "")
+    #         day_plan = DayPlan.objects.create(
+    #             package=package,
+    #             day_number=next_day_number,
+    #             description=day_description
+    #         )
+
+    #         # Create Place
+    #         place = Place.objects.create(
+    #             day_plan=day_plan,
+    #             name=data.get("place_name", ""),
+    #             description=data.get("place_description", "")
+    #         )
+    #         self._upload_images(files, "place_image", place)
+
+    #         # Create Stay
+    #         stay = Stay.objects.create(
+    #             day_plan=day_plan,
+    #             hotel_name=data.get("stay_name", ""),
+    #             description=data.get("stay_description", ""),
+    #             location=data.get("location", ""),
+    #             is_ac=data.get("is_ac", "false").lower() == "true",
+    #             has_breakfast=data.get("has_breakfast", "false").lower() == "true"
+    #         )
+    #         self._upload_images(files, "stay_image", stay)
+
+    #         # Create Meal
+    #         meal_time_str = data.get("meal_time")
+    #         meal_time = datetime.strptime(meal_time_str, "%H:%M").time() if meal_time_str else None
+
+    #         meal = Meal.objects.create(
+    #             day_plan=day_plan,
+    #             type=data.get("meal_type", "breakfast"),
+    #             description=data.get("meal_description", ""),
+    #             restaurant_name=data.get("restaurant_name", ""),
+    #             location=data.get("meal_location", ""),
+    #             time=meal_time
+    #         )
+    #         self._upload_images(files, "meal_image", meal)
+
+    #         # Create Activity
+    #         activity_time_str = data.get("activity_time")
+    #         activity_time = datetime.strptime(activity_time_str, "%H:%M").time() if activity_time_str else None
+
+    #         activity = Activity.objects.create(
+    #             day_plan=day_plan,
+    #             name=data.get("activity_name", ""),
+    #             description=data.get("activity_description", ""),
+    #             location=data.get("activity_location", ""),
+    #             time=activity_time
+    #         )
+    #         self._upload_images(files, "activity_image", activity)
+
+    #         return Response({"message": "Day plan added successfully."}, status=201)
+
+    #     except Exception as e:
+    #         return Response({"error": str(e)}, status=500)
+
+
     def post(self, request, package_id):
         try:
             package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
@@ -1372,13 +1445,23 @@ class AddDayPlanAPIView(APIView):
                 description=day_description
             )
 
-            # Create Place
-            place = Place.objects.create(
-                day_plan=day_plan,
-                name=data.get("place_name", ""),
-                description=data.get("place_description", "")
-            )
-            self._upload_images(files, "place_image", place)
+            # Create multiple Places using indexed fields
+            place_index = 1
+            while True:
+                place_name_key = f"place_name_{place_index}"
+                place_description_key = f"place_description_{place_index}"
+                image_key = f"place_image_{place_index}"
+
+                if place_name_key not in data:
+                    break  # Exit loop if no more places
+
+                place = Place.objects.create(
+                    day_plan=day_plan,
+                    name=data.get(place_name_key, ""),
+                    description=data.get(place_description_key, "")
+                )
+                self._upload_images(files, image_key, place)
+                place_index += 1
 
             # Create Stay
             stay = Stay.objects.create(
@@ -1422,9 +1505,6 @@ class AddDayPlanAPIView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
-
-
-
 
 
 
