@@ -547,20 +547,6 @@ class AllSectionsCreateView(APIView):
 
 
 
-    # def get(self, request, *args, **kwargs):
-    #     ads = Advertisement.objects.all()
-    #     deals = LimitedDeal.objects.all()
-    #     footers = FooterSection.objects.all()
-
-    #     ads_serialized = AdvertisementSerializer(ads, many=True).data
-    #     deals_serialized = LimitedDealSerializer(deals, many=True).data
-    #     footers_serialized = FooterSectionSerializer(footers, many=True).data
-
-    #     return Response({
-    #         "advertisements": ads_serialized,
-    #         "limited_deals": deals_serialized,
-    #         "footer_sections": footers_serialized
-    #     }, status=200)
 
 
     def get(self, request, *args, **kwargs):
