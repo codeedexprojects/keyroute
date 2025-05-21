@@ -191,13 +191,24 @@ class SightImage(models.Model):
 
 class Experience(models.Model):
     sight = models.ForeignKey(Sight, related_name='experiences', on_delete=models.CASCADE)
-    image = models.ImageField(upload_to='experiences/')
     header = models.CharField(max_length=255, blank=True, null=True)
     sub_header = models.CharField(max_length=255, blank=True, null=True)
     description = models.TextField()
 
     def __str__(self):
         return f"Experience for {self.sight.title}"
+
+
+
+class ExperienceImage(models.Model):
+    experience = models.ForeignKey(Experience, related_name='images', on_delete=models.CASCADE)
+    image = models.ImageField(upload_to='experiences/')
+
+    def __str__(self):
+        return f"Image for {self.experience}"
+
+
+
 
 
 class SeasonTime(models.Model):
