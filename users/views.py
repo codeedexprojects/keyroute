@@ -434,11 +434,13 @@ class SightDetailView(APIView):
         serializer = SightDetailSerializer(sight)
         return Response(serializer.data)
 
+
 class ExperienceView(APIView):
     def get(self, request, sight_id):
         experiences = Experience.objects.filter(sight_id=sight_id)
         serializer = ExperienceSerializer(experiences, many=True)
         return Response(serializer.data)
+
 
 
 class ExperienceDetailView(APIView):
