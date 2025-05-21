@@ -352,12 +352,18 @@ class SightImageSerializer(serializers.ModelSerializer):
         model = SightImage
         fields = ['id', 'image']
 
+class ExperienceImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExperienceImage
+        fields = ['id', 'image']
 
 
 class ExperienceSerializer(serializers.ModelSerializer):
+    images = ExperienceImageSerializer(many=True, read_only=True)
+
     class Meta:
         model = Experience
-        fields = ['image', 'description','header','sub_header']
+        fields = ['images', 'description','header','sub_header']
 
 
 class SightSerializer(serializers.ModelSerializer):
