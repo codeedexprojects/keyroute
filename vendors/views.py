@@ -950,6 +950,21 @@ class DayPlanCreateAPIView(APIView):
 
 
 
+    def get(self, request, day_plan_id):
+        try:
+            day_plan = DayPlan.objects.filter(id=day_plan_id, package__vendor__user=request.user).first()
+            if not day_plan:
+                return Response({"error": "Day Plan not found"}, status=404)
+
+            serializer = DayPlanDetailSerializer(day_plan)
+            return Response(serializer.data, status=200)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+
+
+
 class CreatePackageAndDayPlanAPIView(APIView):
     parser_classes = [MultiPartParser, JSONParser]
     authentication_classes = [JWTAuthentication]
@@ -1512,6 +1527,97 @@ class AddDayPlanAPIView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
+
+
+
+
+    # def get(self, request, package_id, day_number):
+    #     try:
+    #         day_plan = DayPlan.objects.filter(
+    #             package__id=package_id,
+    #             package__vendor__user=request.user,
+    #             day_number=day_number
+    #         ).first()
+
+    #         if not day_plan:
+    #             return Response({"error": "Day plan not found"}, status=404)
+
+    #         # Get related data safely
+    #         place = day_plan.places.first()
+    #         stay = getattr(day_plan, 'stay', None)
+    #         meal = day_plan.meals.first()
+    #         activity = day_plan.activities.first()
+
+    #         response_data = {
+    #             "day_number": day_plan.day_number,
+    #             "description": day_plan.description,
+    #             "place": {
+    #                 "name": place.name if place else "",
+    #                 "description": place.description if place else "",
+    #                 "images": PlaceImageSerializer(place.images.all(), many=True).data if place else [],
+    #             },
+    #             "stay": {
+    #                 "hotel_name": stay.hotel_name if stay.hotel_name else "",
+    #                 "description": stay.description if stay else "",
+    #                 "location": stay.location if stay else "",
+    #                 "is_ac": stay.is_ac if stay else False,
+    #                 "has_breakfast": stay.has_breakfast if stay else False,
+    #                 "images": StayImageSerializer(stay.images.all(), many=True).data if stay else [],
+    #             },
+    #             "meal": {
+    #                 "type": meal.type if meal else "",
+    #                 "description": meal.description if meal else "",
+    #                 "restaurant_name": meal.restaurant_name if meal else "",
+    #                 "location": meal.location if meal else "",
+    #                 "time": meal.time.strftime("%H:%M") if meal and meal.time else "",
+    #                 "images": MealImageSerializer(meal.images.all(), many=True).data if meal else [],
+    #             },
+    #             "activity": {
+    #                 "name": activity.name if activity else "",
+    #                 "description": activity.description if activity else "",
+    #                 "location": activity.location if activity else "",
+    #                 "time": activity.time.strftime("%H:%M") if activity and activity.time else "",
+    #                 "images": ActivityImageSerializer(activity.images.all(), many=True).data if activity else [],
+    #             }
+    #         }
+
+    #         return Response(response_data, status=200)
+
+    #     except Exception as e:
+    #         return Response({"error": str(e)}, status=500)
+
+
+
+    def get(self, request, package_id, day_number):
+        try:
+            day_plan = DayPlan.objects.filter(
+                package__id=package_id,
+                package__vendor__user=request.user,
+                day_number=day_number
+            ).first()
+
+            if not day_plan:
+                return Response({"error": "Day plan not found"}, status=404)
+
+            serializer = DayPlanSerializer(day_plan)
+            return Response(serializer.data, status=200)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
