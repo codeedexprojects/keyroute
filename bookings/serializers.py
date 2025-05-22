@@ -466,13 +466,13 @@ class TravelerCreateSerializer(serializers.ModelSerializer):
         
         if booking_type == 'bus':
             try:
-                booking = BusBooking.objects.get(id=booking_id)
+                booking = BusBooking.objects.get(booking_id=booking_id)
                 data['bus_booking'] = booking
             except BusBooking.DoesNotExist:
                 raise serializers.ValidationError(f"Bus booking with id {booking_id} does not exist")
         else:  # booking_type == 'package'
             try:
-                booking = PackageBooking.objects.get(id=booking_id)
+                booking = PackageBooking.objects.get(booking_id=booking_id)
                 data['package_booking'] = booking
             except PackageBooking.DoesNotExist:
                 raise serializers.ValidationError(f"Package booking with id {booking_id} does not exist")
@@ -913,7 +913,7 @@ class ListingUserPackageSerializer(serializers.ModelSerializer):
 
 
 class PackageBookingUpdateSerializer(BaseBookingSerializer):
-    total_travelers = TravelerSerializer(many=True, required=False, read_only=True)
+    travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
     booking_type = serializers.SerializerMethodField()
     first_time_discount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
@@ -930,7 +930,7 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
     class Meta:
         model = PackageBooking
         fields = BaseBookingSerializer.Meta.fields + [
-            'package', 'package_details', 'total_travelers', 'partial_amount', 'booking_type', 'first_time_discount'
+            'package', 'package_details', 'travelers','total_travelers', 'partial_amount', 'booking_type', 'first_time_discount'
         ]
         read_only_fields = BaseBookingSerializer.Meta.read_only_fields
         extra_kwargs = {
