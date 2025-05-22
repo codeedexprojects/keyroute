@@ -745,10 +745,11 @@ class PackageSerializer(serializers.ModelSerializer):
 class PopularBusSerializer(serializers.ModelSerializer):
     average_rating = serializers.SerializerMethodField()
     total_reviews = serializers.SerializerMethodField()
+    is_favorite = serializers.SerializerMethodField()
 
     class Meta:
         model = Bus
-        fields = ['id','bus_name','capacity','average_rating','total_reviews','is_popular']
+        fields = ['id','bus_name','capacity','average_rating','total_reviews','is_popular','is_favorite']
 
     def get_average_rating(self, obj):
         avg = obj.bus_reviews.aggregate(avg=Avg('rating'))['avg']
@@ -756,6 +757,12 @@ class PopularBusSerializer(serializers.ModelSerializer):
 
     def get_total_reviews(self, obj):
         return obj.bus_reviews.count()
+    
+    def get_is_favorite(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return Favourite.objects.filter(user=request.user, bus=obj).exists()
+        return False
     
 
 class ListPackageSerializer(serializers.ModelSerializer):
