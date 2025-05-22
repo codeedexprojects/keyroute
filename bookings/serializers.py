@@ -16,6 +16,9 @@ from datetime import timedelta
 from django.conf import settings
 import requests
 from geopy.distance import geodesic
+import logging
+from django.db import transaction
+logger = logging.getLogger(__name__)
 
 
 User = get_user_model()
@@ -911,7 +914,6 @@ class ListingUserPackageSerializer(serializers.ModelSerializer):
     
 
 
-
 class PackageBookingUpdateSerializer(BaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
@@ -945,15 +947,24 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
     def get_booking_type(self, obj):
         return "package"
 
+    @transaction.atomic
     def update(self, instance, validated_data):
-        import logging
-        logger = logging.getLogger(__name__)
-
         user = self.context['request'].user
         total_amount = validated_data.get('total_amount', instance.total_amount)
         
+        # Validate total_amount is not None
+        if total_amount is None:
+            raise serializers.ValidationError({
+                "error": "Total amount cannot be None"
+            })
+        
         # If total amount is being updated, check for first-time booking discount
         if 'total_amount' in validated_data:
+            if total_amount <= 0:
+                raise serializers.ValidationError({
+                    "error": "Total amount must be greater than zero"
+                })
+                
             # Check if this is the user's first booking
             first_time_booking = False
             first_time_discount = Decimal('0.00')
@@ -978,6 +989,11 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
             try:
                 wallet = Wallet.objects.get(user=user)
                 if wallet.balance >= MINIMUM_WALLET_AMOUNT:
+                    if wallet.balance > total_amount:
+                        raise serializers.ValidationError({
+                            "error": "Wallet balance cannot be greater than total amount"
+                        })
+                    
                     wallet_amount_used = wallet.balance
                     total_amount = total_amount - wallet_amount_used
                     validated_data['total_amount'] = total_amount
@@ -991,6 +1007,9 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
                 logger.info(f"No wallet found for user {user.id}")
             except Exception as e:
                 logger.error(f"Error processing wallet: {str(e)}")
+                raise serializers.ValidationError({
+                    "error": f"Error processing wallet: {str(e)}"
+                })
 
         # Calculate minimum advance amount required
         if 'total_amount' in validated_data:
@@ -1008,13 +1027,19 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
         if partial_amount:
             try:
                 partial_amount = Decimal(str(partial_amount))
+                if partial_amount <= 0:
+                    raise serializers.ValidationError({
+                        "error": "Partial amount must be greater than zero"
+                    })
                 if partial_amount < min_advance_amount:
-                    raise serializers.ValidationError(
-                        f"Partial amount ({partial_amount}) must be greater than or equal to the minimum advance amount ({min_advance_amount})."
-                    )
+                    raise serializers.ValidationError({
+                        "error": f"Partial amount ({partial_amount}) must be greater than or equal to the minimum advance amount ({min_advance_amount})"
+                    })
                 validated_data['advance_amount'] = partial_amount
             except (ValueError, TypeError):
-                raise serializers.ValidationError("Invalid partial amount format.")
+                raise serializers.ValidationError({
+                    "error": "Invalid partial amount format"
+                })
 
         # Update booking
         booking = super().update(instance, validated_data)
@@ -1078,11 +1103,17 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
                             logger.info(f"Created referral reward for referrer {referrer.id} from package booking update {booking.id}")
                         except Exception as e:
                             logger.error(f"Error creating referral transaction: {str(e)}")
+                            raise serializers.ValidationError({
+                                "error": f"Error creating referral transaction: {str(e)}"
+                            })
                 else:
                     logger.warning(f"Could not find referrer with any identifier '{wallet.referred_by}'")
         except Wallet.DoesNotExist:
             pass
         except Exception as e:
             logger.error(f"Unexpected error during referral processing: {str(e)}")
+            raise serializers.ValidationError({
+                "error": f"Unexpected error during referral processing: {str(e)}"
+            })
 
         return booking
