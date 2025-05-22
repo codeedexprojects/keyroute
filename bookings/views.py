@@ -233,7 +233,7 @@ class PackageBookingListCreateAPIView(APIView):
                 "mobile": str(request.user),
                 "city": request.data.get('city', ''),
                 "booking_type": "package",
-                "booking_id": booking.id
+                "booking_id": booking.booking_id
             }
 
             travelerSerializer = TravelerCreateSerializer(data=traveler_data)
