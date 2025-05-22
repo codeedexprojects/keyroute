@@ -470,9 +470,7 @@ class AllSectionsCreateView(APIView):
             return Response({"error": str(e)}, status=400)
 
 
-
-
-
+  
     def put(self, request, *args, **kwargs):
         try:
             # 1. Update Advertisements
