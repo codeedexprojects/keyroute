@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.utils import timezone
 import string
 import random
+from .utils import generate_referral_code
 
 
 # Create your models here.
