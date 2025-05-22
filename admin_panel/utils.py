@@ -1,5 +1,6 @@
 import requests
-from .models import AdminCommissionSlab
+import string
+import random
 
 
 API_KEY = "15b274f8-8600-11ef-8b17-0200cd936042"
