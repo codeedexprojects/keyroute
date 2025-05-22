@@ -108,7 +108,28 @@ class VendorFullSerializer(serializers.ModelSerializer):
         return BusSerializer(ongoing_buses, many=True).data
 
 
+    def get_available_packages(self, obj):
+        available_packages = obj.package_set.filter(status='available')
+        data = []
 
+        for package in available_packages:
+            data.append({
+                'package_name': f"{package.sub_category.name} - {package.places}",
+                'travels_name': obj.travels_name,
+                'bus_numbers': [bus.bus_number for bus in package.buses.all()],
+                'location': package.bus_location,
+                'days': package.days,
+                'day_plans': [
+                    {
+                        'day_number': day.day_number,
+                        'description': day.description,
+                        'night': day.night
+                    }
+                    for day in package.day_plans.all()
+                ]
+            })
+
+        return data
 
 
 
