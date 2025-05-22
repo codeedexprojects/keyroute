@@ -498,3 +498,13 @@ class GreetingAPIView(APIView):
         else:
             greeting = "Good Evening"
         return Response({"message": greeting})
+
+
+class SimilarExperienceView(APIView):
+    def get(self, request, sight_id, exclude_experience_id):
+        similar_experiences = Experience.objects.filter(
+            sight_id=sight_id
+        ).exclude(id=exclude_experience_id)
+
+        serializer = ExperienceSerializer(similar_experiences, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
