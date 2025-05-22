@@ -111,12 +111,77 @@ class SinglePackageListAPIView(APIView):
         serializer = ListingUserPackageSerializer(packages, many=False, context={'request': request})
         return Response(serializer.data)
 
+
 class BusListAPIView(APIView):
     permission_classes = [AllowAny]
-    
+
     def get(self, request):
-        buses = Bus.objects.all()
-        serializer = BusSerializer(buses, many=True, context={'request': request})
+        lat = request.query_params.get('lat')
+        lon = request.query_params.get('lon')
+        search = request.query_params.get('search')
+        capacity = request.query_params.get('capacity')
+        ac = request.query_params.get('ac')  # expects "true" or "false"
+        pushback = request.query_params.get('pushback')  # expects "true" or "false"
+
+        # 1. Validate coordinates
+        if lat is None or lon is None:
+            return Response(
+                {"error": "Latitude (lat) and Longitude (lon) query parameters are required."},
+                status=400
+            )
+        try:
+            lat = float(lat)
+            lon = float(lon)
+            if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+                return Response(
+                    {"error": "Latitude must be between -90 and 90, and longitude between -180 and 180."},
+                    status=400
+                )
+            user_coords = (lat, lon)
+        except ValueError:
+            return Response({"error": "Latitude and longitude must be valid float values."}, status=400)
+
+        # Optional debug log for location
+        try:
+            geolocator = Nominatim(user_agent="bus-locator")
+            location = geolocator.reverse(user_coords, exactly_one=True, timeout=10)
+            print("User Location:", location.address if location else "Unknown")
+        except Exception as e:
+            print(f"Geolocation error: {e}")
+
+        # 2. Initial queryset
+        buses = Bus.objects.filter(latitude__isnull=False, longitude__isnull=False)
+
+        # 3. Search filter has priority
+        if search:
+            buses = buses.filter(bus_name__icontains=search)
+        else:
+            # Apply additional filters
+            if capacity:
+                try:
+                    buses = buses.filter(capacity__gte=int(capacity))
+                except ValueError:
+                    return Response({"error": "Capacity must be an integer."}, status=400)
+
+            if ac == 'true':
+                buses = buses.filter(features__name__iexact='ac')
+            if pushback == 'true':
+                buses = buses.filter(features__name__iexact='pushback')
+
+        # 4. Distance filter: within 30 km
+        nearby_buses = []
+        for bus in buses.distinct():
+            if bus.latitude is not None and bus.longitude is not None:
+                bus_coords = (bus.latitude, bus.longitude)
+                distance_km = geodesic(user_coords, bus_coords).kilometers
+                if distance_km <= 30:
+                    nearby_buses.append(bus)
+
+        if not nearby_buses:
+            return Response({"message": "No buses found near your location within 30 km."}, status=200)
+
+        # 5. Serialize result
+        serializer = BusSerializer(nearby_buses, many=True, context={'request': request})
         return Response(serializer.data)
     
 class SingleBusListAPIView(APIView):
