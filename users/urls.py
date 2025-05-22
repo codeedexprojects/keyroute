@@ -2,7 +2,9 @@ from django.urls import path
 from .views import (UserLogoutView, UserProfileAPIView,  AuthenticationView, 
                     VerifyOTPView,FavouriteAPIView,ListFavourites, GetReferralCodeView,
                     GetWalletView,OngoingReferralsView,ReferralHistoryView,
-                    SightDetailView,ExperienceView,ExperienceDetailView,RemoveFavouriteAPIView,SeasonTimeDetailView,SeasonTimeView,SightView,GreetingAPIView,ResendOTPView)
+                    SightDetailView,ExperienceView,ExperienceDetailView,RemoveFavouriteAPIView,SeasonTimeDetailView,
+                    SeasonTimeView,SightView,GreetingAPIView,ResendOTPView,
+                    SimilarExperienceView)
 
 urlpatterns = [
     path('auth/', AuthenticationView.as_view(), name='authentication'),
@@ -36,4 +38,6 @@ urlpatterns = [
     path('seasons/<int:pk>/', SeasonTimeDetailView.as_view(), name='season-detail'),
 
     path('greeting/', GreetingAPIView.as_view(), name='greeting'),
+
+    path('sights/<int:sight_id>/similar-experiences/<int:exclude_experience_id>/', SimilarExperienceView.as_view(), name='similar-experiences'),
 ]
