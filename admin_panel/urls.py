@@ -50,6 +50,18 @@ urlpatterns = [
     path('api/admin/sections/', AllSectionsCreateView.as_view(), name='create-sections'),
     path('api/admin/advertisement/<int:ad_id>/', AdvertisementDetailView.as_view(), name='advertisement-detail'),
 
+    # ADV , LIMITED DEAL,FOOTER, REFER ----------------------------------------
+    path('api/admin/advertisement/<int:ad_id>/', AdvertisementDetailView.as_view()),
+    path('api/admin/limited-deals/', LimitedDealListView.as_view()),
+    path('api/admin/limited-deals/<int:deal_id>/', LimitedDealDetailView.as_view()),
+    path('api/admin/footer-sections/', FooterSectionListView.as_view()),
+    path('api/admin/footer-sections/<int:footer_id>/', FooterSectionDetailView.as_view()),
+    path('api/admin/refer-and-earn/', ReferAndEarnListView.as_view()),
+    path('api/admin/refer-and-earn/<int:ref_id>/', ReferAndEarnDetailView.as_view()),
+
+
+
+
 
     # EXPLORE
     path('api/admin/explore/create/', ExploreSectionCreateView.as_view(), name='create-explore-section'),
