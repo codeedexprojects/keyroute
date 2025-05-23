@@ -72,6 +72,7 @@ class BusBooking(BaseBooking):
 
 class PackageBooking(BaseBooking):
     booking_id = models.PositiveIntegerField(unique=True, editable=False)
+    rooms = models.IntegerField(default=1)
     package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='bookings')
     
     def __str__(self):
