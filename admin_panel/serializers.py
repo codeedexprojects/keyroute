@@ -108,7 +108,28 @@ class VendorFullSerializer(serializers.ModelSerializer):
         return BusSerializer(ongoing_buses, many=True).data
 
 
+    def get_available_packages(self, obj):
+        available_packages = obj.package_set.filter(status='available')
+        data = []
 
+        for package in available_packages:
+            data.append({
+                'package_name': f"{package.sub_category.name} - {package.places}",
+                'travels_name': obj.travels_name,
+                'bus_numbers': [bus.bus_number for bus in package.buses.all()],
+                'location': package.bus_location,
+                'days': package.days,
+                'day_plans': [
+                    {
+                        'day_number': day.day_number,
+                        'description': day.description,
+                        'night': day.night
+                    }
+                    for day in package.day_plans.all()
+                ]
+            })
+
+        return data
 
 
 
@@ -309,26 +330,22 @@ class UserSerializer(serializers.ModelSerializer):
 class AdvertisementSerializer(serializers.ModelSerializer):
     class Meta:
         model = Advertisement
-        fields = ['id','title', 'description', 'image']
+        fields = ['id','title', 'type','subtitle', 'image']
 
 
 class LimitedDealImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = LimitedDealImage
-        fields = ['image']
+        fields = ['id','image']
 
 
 class LimitedDealSerializer(serializers.ModelSerializer):
-    # images = serializers.ListField(
-    #     child=serializers.ImageField(),
-    #     write_only=True,
-    #     required=False 
-    # )
+   
     images = LimitedDealImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = LimitedDeal
-        fields = ['title', 'description', 'images']
+        fields = ['id','title', 'offer','terms_and_conditions', 'images']
 
     def create(self, validated_data):
         images = validated_data.pop('images', [])   
@@ -339,11 +356,19 @@ class LimitedDealSerializer(serializers.ModelSerializer):
 
         return limited_deal
 
+class ReferAndEarnSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReferAndEarn
+        fields = ['id', 'image', 'price', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+
 
 class FooterSectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = FooterSection
-        fields = ['title', 'description', 'image']
+        fields = ['id', 'package', 'image']
 
 
 # --------------------------------------------------------
@@ -387,12 +412,13 @@ class SeasonTimeSerializer2(serializers.ModelSerializer):
 
 class SightListSerializer(serializers.ModelSerializer):
     experiences = ExperienceSerializer(many=True, read_only=True)
-    season_times = SeasonTimeSerializer(many=True, read_only=True)
+    seasons = SeasonTimeSerializer(many=True, read_only=True)
+
     images = SightImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = Sight
-        fields = ['id', 'title', 'description', 'season_description', 'experiences','season_times','images']
+        fields = ['id', 'title', 'description', 'experiences','seasons','images']
 
 
 
