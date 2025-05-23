@@ -330,7 +330,7 @@ class UserSerializer(serializers.ModelSerializer):
 class AdvertisementSerializer(serializers.ModelSerializer):
     class Meta:
         model = Advertisement
-        fields = ['id','title', 'description', 'image']
+        fields = ['id','title', 'type','subtitle', 'image']
 
 
 class LimitedDealImageSerializer(serializers.ModelSerializer):
@@ -345,7 +345,8 @@ class LimitedDealSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LimitedDeal
-        fields = ['id','title', 'description', 'images']
+        fields = ['id','title', 'offer','terms_and_conditions', 'images']
+
 
     def create(self, validated_data):
         images = validated_data.pop('images', [])   
@@ -356,10 +357,19 @@ class LimitedDealSerializer(serializers.ModelSerializer):
 
         return limited_deal
 
+class ReferAndEarnSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReferAndEarn
+        fields = ['id', 'image', 'price', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+
 
 class FooterSectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = FooterSection
+
         fields = ['id','title', 'description', 'image']
 
 
