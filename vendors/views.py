@@ -280,6 +280,8 @@ class BusEditAPIView(APIView):
 
     def get(self, request, bus_id):
         """Retrieve a single bus by ID if it belongs to the authenticated vendor."""
+
+        
         try:
             vendor = Vendor.objects.filter(user=request.user).first()
             if not vendor:
@@ -1538,7 +1540,7 @@ class AddDayPlanAPIView(APIView):
 
 
 
-
+ 
 
  
 
