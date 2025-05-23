@@ -7,6 +7,8 @@ from admin_panel.utils import send_otp
 from vendors.models import Bus, Package
 from .models import ReferralRewardTransaction
 from admin_panel.models import Experience,Sight
+from admin_panel.models import *
+import calendar
 
 User = get_user_model()
 
@@ -81,12 +83,23 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = User.objects.create(**validated_data)
-        
         referrer = self.context.get('referrer')
         if referrer:
-            Wallet.objects.create(user=user, referred_by=referrer)
-        
+            Wallet.objects.create(
+                user=user, 
+                referred_by=referrer.mobile,
+                referral_used=True
+            )
+        else:
+            Wallet.objects.create(user=user)
         return user
+
+
+# OTP Session model (Add this to your models.py)
+class OTPSessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OTPSession
+        fields = ['id', 'mobile', 'session_id', 'is_new_user', 'name', 'referral_code']
         
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -119,24 +132,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-# class ReviewSerializer(serializers.ModelSerializer):
-#     user_name = serializers.SerializerMethodField(read_only=True)
-    
-#     class Meta:
-#         model = Review
-#         fields = ['id', 'user', 'rating', 'comment', 'created_at', 'user_name']
-#         read_only_fields = ['id', 'created_at', 'user_name']
-#         extra_kwargs = {
-#             'user': {'write_only': True, 'required': False},
-#         }
-        
-#     def get_user_name(self, obj):
-#         return obj.user.name if obj.user.name else obj.user.mobile
-    
-#     def create(self, validated_data):
-#         user = self.context['request'].user
-#         validated_data['user'] = user
-#         return Review.objects.create(**validated_data)
 
 class FavouriteSerializer(serializers.ModelSerializer):
     bus_details = serializers.SerializerMethodField(read_only=True)
@@ -181,6 +176,7 @@ class FavouriteSerializer(serializers.ModelSerializer):
         else:
             favourite, created = Favourite.objects.get_or_create(user=user, package=package)
         return favourite
+    
     
 class WalletSerializer(serializers.ModelSerializer):
     class Meta:
@@ -227,14 +223,54 @@ class ReferralHistorySerializer(serializers.ModelSerializer):
     def get_referred_user_name(self, obj):
         return getattr(obj.referred_user, 'name', None)
 
-class ExploreSerializer(serializers.ModelSerializer):
-    
+
+class ExperienceImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExperienceImage
+        fields = ['id', 'image']
+
+class ExperienceSerializer(serializers.ModelSerializer):
+    images = ExperienceImageSerializer(many=True, read_only=True)
+
     class Meta:
         model = Experience
+        fields = ['id', 'sight', 'header', 'sub_header', 'description', 'images']
+
+
+class SeasonTimeSerializer(serializers.ModelSerializer):
+    from_date = serializers.SerializerMethodField()
+    to_date = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SeasonTime
         fields = '__all__'
 
+    def get_from_date(self, obj):
+        return calendar.month_name[obj.from_date.month]
+
+    def get_to_date(self, obj):
+        return calendar.month_name[obj.to_date.month]
+
+
+class SightImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SightImage
+        fields = ['id', 'image']
+
+
+class SightDetailSerializer(serializers.ModelSerializer):
+    images = SightImageSerializer(many=True, read_only=True)
+    experiences = ExperienceSerializer(many=True, read_only=True)
+    seasons = SeasonTimeSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Sight
+        fields = ['id', 'title', 'description', 'season_description', 'images', 'experiences', 'seasons']
+
+
 class SightSerializer(serializers.ModelSerializer):
-    
+    images = SightImageSerializer(many=True, read_only=True)
+
     class Meta:
         model = Sight
         fields = '__all__'
