@@ -717,3 +717,4 @@ class PopularBusApi(APIView):
         buses = Bus.objects.filter(is_popular=True)
         serializer = PopularBusSerializer(buses,many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
