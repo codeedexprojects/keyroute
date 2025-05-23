@@ -269,6 +269,8 @@ class SightDetailSerializer(serializers.ModelSerializer):
 
 
 class SightSerializer(serializers.ModelSerializer):
+    images = SightImageSerializer(many=True, read_only=True)
+
     class Meta:
         model = Sight
         fields = '__all__'
