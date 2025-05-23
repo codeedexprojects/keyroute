@@ -654,7 +654,7 @@ class BusFeatureSerializer(serializers.ModelSerializer):
 class BusImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = BusImage
-        fields = ['id', 'bus_view_image']
+        fields = '__all__'
 
 
 class BusTravelImageSerializer(serializers.ModelSerializer):
@@ -1078,15 +1078,15 @@ class BusListingSerializer(serializers.ModelSerializer):
     average_rating = serializers.SerializerMethodField()
     total_reviews = serializers.SerializerMethodField()
     is_favorite = serializers.SerializerMethodField()
-    Bus_image = BusImageSerializer(many=True, read_only=True)
-    all_reviews = BusReviewSerializer(many=True,read_only=True)
-    bus_review_summary = BusReviewSummarySerializer(many=True,read_only=True)
+    images = BusImageSerializer(many=True, read_only=True)
+    all_reviews = BusReviewSerializer(many=True, read_only=True)
+    bus_review_summary = serializers.SerializerMethodField()
 
     class Meta:
         model = Bus
-        fields = ['bus_name','location','capacity','base_price','amenities','features',
-                  'average_rating','total_reviews',
-                  'is_favorite','Bus_image','all_reviews','bus_review_summary']
+        fields = ['bus_name', 'location', 'capacity', 'base_price', 'amenities', 'features',
+                  'average_rating', 'total_reviews', 'is_favorite', 'images',
+                  'all_reviews', 'bus_review_summary']
 
     def get_average_rating(self, obj):
         avg = obj.bus_reviews.aggregate(avg=Avg('rating'))['avg']
@@ -1100,3 +1100,14 @@ class BusListingSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated:
             return Favourite.objects.filter(user=request.user, bus=obj).exists()
         return False
+
+    def get_bus_review_summary(self, obj):
+        bus_reviews = obj.bus_reviews
+        average_rating = bus_reviews.aggregate(Avg('rating'))['rating__avg'] or 0.0
+        total_reviews = bus_reviews.count()
+        rating_breakdown = {f"{i}★": bus_reviews.filter(rating=i).count() for i in range(1, 6)}
+        return {
+            "average_rating": round(average_rating, 1),
+            "total_reviews": total_reviews,
+            "rating_breakdown": rating_breakdown
+        }
