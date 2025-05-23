@@ -347,6 +347,7 @@ class LimitedDealSerializer(serializers.ModelSerializer):
         model = LimitedDeal
         fields = ['id','title', 'offer','terms_and_conditions', 'images']
 
+
     def create(self, validated_data):
         images = validated_data.pop('images', [])   
         limited_deal = LimitedDeal.objects.create(**validated_data)
@@ -368,7 +369,8 @@ class ReferAndEarnSerializer(serializers.ModelSerializer):
 class FooterSectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = FooterSection
-        fields = ['id', 'package', 'image']
+
+        fields = ['id','title', 'description', 'image']
 
 
 # --------------------------------------------------------
