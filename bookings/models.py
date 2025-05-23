@@ -36,7 +36,7 @@ class BaseBooking(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     cancelation_reason = models.CharField(max_length=250,null=True,blank=True)
-    total_travelers = models.PositiveIntegerField(default=1)
+    total_travelers = models.PositiveIntegerField(default=0)
     male  = models.PositiveIntegerField(default=1)
     female  = models.PositiveIntegerField(default=1)
     children  = models.PositiveIntegerField(default=1)
@@ -72,6 +72,7 @@ class BusBooking(BaseBooking):
 
 class PackageBooking(BaseBooking):
     booking_id = models.PositiveIntegerField(unique=True, editable=False)
+    rooms = models.IntegerField(default=1)
     package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='bookings')
     
     def __str__(self):
