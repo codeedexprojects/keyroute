@@ -125,6 +125,9 @@ urlpatterns = [
     # path('api/admin/bus/<int:bus_id>/', AdminBusDetailAPIView.as_view()),
     path('api/admin/bus/<int:bus_id>/', SingleBusDetailAPIView.as_view(), name='bus-detail'),
 
+    # USER CREATION
+    path('api/admin/admin/create-user/', AdminCreateUserAPIView.as_view(), name='admin-create-user'),
+
 
     # PACKAGE LISTING
     path('api/admin/packages/', AdminPackageListView.as_view(), name='admin-package-list'),

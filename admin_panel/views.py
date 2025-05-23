@@ -1786,7 +1786,7 @@ class BusAdminAPIView(APIView):
                             status=status.HTTP_403_FORBIDDEN)
 
         buses = Bus.objects.all()
-        serializer = BusAdminSerializer(buses, many=True, context={'request': request})
+        serializer = BusAdminSerializerADMINBUSDETAILS(buses, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -1803,7 +1803,7 @@ class SingleBusDetailAPIView(APIView):
         except Bus.DoesNotExist:
             return Response({'detail': 'Bus not found.'}, status=status.HTTP_404_NOT_FOUND)
         
-        serializer = BusDetailSerializerADMIN(bus, context={'request': request})
+        serializer = BusAdminSerializerADMINBUSDETAILS(bus, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -1819,7 +1819,8 @@ class AdminPackageListView(APIView):
             return Response({"detail": "Sub category ID is required."}, status=400)
 
         packages = Package.objects.filter(sub_category_id=sub_category_id).prefetch_related('buses__features', 'buses__vendor')
-        serializer = PackageListSerializer(packages, many=True)
+        # serializer = PackageListSerializer(packages, many=True)
+        serializer = AdminPackageListSerializer(packages, many=True)
         return Response(serializer.data)
 
 
@@ -1835,8 +1836,34 @@ class AdminPackageDetailView(APIView):
         except Package.DoesNotExist:
             return Response({"detail": "Package not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = PackageDetailSerializer(package, context={'request': request})
-        return Response(serializer.data)
+        # serializer = PackageDetailSerializer(package, context={'request': request})
+        # return Response(serializer.data)
+
+
+
+
+
+
+
+
+
+class AdminCreateUserAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = AdminUserCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
 
 
 
