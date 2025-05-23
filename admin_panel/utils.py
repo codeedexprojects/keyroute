@@ -31,6 +31,7 @@ def generate_referral_code(length=7):
 
 
 def get_admin_commission_from_db(total_amount):
+    from .models import AdminCommissionSlab
     slab = AdminCommissionSlab.objects.filter(
         min_amount__lte=total_amount,
         max_amount__gte=total_amount
@@ -44,6 +45,7 @@ def get_admin_commission_from_db(total_amount):
 
 
 def get_advance_amount_from_db(advance_amount):
+    from .models import AdminCommissionSlab
     slab = AdminCommissionSlab.objects.filter(
         min_amount__lte=advance_amount,
         max_amount__gte=advance_amount
