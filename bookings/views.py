@@ -27,6 +27,8 @@ from geopy.distance import geodesic
 from .utils import *
 from admin_panel.models import AdminCommissionSlab,AdminCommission
 from admin_panel.utils import get_admin_commission_from_db,get_advance_amount_from_db
+from .models import PackageDriverDetail
+from .serializers import PackageDriverDetailSerializer
 
 
 
@@ -718,3 +720,12 @@ class PopularBusApi(APIView):
         serializer = PopularBusSerializer(buses,many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
+    
+class DriverDetailByBookingAPIView(APIView):
+    def get(self, request, booking_id):
+        try:
+            driver_detail = PackageDriverDetail.objects.get(package_booking__id=booking_id)
+            serializer = PackageDriverDetailSerializer(driver_detail)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except PackageDriverDetail.DoesNotExist:
+            return Response({"error": "Driver detail not found"}, status=status.HTTP_404_NOT_FOUND)
