@@ -20,6 +20,7 @@ import logging
 from django.db import transaction
 import math
 logger = logging.getLogger(__name__)
+from reviews.serializers import *
 
 
 User = get_user_model()
@@ -241,18 +242,28 @@ class SingleBusBookingSerializer(serializers.ModelSerializer):
 from datetime import timedelta
 from django.db.models import Count, Q
 
+class SimplePlaceSerializer(serializers.Serializer):
+    name = serializers.CharField()
+
+class SimpleDayPlanSerializer(serializers.Serializer):
+    day_number = serializers.IntegerField()
+    places = SimplePlaceSerializer(many=True)
+
 class SinglePackageBookingSerilizer(serializers.ModelSerializer):
     end_date = serializers.SerializerMethodField()
     paid_amount = serializers.SerializerMethodField()
     bus_name = serializers.SerializerMethodField()
     booking_type = serializers.SerializerMethodField()
+    day_wise_plan = serializers.SerializerMethodField()
 
     class Meta:
         model = PackageBooking
         fields = [
-            'booking_id', 'from_location', 'to_location',
+            'booking_id','rooms','from_location', 'to_location',
             'start_date', 'end_date', 'total_travelers',
-            'total_amount', 'paid_amount', 'bus_name', 'booking_type','male','female','children'
+            'total_amount', 'paid_amount', 'bus_name',
+            'booking_type', 'male', 'female', 'children',
+            'day_wise_plan'
         ]
 
     def get_end_date(self, obj):
@@ -271,11 +282,20 @@ class SinglePackageBookingSerilizer(serializers.ModelSerializer):
         buses = obj.package.buses.all()
         return [bus.bus_name for bus in buses]
 
+    def get_day_wise_plan(self, obj):
+        day_plans = obj.package.day_plans.all().order_by('day_number')
+        return SimpleDayPlanSerializer(day_plans, many=True).data
+
 
 class PackageBookingSerializer(BaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
     booking_type = serializers.SerializerMethodField()
+    total_amount = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        read_only=True
+    )
 
     partial_amount = serializers.DecimalField(
         max_digits=10,
@@ -289,7 +309,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
         model = PackageBooking
         fields = BaseBookingSerializer.Meta.fields + [
             'package', 'package_details', 'travelers',
-            'partial_amount', 'booking_type', 'total_travelers', 'rooms'
+            'partial_amount', 'booking_type', 'total_travelers', 'rooms','total_amount'
         ]
         read_only_fields = BaseBookingSerializer.Meta.read_only_fields + ['rooms']
         extra_kwargs = {
@@ -308,26 +328,38 @@ class PackageBookingSerializer(BaseBookingSerializer):
         import logging
         logger = logging.getLogger(__name__)
 
-        total_amount = validated_data.get('total_amount')
+        # Calculate total amount first
+        package = validated_data.get('package')
+        total_travelers = validated_data.get('total_travelers', 0)
+        
+        if not package:
+            raise serializers.ValidationError("Package is required")
+        
+        # Calculate total amount based on package price and travelers
+        calculated_total_amount = total_travelers * package.price_per_person
+        validated_data['total_amount'] = calculated_total_amount
+        
         user = self.context['request'].user
 
+        # Apply wallet balance if available
         try:
             wallet = Wallet.objects.get(user=user)
             if wallet.balance >= MINIMUM_WALLET_AMOUNT:
                 wallet_amount_used = wallet.balance
-                total_amount -= wallet_amount_used
-                validated_data['total_amount'] = total_amount
+                calculated_total_amount -= wallet_amount_used
+                validated_data['total_amount'] = calculated_total_amount
 
                 wallet.balance = Decimal('0.00')
                 wallet.save()
 
-                logger.info(f"Used wallet balance of {wallet_amount_used} for package booking. New total: {total_amount}")
+                logger.info(f"Used wallet balance of {wallet_amount_used} for package booking. New total: {calculated_total_amount}")
         except Wallet.DoesNotExist:
             logger.info(f"No wallet found for user {user.id}")
         except Exception as e:
             logger.error(f"Error processing wallet: {str(e)}")
 
-        advance_percent, min_advance_amount = get_advance_amount_from_db(total_amount)
+        # Calculate advance amount
+        advance_percent, min_advance_amount = get_advance_amount_from_db(calculated_total_amount)
 
         partial_amount = validated_data.pop('partial_amount', None)
         if partial_amount is None:
@@ -346,14 +378,17 @@ class PackageBookingSerializer(BaseBookingSerializer):
         else:
             validated_data['advance_amount'] = min_advance_amount
 
-        total_travelers = validated_data.get('total_travelers', 0)
+        # Calculate rooms required
         rooms_required = (total_travelers + 2) // 3  # Ceiling of total_travelers / 3
         validated_data['rooms'] = rooms_required
 
-        commission_percent, revenue = get_admin_commission_from_db(total_amount)
+        # Calculate commission
+        commission_percent, revenue = get_admin_commission_from_db(calculated_total_amount)
 
+        # Create the booking with all calculated values
         booking = super().create(validated_data)
 
+        # Create admin commission record
         AdminCommission.objects.create(
             booking_type='package',
             booking_id=booking.id,
@@ -362,7 +397,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
             revenue_to_admin=revenue
         )
 
-        # ✅ Referral processing
+        # Process referral rewards
         try:
             wallet = Wallet.objects.get(user=user)
             if wallet.referred_by and not wallet.referral_used:
@@ -1028,3 +1063,40 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
             raise serializers.ValidationError({"error": f"Unexpected error during referral processing: {str(e)}"})
 
         return booking
+
+
+class PackageDriverDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageDriverDetail
+        fields = '__all__'
+
+
+
+class BusListingSerializer(serializers.ModelSerializer):
+    amenities = AmenitySerializer(many=True, read_only=True)
+    features = BusFeatureSerializer(many=True, read_only=True)
+    average_rating = serializers.SerializerMethodField()
+    total_reviews = serializers.SerializerMethodField()
+    is_favorite = serializers.SerializerMethodField()
+    Bus_image = BusImageSerializer(many=True, read_only=True)
+    all_reviews = BusReviewSerializer(many=True,read_only=True)
+    bus_review_summary = BusReviewSummarySerializer(many=True,read_only=True)
+
+    class Meta:
+        model = Bus
+        fields = ['bus_name','location','capacity','base_price','amenities','features',
+                  'average_rating','total_reviews',
+                  'is_favorite','Bus_image','all_reviews','bus_review_summary']
+
+    def get_average_rating(self, obj):
+        avg = obj.bus_reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(avg, 1) if avg else 0.0
+
+    def get_total_reviews(self, obj):
+        return obj.bus_reviews.count()
+    
+    def get_is_favorite(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return Favourite.objects.filter(user=request.user, bus=obj).exists()
+        return False
