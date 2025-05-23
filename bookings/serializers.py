@@ -57,7 +57,6 @@ class BusBookingSerializer(BaseBookingSerializer):
     total_travelers = TravelerSerializer(many=True, required=False, read_only=True)
     bus_details = serializers.SerializerMethodField(read_only=True)
     booking_type = serializers.SerializerMethodField()
-    first_time_discount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     # Partial payment field
     partial_amount = serializers.DecimalField(
@@ -71,7 +70,7 @@ class BusBookingSerializer(BaseBookingSerializer):
     class Meta:
         model = BusBooking
         fields = BaseBookingSerializer.Meta.fields + [
-            'bus', 'bus_details', 'one_way', 'total_travelers', 'booking_type', 'partial_amount', 'first_time_discount'
+            'bus', 'bus_details', 'one_way', 'total_travelers', 'booking_type', 'partial_amount'
         ]
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
@@ -92,25 +91,6 @@ class BusBookingSerializer(BaseBookingSerializer):
         # Get the total amount from validated data
         total_amount = validated_data.get('total_amount')
         user = self.context['request'].user
-
-        # Check if this is the user's first booking
-        first_time_booking = False
-        first_time_discount = Decimal('0.00')
-        
-        # Check if user has any previous bookings
-        bus_bookings = BusBooking.objects.filter(user=user).exists()
-        package_bookings = PackageBooking.objects.filter(user=user).exists()
-        
-        if not bus_bookings and not package_bookings:
-            # This is the first booking for this user
-            first_time_booking = True
-            # Apply 10% discount
-            first_time_discount = Decimal(str(total_amount)) * Decimal('0.10')
-            total_amount -= first_time_discount
-            validated_data['total_amount'] = total_amount
-            validated_data['first_time_discount'] = first_time_discount
-            
-            logger.info(f"Applied first-time booking discount of {first_time_discount} for user {user.id}. New total: {total_amount}")
 
         # Apply wallet balance if available
         try:
@@ -295,7 +275,6 @@ class PackageBookingSerializer(BaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
     booking_type = serializers.SerializerMethodField()
-    first_time_discount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     
     # Partial payment field  
     partial_amount = serializers.DecimalField(
@@ -309,7 +288,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
     class Meta:
         model = PackageBooking
         fields = BaseBookingSerializer.Meta.fields + [
-            'package', 'package_details', 'travelers', 'partial_amount', 'booking_type', 'first_time_discount','total_travelers'
+            'package', 'package_details', 'travelers', 'partial_amount', 'booking_type','total_travelers'
         ]
         read_only_fields = BaseBookingSerializer.Meta.read_only_fields
         extra_kwargs = {
@@ -331,25 +310,6 @@ class PackageBookingSerializer(BaseBookingSerializer):
         # Get the total amount from validated data
         total_amount = validated_data.get('total_amount')
         user = self.context['request'].user
-
-        # Check if this is the user's first booking
-        first_time_booking = False
-        first_time_discount = Decimal('0.00')
-        
-        # Check if user has any previous bookings
-        bus_bookings = BusBooking.objects.filter(user=user).exists()
-        package_bookings = PackageBooking.objects.filter(user=user).exists()
-        
-        if not bus_bookings and not package_bookings:
-            # This is the first booking for this user
-            first_time_booking = True
-            # Apply 10% discount
-            first_time_discount = Decimal(str(total_amount)) * Decimal('0.10')
-            total_amount -= first_time_discount
-            validated_data['total_amount'] = total_amount
-            validated_data['first_time_discount'] = first_time_discount
-            
-            logger.info(f"Applied first-time booking discount of {first_time_discount} for user {user.id}. New total: {total_amount}")
 
         # Apply wallet balance if available
         try:
@@ -925,7 +885,6 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
     booking_type = serializers.SerializerMethodField()
-    first_time_discount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     
     # Partial payment field  
     partial_amount = serializers.DecimalField(
@@ -939,7 +898,7 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
     class Meta:
         model = PackageBooking
         fields = BaseBookingSerializer.Meta.fields + [
-            'package', 'package_details', 'travelers','total_travelers', 'partial_amount', 'booking_type', 'first_time_discount'
+            'package', 'package_details', 'travelers','total_travelers', 'partial_amount', 'booking_type',
         ]
         read_only_fields = BaseBookingSerializer.Meta.read_only_fields
         extra_kwargs = {
@@ -971,25 +930,6 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
                 raise serializers.ValidationError({
                     "error": "Total amount must be greater than zero"
                 })
-                
-            # Check if this is the user's first booking
-            first_time_booking = False
-            first_time_discount = Decimal('0.00')
-            
-            # Check if user has any previous bookings (excluding this one)
-            bus_bookings = BusBooking.objects.filter(user=user).exists()
-            package_bookings = PackageBooking.objects.filter(user=user).exclude(id=instance.id).exists()
-            
-            if not bus_bookings and not package_bookings:
-                # This is the first booking for this user
-                first_time_booking = True
-                # Apply 10% discount
-                first_time_discount = Decimal(str(total_amount)) * Decimal('0.10')
-                total_amount -= first_time_discount
-                validated_data['total_amount'] = total_amount
-                validated_data['first_time_discount'] = first_time_discount
-                
-                logger.info(f"Applied first-time booking discount of {first_time_discount} for user {user.id}. New total: {total_amount}")
 
         # Apply wallet balance if available (only if total amount is being updated)
         if 'total_amount' in validated_data:
