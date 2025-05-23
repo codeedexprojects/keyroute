@@ -21,7 +21,10 @@ from rest_framework import status as http_status
 from itertools import chain
 from vendors.models import PackageCategory,PackageSubCategory
 from vendors.serializers import PackageCategorySerializer,PackageSubCategorySerializer
-from .serializers import PackageFilterSerializer,PackageBookingUpdateSerializer,BusFilterSerializer,ListPackageSerializer,ListingUserPackageSerializer,PackageSerializer,SinglePackageBookingSerilizer,SingleBusBookingSerializer,PopularBusSerializer
+from .serializers import (PackageFilterSerializer,PackageBookingUpdateSerializer,BusFilterSerializer,
+                          ListPackageSerializer,ListingUserPackageSerializer,
+                          PackageSerializer,SinglePackageBookingSerilizer,
+                          SingleBusBookingSerializer,PopularBusSerializer,BusListingSerializer)
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from .utils import *
@@ -185,7 +188,7 @@ class BusListAPIView(APIView):
             return Response({"message": "No buses found near your location within 30 km."}, status=200)
 
         # 5. Serialize result
-        serializer = BusSerializer(nearby_buses, many=True, context={'request': request})
+        serializer = BusListingSerializer(nearby_buses, many=True, context={'request': request})
         return Response(serializer.data)
     
 class SingleBusListAPIView(APIView):
@@ -193,7 +196,7 @@ class SingleBusListAPIView(APIView):
     
     def get(self, request,bus_id):
         buses = Bus.objects.get(id=bus_id)
-        serializer = BusSerializer(buses, many=False, context={'request': request})
+        serializer = BusListingSerializer(buses, many=False, context={'request': request})
         return Response(serializer.data)
 
 class PackageBookingListCreateAPIView(APIView):
