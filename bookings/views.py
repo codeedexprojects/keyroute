@@ -21,12 +21,17 @@ from rest_framework import status as http_status
 from itertools import chain
 from vendors.models import PackageCategory,PackageSubCategory
 from vendors.serializers import PackageCategorySerializer,PackageSubCategorySerializer
-from .serializers import PackageFilterSerializer,PackageBookingUpdateSerializer,BusFilterSerializer,ListPackageSerializer,ListingUserPackageSerializer,PackageSerializer,SinglePackageBookingSerilizer,SingleBusBookingSerializer,PopularBusSerializer
+from .serializers import (PackageFilterSerializer,PackageBookingUpdateSerializer,BusFilterSerializer,
+                          ListPackageSerializer,ListingUserPackageSerializer,
+                          PackageSerializer,SinglePackageBookingSerilizer,
+                          SingleBusBookingSerializer,PopularBusSerializer,BusListingSerializer)
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from .utils import *
 from admin_panel.models import AdminCommissionSlab,AdminCommission
 from admin_panel.utils import get_admin_commission_from_db,get_advance_amount_from_db
+from .models import PackageDriverDetail
+from .serializers import PackageDriverDetailSerializer
 
 
 
@@ -183,7 +188,7 @@ class BusListAPIView(APIView):
             return Response({"message": "No buses found near your location within 30 km."}, status=200)
 
         # 5. Serialize result
-        serializer = BusSerializer(nearby_buses, many=True, context={'request': request})
+        serializer = BusListingSerializer(nearby_buses, many=True, context={'request': request})
         return Response(serializer.data)
     
 class SingleBusListAPIView(APIView):
@@ -191,7 +196,7 @@ class SingleBusListAPIView(APIView):
     
     def get(self, request,bus_id):
         buses = Bus.objects.get(id=bus_id)
-        serializer = BusSerializer(buses, many=False, context={'request': request})
+        serializer = BusListingSerializer(buses, many=False, context={'request': request})
         return Response(serializer.data)
 
 class PackageBookingListCreateAPIView(APIView):
@@ -718,3 +723,12 @@ class PopularBusApi(APIView):
         serializer = PopularBusSerializer(buses,many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
+    
+class DriverDetailByBookingAPIView(APIView):
+    def get(self, request, booking_id):
+        try:
+            driver_detail = PackageDriverDetail.objects.get(package_booking__id=booking_id)
+            serializer = PackageDriverDetailSerializer(driver_detail)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except PackageDriverDetail.DoesNotExist:
+            return Response({"error": "Driver detail not found"}, status=status.HTTP_404_NOT_FOUND)
