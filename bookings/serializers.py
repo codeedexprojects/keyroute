@@ -1062,3 +1062,9 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
             raise serializers.ValidationError({"error": f"Unexpected error during referral processing: {str(e)}"})
 
         return booking
+
+
+class PackageDriverDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageDriverDetail
+        fields = '__all__'
