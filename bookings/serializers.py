@@ -275,31 +275,31 @@ class PackageBookingSerializer(BaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
     booking_type = serializers.SerializerMethodField()
-    
-    # Partial payment field  
+
     partial_amount = serializers.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        required=False, 
+        max_digits=10,
+        decimal_places=2,
+        required=False,
         write_only=True,
         help_text="Amount user chooses to pay initially. Must be >= advance_amount."
     )
-    
+
     class Meta:
         model = PackageBooking
         fields = BaseBookingSerializer.Meta.fields + [
-            'package', 'package_details', 'travelers', 'partial_amount', 'booking_type','total_travelers'
+            'package', 'package_details', 'travelers',
+            'partial_amount', 'booking_type', 'total_travelers', 'rooms'
         ]
-        read_only_fields = BaseBookingSerializer.Meta.read_only_fields
+        read_only_fields = BaseBookingSerializer.Meta.read_only_fields + ['rooms']
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
             'advance_amount': {'write_only': False, 'required': False},
         }
-    
+
     def get_package_details(self, obj):
         from vendors.serializers import PackageSerializer
         return PackageSerializer(obj.package).data
-    
+
     def get_booking_type(self, obj):
         return "package"
 
@@ -307,19 +307,17 @@ class PackageBookingSerializer(BaseBookingSerializer):
         import logging
         logger = logging.getLogger(__name__)
 
-        # Get the total amount from validated data
         total_amount = validated_data.get('total_amount')
         user = self.context['request'].user
 
-        # Apply wallet balance if available
+        # ✅ Use wallet if available
         try:
             wallet = Wallet.objects.get(user=user)
             if wallet.balance >= MINIMUM_WALLET_AMOUNT:
                 wallet_amount_used = wallet.balance
-                total_amount = total_amount - wallet_amount_used
+                total_amount -= wallet_amount_used
                 validated_data['total_amount'] = total_amount
 
-                # Update wallet balance
                 wallet.balance = Decimal('0.00')
                 wallet.save()
 
@@ -329,37 +327,38 @@ class PackageBookingSerializer(BaseBookingSerializer):
         except Exception as e:
             logger.error(f"Error processing wallet: {str(e)}")
 
-        # Calculate minimum advance amount required
+        # ✅ Get advance info
         advance_percent, min_advance_amount = get_advance_amount_from_db(total_amount)
 
-        # Get partial amount from validated data or initial data
         partial_amount = validated_data.pop('partial_amount', None)
         if partial_amount is None:
-            # Try to get from initial data if not in validated_data
             partial_amount = self.initial_data.get('partial_amount')
 
-        # Validate and set advance amount
         if partial_amount:
             try:
                 partial_amount = Decimal(str(partial_amount))
                 if partial_amount < min_advance_amount:
                     raise serializers.ValidationError(
-                        f"Partial amount ({partial_amount}) must be greater than or equal to the minimum advance amount ({min_advance_amount})."
+                        f"Partial amount ({partial_amount}) must be >= minimum advance amount ({min_advance_amount})."
                     )
                 validated_data['advance_amount'] = partial_amount
             except (ValueError, TypeError):
                 raise serializers.ValidationError("Invalid partial amount format.")
         else:
-            # If not provided, default to minimum advance
             validated_data['advance_amount'] = min_advance_amount
 
-        # Calculate admin commission
+        # ✅ Calculate rooms based on total_travelers
+        total_travelers = validated_data.get('total_travelers', 0)
+        rooms_required = (total_travelers + 2) // 3  # Ceiling of total_travelers / 3
+        validated_data['rooms'] = rooms_required
+
+        # ✅ Commission
         commission_percent, revenue = get_admin_commission_from_db(total_amount)
 
-        # Create booking
+        # ✅ Create booking
         booking = super().create(validated_data)
 
-        # Create admin commission record
+        # ✅ Admin Commission Record
         AdminCommission.objects.create(
             booking_type='package',
             booking_id=booking.id,
@@ -368,21 +367,15 @@ class PackageBookingSerializer(BaseBookingSerializer):
             revenue_to_admin=revenue
         )
 
-        # Process referral if applicable
+        # ✅ Referral processing
         try:
             wallet = Wallet.objects.get(user=user)
             if wallet.referred_by and not wallet.referral_used:
                 logger.info(f"Processing referral for user {user.id}, referred by {wallet.referred_by}")
-                
-                referrer = None
-                try:
-                    referrer = User.objects.get(mobile=wallet.referred_by)
-                except User.DoesNotExist:
-                    try:
-                        referrer = User.objects.get(email=wallet.referred_by)
-                    except User.DoesNotExist:
-                        referrer = User.objects.filter(mobile=wallet.referred_by).first()
-                
+                referrer = User.objects.filter(
+                    models.Q(mobile=wallet.referred_by) | models.Q(email=wallet.referred_by)
+                ).first()
+
                 if referrer:
                     reward = 300
                     try:
@@ -400,7 +393,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
                     except Exception as e:
                         logger.error(f"Error creating referral transaction: {str(e)}")
                 else:
-                    logger.warning(f"Could not find referrer with any identifier '{wallet.referred_by}'")
+                    logger.warning(f"Could not find referrer with identifier '{wallet.referred_by}'")
         except Wallet.DoesNotExist:
             pass
         except Exception as e:
