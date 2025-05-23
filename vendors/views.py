@@ -1015,8 +1015,8 @@ class CreatePackageAndDayPlanAPIView(APIView):
                 # guide_included=data.get("guide_included"),
                 ac_available=str_to_bool(data.get("ac_available")),
                 guide_included=str_to_bool(data.get("guide_included")),
-                longitude=data.get("longitude"),
-                latitude=data.get("latitude"),
+                # longitude=data.get("longitude"),
+                # latitude=data.get("latitude"),
             )
 
             # 2. SET BUSES
@@ -1052,7 +1052,7 @@ class CreatePackageAndDayPlanAPIView(APIView):
                     day_number=day_number,
                     description=day_description,
                     night=str_to_bool(day_night)
-                )
+                ) 
                 print('after days')
 
 

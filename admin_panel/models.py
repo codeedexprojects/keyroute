@@ -4,7 +4,6 @@ from django.utils import timezone
 import string
 import random
 
-
 # Create your models here.
 class UserManager(BaseUserManager):
     def create_user(self, mobile=None, email=None, password=None, **extra_fields):
@@ -110,7 +109,8 @@ class Vendor(models.Model):
 
 class Advertisement(models.Model):
     title = models.CharField(max_length=255)
-    description = models.TextField(null=True, blank=True)
+    subtitle = models.CharField(max_length=255, null=True, blank=True) 
+    type = models.CharField(max_length=255, null=True, blank=True) 
     image = models.ImageField(upload_to="advertisements/")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -119,10 +119,10 @@ class Advertisement(models.Model):
 
 
 class LimitedDeal(models.Model):
-    advertisement = models.ForeignKey(Advertisement, on_delete=models.CASCADE, related_name="limited_deals")
     title = models.CharField(max_length=255)
-    description = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    terms_and_conditions = models.TextField(null=True, blank=True)
+    offer = models.CharField(max_length=100, null=True, blank=True)
 
     def __str__(self):
         return f"Limited Deal - {self.title}"
@@ -136,11 +136,24 @@ class LimitedDealImage(models.Model):
         return f"Image for {self.deal.title}"
 
 
+
+class ReferAndEarn(models.Model):
+    image = models.ImageField(upload_to="refer_and_earn/")
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Refer and Earn - ₹{self.price}"
+
+
+
+
+
+
+
 class FooterSection(models.Model):
-    advertisement = models.ForeignKey(Advertisement, on_delete=models.CASCADE, related_name="footer_sections")
-    title = models.CharField(max_length=255)
-    description = models.TextField(null=True, blank=True)
     image = models.ImageField(upload_to="footer_sections/")
+    package = models.ForeignKey('vendors.Package', on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
