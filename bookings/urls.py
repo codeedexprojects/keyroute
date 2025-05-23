@@ -4,7 +4,8 @@ from .views import (
     PackageBookingListCreateAPIView, PackageBookingDetailAPIView,
     BusBookingListCreateAPIView, BusBookingDetailAPIView,
     TravelerCreateAPIView, PackageBookingTravelersAPIView, BusBookingTravelersAPIView,
-    TravelerDetailAPIView, UserBookingsByStatus,CancelBookingView,PackageCategoryListAPIView,PackageSubCategoryListAPIView,SingleBusListAPIView,SinglePackageListAPIView
+    TravelerDetailAPIView, UserBookingsByStatus,CancelBookingView,PackageCategoryListAPIView,PackageSubCategoryListAPIView,SingleBusListAPIView,SinglePackageListAPIView,
+    PopularBusApi,PackageBookingUpdateAPIView,DriverDetailByBookingAPIView
 )
 
 urlpatterns = [
@@ -19,6 +20,7 @@ urlpatterns = [
     path('bookings/package/', PackageBookingListCreateAPIView.as_view(), name='package-booking-list-create'),
     path('bookings/package/<int:pk>/', PackageBookingDetailAPIView.as_view(), name='package-booking-detail'),
     path('bookings/package/<int:booking_id>/travelers/', PackageBookingTravelersAPIView.as_view(), name='package-booking-travelers'),
+    path('bookings/package/<int:booking_id>/edit/', PackageBookingUpdateAPIView.as_view(), name='package-booking-update'),
     
     # Bus ing endpoints
     path('bookings/bus/', BusBookingListCreateAPIView.as_view(), name='bus-booking-list-create'),
@@ -36,4 +38,8 @@ urlpatterns = [
 
     path('services/categories/', PackageCategoryListAPIView.as_view(), name='package-category-list'),
     path('services/subcategories/<int:category>/', PackageSubCategoryListAPIView.as_view(), name='package-subcategory-list'),
+
+    path('popular-buses/',PopularBusApi.as_view(),name="Popular-buses"),
+
+    path('driver-details/<int:booking_id>/', DriverDetailByBookingAPIView.as_view(), name='driver-detail-by-booking'),
 ]

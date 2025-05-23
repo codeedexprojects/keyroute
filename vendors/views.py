@@ -1772,8 +1772,6 @@ class PackageEditAPIView(APIView):
         package.nights = data.get("nights", package.nights)
         package.ac_available = data.get("ac_available", str(package.ac_available)).lower() == "true"
         package.guide_included = data.get("guide_included", str(package.guide_included)).lower() == "true"
-        package.latitude = data.get("latitude", package.latitude)
-        package.longitude = data.get("longitude", package.longitude)
         package.bus_location = data.get("bus_location", package.bus_location)
         package.price_per_person = data.get("price_per_person", package.price_per_person)
         package.extra_charge_per_km = data.get("extra_charge_per_km", package.extra_charge_per_km)
