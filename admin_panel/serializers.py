@@ -404,12 +404,13 @@ class SeasonTimeSerializer2(serializers.ModelSerializer):
 
 class SightListSerializer(serializers.ModelSerializer):
     experiences = ExperienceSerializer(many=True, read_only=True)
-    season_times = SeasonTimeSerializer(many=True, read_only=True)
+    seasons = SeasonTimeSerializer(many=True, read_only=True)
+
     images = SightImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = Sight
-        fields = ['id', 'title', 'description', 'season_description', 'experiences','season_times','images']
+        fields = ['id', 'title', 'description', 'experiences','seasons','images']
 
 
 
