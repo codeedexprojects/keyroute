@@ -20,6 +20,7 @@ import logging
 from django.db import transaction
 import math
 logger = logging.getLogger(__name__)
+from reviews.serializers import *
 
 
 User = get_user_model()
@@ -1068,3 +1069,34 @@ class PackageDriverDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = PackageDriverDetail
         fields = '__all__'
+
+
+
+class BusListingSerializer(serializers.ModelSerializer):
+    amenities = AmenitySerializer(many=True, read_only=True)
+    features = BusFeatureSerializer(many=True, read_only=True)
+    average_rating = serializers.SerializerMethodField()
+    total_reviews = serializers.SerializerMethodField()
+    is_favorite = serializers.SerializerMethodField()
+    Bus_image = BusImageSerializer(many=True, read_only=True)
+    all_reviews = BusReviewSerializer(many=True,read_only=True)
+    bus_review_summary = BusReviewSummarySerializer(many=True,read_only=True)
+
+    class Meta:
+        model = Bus
+        fields = ['bus_name','location','capacity','base_price','amenities','features',
+                  'average_rating','total_reviews',
+                  'is_favorite','Bus_image','all_reviews','bus_review_summary']
+
+    def get_average_rating(self, obj):
+        avg = obj.bus_reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(avg, 1) if avg else 0.0
+
+    def get_total_reviews(self, obj):
+        return obj.bus_reviews.count()
+    
+    def get_is_favorite(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return Favourite.objects.filter(user=request.user, bus=obj).exists()
+        return False
