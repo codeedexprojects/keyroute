@@ -280,6 +280,8 @@ class BusEditAPIView(APIView):
 
     def get(self, request, bus_id):
         """Retrieve a single bus by ID if it belongs to the authenticated vendor."""
+
+        
         try:
             vendor = Vendor.objects.filter(user=request.user).first()
             if not vendor:
@@ -1012,7 +1014,9 @@ class CreatePackageAndDayPlanAPIView(APIView):
                 # ac_available=data.get("ac_available"),
                 # guide_included=data.get("guide_included"),
                 ac_available=str_to_bool(data.get("ac_available")),
-
+                guide_included=str_to_bool(data.get("guide_included")),
+                # longitude=data.get("longitude"),
+                # latitude=data.get("latitude"),
             )
 
             # 2. SET BUSES
@@ -1048,7 +1052,7 @@ class CreatePackageAndDayPlanAPIView(APIView):
                     day_number=day_number,
                     description=day_description,
                     night=str_to_bool(day_night)
-                )
+                ) 
                 print('after days')
 
 
@@ -1259,113 +1263,6 @@ class AddDayPlanAPIView(APIView):
     #         data = request.data
     #         files = request.FILES
 
-    #         # Get next day number
-    #         last_day = DayPlan.objects.filter(package=package).order_by("-day_number").first()
-    #         next_day_number = last_day.day_number + 1 if last_day else 1
-    #         suffix = f"_{next_day_number}"
-
-    #         day_description = data.get(f"description{suffix}", "")
-    #         day_plan = DayPlan.objects.create(
-    #             package=package,
-    #             day_number=next_day_number,
-    #             description=day_description
-    #         )
-
-    #         # Place
-    #         place = Place.objects.create(
-    #             day_plan=day_plan,
-    #             name=data.get(f"place_name{suffix}", ""),
-    #             description=data.get(f"place_description{suffix}", "")
-    #         )
-           
-    #         print("All files received:", request.FILES.keys())
-
-    #         for i in range(1, 5):
-    #             key = f"place_image{suffix}_{i}"  # e.g. place_image_3_1
-    #             img = files.get(key)
-    #             print(f"Uploading Place Image: {key} - {'Received' if img else 'Not Found'}")
-    #             if img:
-    #                 PlaceImage.objects.create(place=place, image=img)
-
-
-    #         # Stay
-    #         stay = Stay.objects.create(
-    #             day_plan=day_plan,
-    #             hotel_name=data.get(f"stay_name{suffix}", ""),
-    #             description=data.get(f"stay_description{suffix}", ""),
-    #             location=data.get(f"location{suffix}", ""),
-    #             is_ac=data.get(f"is_ac{suffix}", "false").lower() == "true",
-    #             has_breakfast=data.get(f"has_breakfast{suffix}", "false").lower() == "true"
-    #         )
-    #         for i in range(1, 5):
-    #             img = files.get(f"stay_image{suffix}_{i}")
-    #             if img:
-    #                 StayImage.objects.create(stay=stay, image=img)
-
-    #         # Meal
-    #         meal_time_str = data.get(f"meal_time{suffix}")
-    #         meal_time = datetime.strptime(meal_time_str, "%H:%M").time() if meal_time_str else None
-    #         meal = Meal.objects.create(
-    #             day_plan=day_plan,
-    #             type=data.get(f"meal_type{suffix}", "breakfast"),
-    #             description=data.get(f"meal_description{suffix}", ""),
-    #             restaurant_name=data.get(f"restaurant_name{suffix}", ""),
-    #             location=data.get(f"meal_location{suffix}", ""),
-    #             time=meal_time
-    #         )
-    #         for i in range(1, 5):
-    #             img = files.get(f"meal_image{suffix}_{i}")
-    #             if img:
-    #                 MealImage.objects.create(meal=meal, image=img)
-
-    #         # Activity
-    #         activity_time_str = data.get(f"activity_time{suffix}")
-    #         activity_time = datetime.strptime(activity_time_str, "%H:%M").time() if activity_time_str else None
-    #         activity = Activity.objects.create(
-    #             day_plan=day_plan,
-    #             name=data.get(f"activity_name{suffix}", ""),
-    #             description=data.get(f"activity_description{suffix}", ""),
-    #             location=data.get(f"activity_location{suffix}", ""),
-    #             time=activity_time
-    #         )
-    #         for i in range(1, 5):
-    #             img = files.get(f"activity_image{suffix}_{i}")
-    #             if img:
-    #                 ActivityImage.objects.create(activity=activity, image=img)
-
-    #         return Response({"message": "Day plan added successfully."}, status=201)
-
-    #     except Exception as e:
-    #         return Response({"error": str(e)}, status=500)
-
-
-
-    # def _upload_images(self, files, prefix, related_obj):
-    #     """Helper to upload up to 4 images with keys like 'prefix_1', 'prefix_2', etc."""
-    #     for i in range(1, 5):
-    #         key = f"{prefix}_{i}"
-    #         img = files.get(key)
-    #         print(f"Uploading Image with key '{key}': {'Received' if img else 'Not Found'}")
-    #         if img:
-    #             # Create the image instance based on related_obj's type
-    #             if isinstance(related_obj, Place):
-    #                 PlaceImage.objects.create(place=related_obj, image=img)
-    #             elif isinstance(related_obj, Stay):
-    #                 StayImage.objects.create(stay=related_obj, image=img)
-    #             elif isinstance(related_obj, Meal):
-    #                 MealImage.objects.create(meal=related_obj, image=img)
-    #             elif isinstance(related_obj, Activity):
-    #                 ActivityImage.objects.create(activity=related_obj, image=img)
-
-    # def post(self, request, package_id):
-    #     try:
-    #         package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
-    #         if not package:
-    #             return Response({"error": "Package not found or access denied"}, status=404)
-
-    #         data = request.data
-    #         files = request.FILES
-
          
 
 
@@ -1442,9 +1339,26 @@ class AddDayPlanAPIView(APIView):
 
 
 
-    def _upload_images(self, files, prefix, related_obj):
-        for i in range(1, 5):
-            key = f"{prefix}_{i}"
+    # def _upload_images(self, files, prefix, related_obj):
+    #     for i in range(1, 5):
+    #         key = f"{prefix}_{i}"
+    #         img = files.get(key)
+    #         if img:
+    #             if isinstance(related_obj, Place):
+    #                 PlaceImage.objects.create(place=related_obj, image=img)
+    #             elif isinstance(related_obj, Stay):
+    #                 StayImage.objects.create(stay=related_obj, image=img)
+    #             elif isinstance(related_obj, Meal):
+    #                 MealImage.objects.create(meal=related_obj, image=img)
+    #             elif isinstance(related_obj, Activity):
+    #                 ActivityImage.objects.create(activity=related_obj, image=img)
+
+
+
+    def _upload_images(self, files, prefix, related_obj_index, related_obj):
+        # images keys look like: place_image_0_0, place_image_0_1, etc.
+        for img_index in range(4):  # up to 4 images per object
+            key = f"{prefix}_{related_obj_index}_{img_index}"
             img = files.get(key)
             if img:
                 if isinstance(related_obj, Place):
@@ -1456,6 +1370,90 @@ class AddDayPlanAPIView(APIView):
                 elif isinstance(related_obj, Activity):
                     ActivityImage.objects.create(activity=related_obj, image=img)
 
+
+    # def post(self, request, package_id):
+    #     try:
+    #         package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
+    #         if not package:
+    #             return Response({"error": "Package not found or access denied"}, status=404)
+
+    #         data = request.data
+    #         files = request.FILES
+
+    #         # Determine next day number
+    #         last_day = DayPlan.objects.filter(package=package).order_by("-day_number").first()
+    #         next_day_number = last_day.day_number + 1 if last_day else 1
+
+    #         # Create DayPlan
+    #         day_description = data.get("description", "")
+    #         day_plan = DayPlan.objects.create(
+    #             package=package,
+    #             day_number=next_day_number,
+    #             description=day_description
+    #         )
+
+    #         # Create multiple Places using indexed fields
+    #         place_index = 1
+    #         while True:
+    #             place_name_key = f"place_name_{place_index}"
+    #             place_description_key = f"place_description_{place_index}"
+    #             image_key = f"place_image_{place_index}"
+
+    #             if place_name_key not in data:
+    #                 break  # Exit loop if no more places
+
+    #             place = Place.objects.create(
+    #                 day_plan=day_plan,
+    #                 name=data.get(place_name_key, ""),
+    #                 description=data.get(place_description_key, "")
+    #             )
+    #             self._upload_images(files, image_key, place)
+    #             place_index += 1
+
+    #         # Create Stay
+    #         stay = Stay.objects.create(
+    #             day_plan=day_plan,
+    #             hotel_name=data.get("stay_name", ""),
+    #             description=data.get("stay_description", ""),
+    #             location=data.get("location", ""),
+    #             is_ac=data.get("is_ac", "false").lower() == "true",
+    #             has_breakfast=data.get("has_breakfast", "false").lower() == "true"
+    #         )
+    #         self._upload_images(files, "stay_image", stay)
+
+    #         # Create Meal
+    #         meal_time_str = data.get("meal_time")
+    #         meal_time = datetime.strptime(meal_time_str, "%H:%M").time() if meal_time_str else None
+
+    #         meal = Meal.objects.create(
+    #             day_plan=day_plan,
+    #             type=data.get("meal_type", "breakfast"),
+    #             description=data.get("meal_description", ""),
+    #             restaurant_name=data.get("restaurant_name", ""),
+    #             location=data.get("meal_location", ""),
+    #             time=meal_time
+    #         )
+    #         self._upload_images(files, "meal_image", meal)
+
+    #         # Create Activity
+    #         activity_time_str = data.get("activity_time")
+    #         activity_time = datetime.strptime(activity_time_str, "%H:%M").time() if activity_time_str else None
+
+    #         activity = Activity.objects.create(
+    #             day_plan=day_plan,
+    #             name=data.get("activity_name", ""),
+    #             description=data.get("activity_description", ""),
+    #             location=data.get("activity_location", ""),
+    #             time=activity_time
+    #         )
+    #         self._upload_images(files, "activity_image", activity)
+
+    #         return Response({"message": "Day plan added successfully."}, status=201)
+
+    #     except Exception as e:
+    #         return Response({"error": str(e)}, status=500)
+
+
     def post(self, request, package_id):
         try:
             package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
@@ -1465,7 +1463,6 @@ class AddDayPlanAPIView(APIView):
             data = request.data
             files = request.FILES
 
-            # Determine next day number
             last_day = DayPlan.objects.filter(package=package).order_by("-day_number").first()
             next_day_number = last_day.day_number + 1 if last_day else 1
 
@@ -1477,51 +1474,62 @@ class AddDayPlanAPIView(APIView):
                 description=day_description
             )
 
-            # Create Place
-            place = Place.objects.create(
-                day_plan=day_plan,
-                name=data.get("place_name", ""),
-                description=data.get("place_description", "")
-            )
-            self._upload_images(files, "place_image", place)
+            # --------- HANDLE PLACES ---------
+            places = json.loads(data.get("places", "[]"))
+            for idx, place_data in enumerate(places):
+                place = Place.objects.create(
+                    day_plan=day_plan,
+                    name=place_data.get("name", ""),
+                    description=place_data.get("description", "")
+                )
+                # self._upload_images(files, f"place_image_{idx}", place)
+                self._upload_images(files, "place_image", idx, place)
 
-            # Create Stay
-            stay = Stay.objects.create(
-                day_plan=day_plan,
-                hotel_name=data.get("stay_name", ""),
-                description=data.get("stay_description", ""),
-                location=data.get("location", ""),
-                is_ac=data.get("is_ac", "false").lower() == "true",
-                has_breakfast=data.get("has_breakfast", "false").lower() == "true"
-            )
-            self._upload_images(files, "stay_image", stay)
+            # --------- HANDLE STAY ---------
+            stay_list = json.loads(data.get("stay", "[]"))
+            if stay_list:
+                stay_data = stay_list[0]
+                stay = Stay.objects.create(
+                    day_plan=day_plan,
+                    hotel_name=stay_data.get("hotel_name", ""),
+                    description=stay_data.get("description", ""),
+                    location=stay_data.get("location", ""),
+                    is_ac=stay_data.get("is_ac", False),
+                    has_breakfast=stay_data.get("has_breakfast", False)
+                )
+                # self._upload_images(files, "stay_image", stay)
+                self._upload_images(files, "stay_image", 0, stay)
 
-            # Create Meal
-            meal_time_str = data.get("meal_time")
-            meal_time = datetime.strptime(meal_time_str, "%H:%M").time() if meal_time_str else None
+            # --------- HANDLE MEAL ---------
+            meal_list = json.loads(data.get("meal", "[]"))
+            if meal_list:
+                meal_data = meal_list[0]
+                meal_time = datetime.strptime(meal_data.get("time", ""), "%H:%M").time() if meal_data.get("time") else None
+                meal = Meal.objects.create(
+                    day_plan=day_plan,
+                    type=meal_data.get("type", "breakfast"),
+                    description=meal_data.get("description", ""),
+                    restaurant_name=meal_data.get("restaurant_name", ""),
+                    location=meal_data.get("location", ""),
+                    time=meal_time
+                )
+                # self._upload_images(files, "meal_image", meal)
+                self._upload_images(files, "meal_image", 0, meal)
 
-            meal = Meal.objects.create(
-                day_plan=day_plan,
-                type=data.get("meal_type", "breakfast"),
-                description=data.get("meal_description", ""),
-                restaurant_name=data.get("restaurant_name", ""),
-                location=data.get("meal_location", ""),
-                time=meal_time
-            )
-            self._upload_images(files, "meal_image", meal)
-
-            # Create Activity
-            activity_time_str = data.get("activity_time")
-            activity_time = datetime.strptime(activity_time_str, "%H:%M").time() if activity_time_str else None
-
-            activity = Activity.objects.create(
-                day_plan=day_plan,
-                name=data.get("activity_name", ""),
-                description=data.get("activity_description", ""),
-                location=data.get("activity_location", ""),
-                time=activity_time
-            )
-            self._upload_images(files, "activity_image", activity)
+            # --------- HANDLE ACTIVITY ---------
+            activity_list = json.loads(data.get("activity", "[]"))
+            if activity_list:
+                activity_data = activity_list[0]
+                activity_time = datetime.strptime(activity_data.get("time", ""), "%H:%M").time() if activity_data.get("time") else None
+                activity = Activity.objects.create(
+                    day_plan=day_plan,
+                    name=activity_data.get("name", ""),
+                    description=activity_data.get("description", ""),
+                    location=activity_data.get("location", ""),
+                    time=activity_time
+                )
+                # self._upload_images(files, "activity_image", activity)
+                self._upload_images(files, "activity_image", 0, activity)
 
             return Response({"message": "Day plan added successfully."}, status=201)
 
@@ -1531,60 +1539,11 @@ class AddDayPlanAPIView(APIView):
 
 
 
-    # def get(self, request, package_id, day_number):
-    #     try:
-    #         day_plan = DayPlan.objects.filter(
-    #             package__id=package_id,
-    #             package__vendor__user=request.user,
-    #             day_number=day_number
-    #         ).first()
 
-    #         if not day_plan:
-    #             return Response({"error": "Day plan not found"}, status=404)
+ 
 
-    #         # Get related data safely
-    #         place = day_plan.places.first()
-    #         stay = getattr(day_plan, 'stay', None)
-    #         meal = day_plan.meals.first()
-    #         activity = day_plan.activities.first()
+ 
 
-    #         response_data = {
-    #             "day_number": day_plan.day_number,
-    #             "description": day_plan.description,
-    #             "place": {
-    #                 "name": place.name if place else "",
-    #                 "description": place.description if place else "",
-    #                 "images": PlaceImageSerializer(place.images.all(), many=True).data if place else [],
-    #             },
-    #             "stay": {
-    #                 "hotel_name": stay.hotel_name if stay.hotel_name else "",
-    #                 "description": stay.description if stay else "",
-    #                 "location": stay.location if stay else "",
-    #                 "is_ac": stay.is_ac if stay else False,
-    #                 "has_breakfast": stay.has_breakfast if stay else False,
-    #                 "images": StayImageSerializer(stay.images.all(), many=True).data if stay else [],
-    #             },
-    #             "meal": {
-    #                 "type": meal.type if meal else "",
-    #                 "description": meal.description if meal else "",
-    #                 "restaurant_name": meal.restaurant_name if meal else "",
-    #                 "location": meal.location if meal else "",
-    #                 "time": meal.time.strftime("%H:%M") if meal and meal.time else "",
-    #                 "images": MealImageSerializer(meal.images.all(), many=True).data if meal else [],
-    #             },
-    #             "activity": {
-    #                 "name": activity.name if activity else "",
-    #                 "description": activity.description if activity else "",
-    #                 "location": activity.location if activity else "",
-    #                 "time": activity.time.strftime("%H:%M") if activity and activity.time else "",
-    #                 "images": ActivityImageSerializer(activity.images.all(), many=True).data if activity else [],
-    #             }
-    #         }
-
-    #         return Response(response_data, status=200)
-
-    #     except Exception as e:
-    #         return Response({"error": str(e)}, status=500)
 
 
 
