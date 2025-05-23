@@ -8,6 +8,7 @@ from vendors.models import Bus, Package
 from .models import ReferralRewardTransaction
 from admin_panel.models import Experience,Sight
 from admin_panel.models import *
+import calendar
 
 User = get_user_model()
 
@@ -237,9 +238,18 @@ class ExperienceSerializer(serializers.ModelSerializer):
 
 
 class SeasonTimeSerializer(serializers.ModelSerializer):
+    from_date = serializers.SerializerMethodField()
+    to_date = serializers.SerializerMethodField()
+
     class Meta:
         model = SeasonTime
         fields = '__all__'
+
+    def get_from_date(self, obj):
+        return calendar.month_name[obj.from_date.month]
+
+    def get_to_date(self, obj):
+        return calendar.month_name[obj.to_date.month]
 
 
 class SightImageSerializer(serializers.ModelSerializer):
@@ -259,6 +269,8 @@ class SightDetailSerializer(serializers.ModelSerializer):
 
 
 class SightSerializer(serializers.ModelSerializer):
+    images = SightImageSerializer(many=True, read_only=True)
+
     class Meta:
         model = Sight
         fields = '__all__'
