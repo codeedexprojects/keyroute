@@ -21,10 +21,12 @@ from rest_framework import status as http_status
 from itertools import chain
 from vendors.models import PackageCategory,PackageSubCategory
 from vendors.serializers import PackageCategorySerializer,PackageSubCategorySerializer
-from .serializers import PackageFilterSerializer,BusFilterSerializer,PackageSerializer,SinglePackageBookingSerilizer,SingleBusBookingSerializer
+from .serializers import PackageFilterSerializer,PackageBookingUpdateSerializer,BusFilterSerializer,ListPackageSerializer,ListingUserPackageSerializer,PackageSerializer,SinglePackageBookingSerilizer,SingleBusBookingSerializer,PopularBusSerializer
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from .utils import *
+from admin_panel.models import AdminCommissionSlab,AdminCommission
+from admin_panel.utils import get_admin_commission_from_db,get_advance_amount_from_db
 
 
 
@@ -35,63 +37,153 @@ class PackageListAPIView(APIView):
         lat = request.query_params.get('lat')
         lon = request.query_params.get('lon')
 
-        user_coords = None
-        if lat and lon:
-            try:
-                lat = float(lat)
-                lon = float(lon)
-                if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
-                    return Response({"error": "Latitude must be between -90 and 90, and longitude between -180 and 180."}, status=400)
-                user_coords = (lat, lon)
+        if lat is None or lon is None:
+            return Response(
+                {"error": "Latitude (lat) and Longitude (lon) query parameters are required."},
+                status=400
+            )
 
-                try:
-                    geolocator = Nominatim(user_agent="coord-debug")
-                    location = geolocator.reverse(user_coords, exactly_one=True, timeout=10)
-                    print(location.address if location else "Invalid coordinates")
-                except Exception as e:
-                    print(f"Geolocation error: {e}")
-            except ValueError:
-                return Response({"error": "Latitude and longitude must be valid float values."}, status=400)
+        try:
+            lat = float(lat)
+            lon = float(lon)
+            if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+                return Response(
+                    {"error": "Latitude must be between -90 and 90, and longitude between -180 and 180."},
+                    status=400
+                )
+            user_coords = (lat, lon)
+
+            try:
+                geolocator = Nominatim(user_agent="coord-debug")
+                location = geolocator.reverse(user_coords, exactly_one=True, timeout=10)
+                print(location.address if location else "Invalid coordinates")
+            except Exception as e:
+                print(f"Geolocation error: {e}")
+
+        except ValueError:
+            return Response(
+                {"error": "Latitude and longitude must be valid float values."},
+                status=400
+            )
 
         packages = Package.objects.filter(sub_category=category)
         if not packages.exists():
             return Response({"error": f"No packages found under category '{category}'."}, status=404)
 
-        if user_coords:
-            nearby_packages = []
-            for package in packages:
-                if package.latitude is not None and package.longitude is not None:
-                    package_coords = (package.latitude, package.longitude)
-                    distance_km = geodesic(user_coords, package_coords).kilometers
+        nearby_packages = []
+        for package in packages:
+            if package.buses.exists():  # Check if package has any buses
+                # Get buses associated with this package
+                buses_with_coords = package.buses.filter(
+                    latitude__isnull=False, 
+                    longitude__isnull=False
+                )
+                
+                # Check if at least one bus is within range
+                is_nearby = False
+                for bus in buses_with_coords:
+                    bus_coords = (bus.latitude, bus.longitude)
+                    distance_km = geodesic(user_coords, bus_coords).kilometers
                     if distance_km <= 30:
-                        nearby_packages.append(package)
+                        is_nearby = True
+                        break
+                
+                if is_nearby:
+                    nearby_packages.append(package)
 
-            if not nearby_packages:
-                return Response({
-                    "message": f"No packages found near your location within 30 km"
-                }, status=200)
+        if not nearby_packages:
+            return Response({
+                "message": f"No packages found near your location within 30 km"
+            }, status=200)
 
-            serializer = PackageSerializer(nearby_packages, many=True, context={'request': request})
-            return Response(serializer.data)
-
-        serializer = PackageSerializer(packages, many=True, context={'request': request})
+        # Create a custom serializer context with user location for distance calculation
+        context = {
+            'request': request,
+            'user_location': user_coords
+        }
+        
+        serializer = ListPackageSerializer(nearby_packages, many=True, context=context)
         return Response(serializer.data)
-
     
 class SinglePackageListAPIView(APIView):
     permission_classes = [AllowAny]
     
     def get(self, request,package_id):
         packages = Package.objects.get(id=package_id)
-        serializer = PackageSerializer(packages, many=False, context={'request': request})
+        serializer = ListingUserPackageSerializer(packages, many=False, context={'request': request})
         return Response(serializer.data)
+
 
 class BusListAPIView(APIView):
     permission_classes = [AllowAny]
-    
+
     def get(self, request):
-        buses = Bus.objects.all()
-        serializer = BusSerializer(buses, many=True, context={'request': request})
+        lat = request.query_params.get('lat')
+        lon = request.query_params.get('lon')
+        search = request.query_params.get('search')
+        capacity = request.query_params.get('capacity')
+        ac = request.query_params.get('ac')  # expects "true" or "false"
+        pushback = request.query_params.get('pushback')  # expects "true" or "false"
+
+        # 1. Validate coordinates
+        if lat is None or lon is None:
+            return Response(
+                {"error": "Latitude (lat) and Longitude (lon) query parameters are required."},
+                status=400
+            )
+        try:
+            lat = float(lat)
+            lon = float(lon)
+            if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+                return Response(
+                    {"error": "Latitude must be between -90 and 90, and longitude between -180 and 180."},
+                    status=400
+                )
+            user_coords = (lat, lon)
+        except ValueError:
+            return Response({"error": "Latitude and longitude must be valid float values."}, status=400)
+
+        # Optional debug log for location
+        try:
+            geolocator = Nominatim(user_agent="bus-locator")
+            location = geolocator.reverse(user_coords, exactly_one=True, timeout=10)
+            print("User Location:", location.address if location else "Unknown")
+        except Exception as e:
+            print(f"Geolocation error: {e}")
+
+        # 2. Initial queryset
+        buses = Bus.objects.filter(latitude__isnull=False, longitude__isnull=False)
+
+        # 3. Search filter has priority
+        if search:
+            buses = buses.filter(bus_name__icontains=search)
+        else:
+            # Apply additional filters
+            if capacity:
+                try:
+                    buses = buses.filter(capacity__gte=int(capacity))
+                except ValueError:
+                    return Response({"error": "Capacity must be an integer."}, status=400)
+
+            if ac == 'true':
+                buses = buses.filter(features__name__iexact='ac')
+            if pushback == 'true':
+                buses = buses.filter(features__name__iexact='pushback')
+
+        # 4. Distance filter: within 30 km
+        nearby_buses = []
+        for bus in buses.distinct():
+            if bus.latitude is not None and bus.longitude is not None:
+                bus_coords = (bus.latitude, bus.longitude)
+                distance_km = geodesic(user_coords, bus_coords).kilometers
+                if distance_km <= 30:
+                    nearby_buses.append(bus)
+
+        if not nearby_buses:
+            return Response({"message": "No buses found near your location within 30 km."}, status=200)
+
+        # 5. Serialize result
+        serializer = BusSerializer(nearby_buses, many=True, context={'request': request})
         return Response(serializer.data)
     
 class SingleBusListAPIView(APIView):
@@ -143,7 +235,7 @@ class PackageBookingListCreateAPIView(APIView):
                 "mobile": str(request.user),
                 "city": request.data.get('city', ''),
                 "booking_type": "package",
-                "booking_id": booking.id
+                "booking_id": booking.booking_id
             }
 
             travelerSerializer = TravelerCreateSerializer(data=traveler_data)
@@ -160,6 +252,32 @@ class PackageBookingListCreateAPIView(APIView):
             else:
                 booking.delete()
                 return Response(travelerSerializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class PackageBookingUpdateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, booking_id):
+        booking = get_object_or_404(PackageBooking, booking_id=booking_id, user=request.user)
+        
+        # Use the dedicated update serializer
+        serializer = PackageBookingUpdateSerializer(
+            booking,
+            data=request.data,
+            partial=True,
+            context={'request': request}
+        )
+        
+        if serializer.is_valid():
+            booking = serializer.save()
+            
+            package_name = booking.package.name if hasattr(booking.package, 'name') else "Tour package"
+            send_notification(
+                user=request.user,
+                message=f"Your booking for {package_name} has been successfully updated! Booking ID: {booking.id}"
+            )
+            
+            return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class PackageBookingDetailAPIView(APIView):
@@ -593,3 +711,10 @@ class PackageSubCategoryListAPIView(APIView):
         subcategories = PackageSubCategory.objects.filter(category=category)
         serializer = PackageSubCategorySerializer(subcategories, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class PopularBusApi(APIView):
+    def get(self,request):
+        buses = Bus.objects.filter(is_popular=True)
+        serializer = PopularBusSerializer(buses,many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
