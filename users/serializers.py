@@ -82,11 +82,15 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = User.objects.create(**validated_data)
-        
         referrer = self.context.get('referrer')
         if referrer:
-            Wallet.objects.create(user=user, referred_by=referrer)
-        
+            Wallet.objects.create(
+                user=user, 
+                referred_by=referrer.mobile,
+                referral_used=True
+            )
+        else:
+            Wallet.objects.create(user=user)
         return user
 
 
