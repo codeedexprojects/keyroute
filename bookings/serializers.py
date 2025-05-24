@@ -1074,6 +1074,7 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
         return booking
 
 
+
 class BusListingSerializer(serializers.ModelSerializer):
     amenities = AmenitySerializer(many=True, read_only=True)
     features = BusFeatureSerializer(many=True, read_only=True)
@@ -1127,6 +1128,7 @@ class BusListingSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data['base_price'] = int(float(data['base_price'])) if data['base_price'] is not None else 0
         return data
+    
 
 
 class PackageDriverDetailSerializer(serializers.ModelSerializer):
@@ -1148,3 +1150,4 @@ class AdvertisementSerializer(serializers.ModelSerializer):
     class Meta:
         model = Advertisement
         fields = ['id', 'title', 'subtitle', 'type', 'image', 'created_at']
+

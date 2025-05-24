@@ -744,4 +744,10 @@ class AdvertisementListAPIView(APIView):
     def get(self, request, *args, **kwargs):
         advertisements = Advertisement.objects.all()
         serializer = AdvertisementSerializer(advertisements, many=True, context={'request': request})
+
+class PackageDriverDetailListAPIView(APIView):
+    def get(self, request,booking_id):
+        booking = PackageBooking.objects.get(booking_id=booking_id)
+        drivers = PackageDriverDetail.objects.filter(package_booking=booking)
+        serializer = PackageDriverDetailSerializer(drivers, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
