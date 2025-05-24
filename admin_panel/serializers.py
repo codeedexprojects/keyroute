@@ -345,7 +345,7 @@ class LimitedDealSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LimitedDeal
-        fields = ['id','title', 'offer','terms_and_conditions', 'images']
+        fields = ['id','title', 'offer','terms_and_conditions', 'images','subtitle']
 
 
     def create(self, validated_data):

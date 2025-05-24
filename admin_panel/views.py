@@ -680,26 +680,31 @@ class LimitedDealCreateView(APIView):
     authentication_classes = [JWTAuthentication]
     parser_classes = [MultiPartParser, FormParser]
 
-    def post(self, request):
+    
+
+    def post(self, request, *args, **kwargs):
         try:
-            deal = {
+            deal_data = {
                 'title': request.data.get('title'),
+                'subtitle': request.data.get('subtitle'),
                 'offer': request.data.get('offer'),
                 'terms_and_conditions': request.data.get('terms_and_conditions'),
             }
-            images = request.FILES.getlist('images')
 
-            serializer = LimitedDealSerializer(data=deal)
+            serializer = LimitedDealSerializer(data=deal_data)
             if serializer.is_valid():
                 limited_deal = serializer.save()
-                for img in images:
-                    LimitedDealImage.objects.create(deal=limited_deal, image=img)
-                return Response({'message': 'Limited deal saved successfully!'}, status=201)
+
+                images = request.FILES.getlist('images')
+                for image in images:
+                    LimitedDealImage.objects.create(deal=limited_deal, image=image)
+
+                return Response({"message": "Limited deal created successfully."}, status=201)
+
             return Response({'error': serializer.errors}, status=400)
+
         except Exception as e:
-            return Response({'error': str(e)}, status=400)
-
-
+            return Response({"error": str(e)}, status=400)
 
 
 
@@ -713,7 +718,7 @@ class FooterSectionCreateView(APIView):
         try:
             footer = {
                 'image': request.FILES.get('image'),
-                'package': request.data.get('package')  # Expecting package ID
+                'package': request.data.get('package')   
             }
             serializer = FooterSectionSerializer(data=footer)
             if serializer.is_valid():
