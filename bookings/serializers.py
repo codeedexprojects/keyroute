@@ -1065,12 +1065,6 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
         return booking
 
 
-class PackageDriverDetailSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PackageDriverDetail
-        fields = '__all__'
-
-
 
 class BusListingSerializer(serializers.ModelSerializer):
     amenities = AmenitySerializer(many=True, read_only=True)
@@ -1105,9 +1099,24 @@ class BusListingSerializer(serializers.ModelSerializer):
         bus_reviews = obj.bus_reviews
         average_rating = bus_reviews.aggregate(Avg('rating'))['rating__avg'] or 0.0
         total_reviews = bus_reviews.count()
-        rating_breakdown = {f"{i}★": bus_reviews.filter(rating=i).count() for i in range(1, 6)}
+
+        if total_reviews == 0:
+            rating_breakdown = {f"{i}★": 0.0 for i in range(1, 6)}
+        else:
+            rating_breakdown = {
+                f"{i}★": round((bus_reviews.filter(rating=i).count() / total_reviews) * 100, 1)
+                for i in range(1, 6)
+            }
+
         return {
             "average_rating": round(average_rating, 1),
             "total_reviews": total_reviews,
             "rating_breakdown": rating_breakdown
         }
+    
+
+
+class PackageDriverDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageDriverDetail
+        fields = '__all__'
