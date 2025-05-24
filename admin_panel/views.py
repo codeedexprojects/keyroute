@@ -495,6 +495,7 @@ class AllSectionsCreateView(APIView):
                     return Response({'error': serializer.errors}, status=400)
 
             # 2. Limited Deals
+
             deals_data = []
             i = 0
             while f'limited_deals-{i}-title' in request.data:
@@ -518,6 +519,7 @@ class AllSectionsCreateView(APIView):
                     return Response({'error': serializer.errors}, status=400)
 
             # 3. Footer Sections
+
             footers_data = []
             i = 0
             while f'footer_sections-{i}-image' in request.FILES:
@@ -554,7 +556,79 @@ class AllSectionsCreateView(APIView):
             return Response({"error": str(e)}, status=400)
 
 
+  
+    def put(self, request, *args, **kwargs):
+        try:
+            # 1. Update Advertisements
+            i = 0
+            while f'advertisements-{i}-id' in request.data:
+                ad_id = request.data.get(f'advertisements-{i}-id')
+                ad_instance = Advertisement.objects.get(id=ad_id)
+                ad_data = {
+                    'title': request.data.get(f'advertisements-{i}-title'),
+                    'description': request.data.get(f'advertisements-{i}-description'),
+                }
+                if request.FILES.get(f'advertisements-{i}-image'):
+                    ad_data['image'] = request.FILES.get(f'advertisements-{i}-image')
 
+                serializer = AdvertisementSerializer(ad_instance, data=ad_data, partial=True)
+                if serializer.is_valid():
+                    serializer.save()
+                else:
+                    return Response({'error': serializer.errors}, status=400)
+                i += 1
+
+            # 2. Update Limited Deals
+            i = 0
+            while f'limited_deals-{i}-id' in request.data:
+                deal_id = request.data.get(f'limited_deals-{i}-id')
+                deal_instance = LimitedDeal.objects.get(id=deal_id)
+
+                deal_data = {
+                    'title': request.data.get(f'limited_deals-{i}-title'),
+                    'description': request.data.get(f'limited_deals-{i}-description'),
+                }
+
+                deal_serializer = LimitedDealSerializer(deal_instance, data=deal_data, partial=True)
+                if deal_serializer.is_valid():
+                    updated_deal = deal_serializer.save()
+                else:
+                    return Response({'error': deal_serializer.errors}, status=400)
+
+                # Add new images if provided
+                images = request.FILES.getlist(f'limited_deals-{i}-images')
+                for img in images:
+                    LimitedDealImage.objects.create(deal=updated_deal, image=img)
+
+                i += 1
+
+            # 3. Update Footer Sections
+            i = 0
+            while f'footer_sections-{i}-id' in request.data:
+                footer_id = request.data.get(f'footer_sections-{i}-id')
+                footer_instance = FooterSection.objects.get(id=footer_id)
+
+                footer_data = {
+                    'title': request.data.get(f'footer_sections-{i}-title'),
+                    'description': request.data.get(f'footer_sections-{i}-description'),
+                }
+
+                if request.FILES.get(f'footer_sections-{i}-image'):
+                    footer_data['image'] = request.FILES.get(f'footer_sections-{i}-image')
+
+                footer_serializer = FooterSectionSerializer(footer_instance, data=footer_data, partial=True)
+                if footer_serializer.is_valid():
+                    footer_serializer.save()
+                else:
+                    return Response({'error': footer_serializer.errors}, status=400)
+
+                i += 1
+
+            return Response({"message": "All data updated successfully!"}, status=200)
+
+        except Exception as e:
+            print(f"Update Error: {str(e)}")
+            return Response({"error": str(e)}, status=400)
 
 
 
@@ -1712,7 +1786,7 @@ class BusAdminAPIView(APIView):
                             status=status.HTTP_403_FORBIDDEN)
 
         buses = Bus.objects.all()
-        serializer = BusAdminSerializer(buses, many=True, context={'request': request})
+        serializer = BusAdminSerializerADMINBUSDETAILS(buses, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -1729,7 +1803,7 @@ class SingleBusDetailAPIView(APIView):
         except Bus.DoesNotExist:
             return Response({'detail': 'Bus not found.'}, status=status.HTTP_404_NOT_FOUND)
         
-        serializer = BusDetailSerializerADMIN(bus, context={'request': request})
+        serializer = BusAdminSerializerADMINBUSDETAILS(bus, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -1745,7 +1819,8 @@ class AdminPackageListView(APIView):
             return Response({"detail": "Sub category ID is required."}, status=400)
 
         packages = Package.objects.filter(sub_category_id=sub_category_id).prefetch_related('buses__features', 'buses__vendor')
-        serializer = PackageListSerializer(packages, many=True)
+        # serializer = PackageListSerializer(packages, many=True)
+        serializer = AdminPackageListSerializer(packages, many=True)
         return Response(serializer.data)
 
 
@@ -1761,8 +1836,34 @@ class AdminPackageDetailView(APIView):
         except Package.DoesNotExist:
             return Response({"detail": "Package not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = PackageDetailSerializer(package, context={'request': request})
-        return Response(serializer.data)
+        # serializer = PackageDetailSerializer(package, context={'request': request})
+        # return Response(serializer.data)
+
+
+
+
+
+
+
+
+
+class AdminCreateUserAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = AdminUserCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
 
 
 
