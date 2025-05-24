@@ -740,10 +740,23 @@ class FooterSectionListAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 
+# class AdvertisementListAPIView(APIView):
+#     def get(self, request, *args, **kwargs):
+#         advertisements = Advertisement.objects.all()
+#         serializer = AdvertisementSerializer(advertisements, many=True, context={'request': request})
+
+
+
 class AdvertisementListAPIView(APIView):
     def get(self, request, *args, **kwargs):
         advertisements = Advertisement.objects.all()
-        serializer = AdvertisementSerializer(advertisements, many=True, context={'request': request})
+        serializer = AdvertisementSerializer(
+            advertisements,
+            many=True,
+            context={'request': request}
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 class PackageDriverDetailListAPIView(APIView):
     def get(self, request,booking_id):
