@@ -147,6 +147,8 @@ class LimitedDeal(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     terms_and_conditions = models.TextField(null=True, blank=True)
     offer = models.CharField(max_length=100, null=True, blank=True)
+    subtitle = models.CharField(max_length=255, blank=True, null=True) 
+
 
     def __str__(self):
         return f"Limited Deal - {self.title}"
