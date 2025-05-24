@@ -47,10 +47,10 @@ urlpatterns = [
     path('api/admin/create-user/', AdminCreateUserView.as_view(), name='admin-create-user'),
 
     #Advertisement CREATING AND LISTING
-    path('api/admin/sections/', AllSectionsCreateView.as_view(), name='create-sections'),
-    path('api/admin/advertisement/<int:ad_id>/', AdvertisementDetailView.as_view(), name='advertisement-detail'),
+    # path('api/admin/sections/', AllSectionsCreateView.as_view(), name='create-sections'),
+    # path('api/admin/advertisement/<int:ad_id>/', AdvertisementDetailView.as_view(), name='advertisement-detail'),
 
-    # ADV , LIMITED DEAL,FOOTER, REFER ----------------------------------------
+    # ADV , LIMITED DEAL,FOOTER, REFER LISTING ----------------------------------------
     path('api/admin/advertisement/<int:ad_id>/', AdvertisementDetailView.as_view()),
     path('api/admin/limited-deals/', LimitedDealListView.as_view()),
     path('api/admin/limited-deals/<int:deal_id>/', LimitedDealDetailView.as_view()),
@@ -59,9 +59,16 @@ urlpatterns = [
     path('api/admin/refer-and-earn/', ReferAndEarnListView.as_view()),
     path('api/admin/refer-and-earn/<int:ref_id>/', ReferAndEarnDetailView.as_view()),
 
+# -----------------------------------------------------------
 
+    # CREATING
 
+    path('api/admin/create/advertisement/', AdvertisementCreateView.as_view(), name='create_advertisement'),
+    path('api/admin/create/limited-deal/', LimitedDealCreateView.as_view(), name='create_limited_deal'),
+    path('api/admin/create/footer-section/', FooterSectionCreateView.as_view(), name='create_footer_section'),
+    path('api/admin/create/refer-and-earn/', ReferAndEarnCreateView.as_view(), name='create_refer_and_earn'),
 
+# -----------------------------
 
     # EXPLORE
     path('api/admin/explore/create/', ExploreSectionCreateView.as_view(), name='create-explore-section'),
