@@ -24,11 +24,11 @@ from vendors.serializers import PackageCategorySerializer,PackageSubCategorySeri
 from .serializers import (PackageFilterSerializer,PackageBookingUpdateSerializer,BusFilterSerializer,
                           ListPackageSerializer,ListingUserPackageSerializer,
                           PackageSerializer,SinglePackageBookingSerilizer,
-                          SingleBusBookingSerializer,PopularBusSerializer,BusListingSerializer)
+                          SingleBusBookingSerializer,PopularBusSerializer,BusListingSerializer,FooterSectionSerializer,AdvertisementSerializer)
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from .utils import *
-from admin_panel.models import AdminCommissionSlab,AdminCommission
+from admin_panel.models import FooterSection,Advertisement
 from admin_panel.utils import get_admin_commission_from_db,get_advance_amount_from_db
 from .models import PackageDriverDetail
 from .serializers import PackageDriverDetailSerializer
@@ -724,10 +724,24 @@ class PopularBusApi(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 
-
 class PackageDriverDetailListAPIView(APIView):
     def get(self, request,booking_id):
         booking = PackageBooking.objects.get(booking_id=booking_id)
-        drivers = PackageDriverDetail.objects.filter(package_booking=booking)
-        serializer = PackageDriverDetailSerializer(drivers, many=True)
+        drivers = PackageDriverDetail.objects.filter(package_booking=booking).first()
+        serializer = PackageDriverDetailSerializer(drivers)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+
+class FooterSectionListAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        footer_sections = FooterSection.objects.all()
+        serializer = FooterSectionSerializer(footer_sections, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+class AdvertisementListAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        advertisements = Advertisement.objects.all()
+        serializer = AdvertisementSerializer(advertisements, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
