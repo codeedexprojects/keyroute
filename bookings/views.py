@@ -723,12 +723,11 @@ class PopularBusApi(APIView):
         serializer = PopularBusSerializer(buses,many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
-    
-class DriverDetailByBookingAPIView(APIView):
-    def get(self, request, booking_id):
-        try:
-            driver_detail = PackageDriverDetail.objects.get(package_booking__id=booking_id)
-            serializer = PackageDriverDetailSerializer(driver_detail)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except PackageDriverDetail.DoesNotExist:
-            return Response({"error": "Driver detail not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+class PackageDriverDetailListAPIView(APIView):
+    def get(self, request,booking_id):
+        booking = PackageBooking.objects.get(booking_id=booking_id)
+        drivers = PackageDriverDetail.objects.filter(package_booking=booking)
+        serializer = PackageDriverDetailSerializer(drivers, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
