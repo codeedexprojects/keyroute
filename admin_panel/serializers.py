@@ -669,3 +669,101 @@ class PaymentDetailsSerializer(serializers.Serializer):
         total_amount = obj.get('total_amount') or 0
         advance_amount = obj.get('advance_amount') or 0
         return total_amount - advance_amount
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class AmenitySerializerADMINBUSDETAILS(serializers.ModelSerializer):
+    class Meta:
+        model = Amenity
+        fields = ['id', 'name']
+
+
+class BusFeatureSerializerADMINBUSDETAILS(serializers.ModelSerializer):
+    class Meta:
+        model = BusFeature
+        fields = ['id', 'name']
+
+
+class BusImageSerializerADMINBUSDETAILS(serializers.ModelSerializer):
+    class Meta:
+        model = BusImage
+        fields = ['id', 'bus_view_image']
+
+
+class BusTravelImageSerializerADMINBUSDETAILS(serializers.ModelSerializer):
+    class Meta:
+        model = BusTravelImage
+        fields = ['id', 'image']
+
+
+class BusAdminSerializerADMINBUSDETAILS(serializers.ModelSerializer):
+    amenities = AmenitySerializerADMINBUSDETAILS(many=True, read_only=True)
+    features = BusFeatureSerializerADMINBUSDETAILS(many=True, read_only=True)
+    images = BusImageSerializerADMINBUSDETAILS(many=True, read_only=True)
+    # travel_images = BusTravelImageSerializer(many=True, read_only=True)
+    average_rating = serializers.FloatField(read_only=True)
+    total_reviews = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Bus
+        fields = [
+            'id', 'vendor', 'bus_name', 'bus_number', 'capacity',
+            'vehicle_description', 'vehicle_rc_number', 'travels_logo',
+            'rc_certificate', 'license', 'contract_carriage_permit',
+            'passenger_insurance', 'vehicle_insurance',
+            'amenities', 'features', 'base_price', 'price_per_km',
+            'minimum_fare', 'status', 'location', 'latitude', 'longitude',
+            'bus_type', 'is_popular', 'average_rating', 'total_reviews',
+            'images',
+        ]
+
+
+
+
+
+
+class AdminUserCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+
+    class Meta:
+        model = User
+        fields = ['name', 'mobile', 'email', 'password', 'role']
+
+    def create(self, validated_data):
+        password = validated_data.pop('password')
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -5,7 +5,8 @@ from .views import (
     BusBookingListCreateAPIView, BusBookingDetailAPIView,
     TravelerCreateAPIView, PackageBookingTravelersAPIView, BusBookingTravelersAPIView,
     TravelerDetailAPIView, UserBookingsByStatus,CancelBookingView,PackageCategoryListAPIView,PackageSubCategoryListAPIView,SingleBusListAPIView,SinglePackageListAPIView,
-    PopularBusApi,PackageBookingUpdateAPIView,PackageDriverDetailListAPIView
+    PopularBusApi,PackageBookingUpdateAPIView,PackageDriverDetailListAPIView,FooterSectionListAPIView,AdvertisementListAPIView
+
 )
 
 urlpatterns = [
@@ -42,4 +43,8 @@ urlpatterns = [
     path('popular-buses/',PopularBusApi.as_view(),name="Popular-buses"),
 
     path('package-drivers/<int:booking_id>/', PackageDriverDetailListAPIView.as_view(), name='package-drivers'),
+
+    path('footer-sections/', FooterSectionListAPIView.as_view(), name='footer-section-list'),
+
+    path('advertisements/', AdvertisementListAPIView.as_view(), name='advertisement-list'),
 ]

@@ -24,11 +24,11 @@ from vendors.serializers import PackageCategorySerializer,PackageSubCategorySeri
 from .serializers import (PackageFilterSerializer,PackageBookingUpdateSerializer,BusFilterSerializer,
                           ListPackageSerializer,ListingUserPackageSerializer,
                           PackageSerializer,SinglePackageBookingSerilizer,
-                          SingleBusBookingSerializer,PopularBusSerializer,BusListingSerializer)
+                          SingleBusBookingSerializer,PopularBusSerializer,BusListingSerializer,FooterSectionSerializer,AdvertisementSerializer)
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from .utils import *
-from admin_panel.models import AdminCommissionSlab,AdminCommission
+from admin_panel.models import FooterSection,Advertisement
 from admin_panel.utils import get_admin_commission_from_db,get_advance_amount_from_db
 from .models import PackageDriverDetail
 from .serializers import PackageDriverDetailSerializer
@@ -250,7 +250,7 @@ class PackageBookingListCreateAPIView(APIView):
                 package_name = booking.package.name if hasattr(booking.package, 'name') else "Tour package"
                 send_notification(
                     user=request.user,
-                    message=f"Your booking for {package_name} has been successfully created! Booking ID: {booking.id}"
+                    message=f"Your booking for {package_name} has been successfully created! Booking ID: {booking.booking_id}"
                 )
 
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -279,7 +279,7 @@ class PackageBookingUpdateAPIView(APIView):
             package_name = booking.package.name if hasattr(booking.package, 'name') else "Tour package"
             send_notification(
                 user=request.user,
-                message=f"Your booking for {package_name} has been successfully updated! Booking ID: {booking.id}"
+                message=f"Your booking for {package_name} has been successfully updated! Booking ID: {booking.booking_id}"
             )
             
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -343,7 +343,7 @@ class BusBookingListCreateAPIView(APIView):
                 "mobile": request.data.get('mobile', ''),
                 "city": request.data.get('city', ''),
                 "booking_type": "bus",
-                "booking_id": booking.id
+                "booking_id": booking.booking_id
             }
 
             travelerSerializer = TravelerCreateSerializer(data=traveler_data)
@@ -355,7 +355,7 @@ class BusBookingListCreateAPIView(APIView):
 
                 send_notification(
                     user=request.user,
-                    message=f"Your bus booking for {bus_name} {route_info} has been confirmed! Booking ID: {booking.id}"
+                    message=f"Your bus booking for {bus_name} {route_info} has been confirmed! Booking ID: {booking.booking_id}"
                 )
 
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -724,6 +724,26 @@ class PopularBusApi(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 
+class PackageDriverDetailListAPIView(APIView):
+    def get(self, request,booking_id):
+        booking = PackageBooking.objects.get(booking_id=booking_id)
+        drivers = PackageDriverDetail.objects.filter(package_booking=booking).first()
+        serializer = PackageDriverDetailSerializer(drivers)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+
+class FooterSectionListAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        footer_sections = FooterSection.objects.all()
+        serializer = FooterSectionSerializer(footer_sections, many=True, context={'request': request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+class AdvertisementListAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        advertisements = Advertisement.objects.all()
+        serializer = AdvertisementSerializer(advertisements, many=True, context={'request': request})
 
 class PackageDriverDetailListAPIView(APIView):
     def get(self, request,booking_id):
