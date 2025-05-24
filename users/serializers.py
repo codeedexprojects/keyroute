@@ -13,9 +13,15 @@ import calendar
 User = get_user_model()
 
 class ReferralCodeSerializer(serializers.ModelSerializer):
+    price = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['referral_code']
+        fields = ['referral_code', 'price']
+
+    def get_price(self, obj):
+        refer_and_earn_obj = ReferAndEarn.objects.first()
+        return refer_and_earn_obj.price if refer_and_earn_obj else None
 
 class LoginSerializer(serializers.Serializer):
     mobile = serializers.CharField(max_length=15)
