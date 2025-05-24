@@ -974,6 +974,159 @@ class CreatePackageAndDayPlanAPIView(APIView):
 
 
 
+    # def post(self, request):
+    #     try:
+    #         vendor = Vendor.objects.filter(user=request.user).first()
+    #         if not vendor:
+    #             return Response({"error": "Vendor not found"}, status=404)
+
+    #         data = request.data
+    #         files = request.FILES
+    #         print(data.get("sub_category"),'inc'),
+
+    #         def str_to_bool(value):
+    #             return str(value).lower() in ['true', '1', 'yes']
+            
+    #         sub_category_id = data.get("sub_category")
+    #         sub_category = PackageSubCategory.objects.get(id=sub_category_id)
+
+    #         day_indices = set()
+    #         for key in data.keys():
+    #             match = re.search(r"_(\d+)$", key)
+    #             if match:
+    #                 day_indices.add(int(match.group(1)))
+    #         total_days = len(day_indices)
+    #         print(total_days,'days')
+            
+
+    #         # 1. CREATE PACKAGE
+    #         package = Package.objects.create(
+    #             vendor=vendor,
+    #             places=data.get("places"),
+    #             sub_category=sub_category,
+    #             # description=data.get("description"),
+    #             header_image=data.get("header_image"),
+               
+    #             days=total_days,
+    #             extra_charge_per_km=data.get("extra_charge_per_km"),
+    #             price_per_person=data.get("price_per_person"),
+    #             bus_location=data.get("bus_location"),
+    #             # ac_available=data.get("ac_available"),
+    #             # guide_included=data.get("guide_included"),
+    #             ac_available=str_to_bool(data.get("ac_available")),
+    #             guide_included=str_to_bool(data.get("guide_included")),
+    #             # longitude=data.get("longitude"),
+    #             # latitude=data.get("latitude"),
+    #         )
+
+    #         # 2. SET BUSES
+    #         buses_raw = data.getlist("buses")
+    #         try:
+    #             buses = [int(b) for b in json.loads(buses_raw[0])]
+    #         except:
+    #             buses = [int(b) for b in buses_raw]
+    #         package.buses.set(buses)
+
+    #         # 3. PACKAGE IMAGES
+    #         if files.getlist("package_images"):
+    #             for img in files.getlist("package_images"):
+    #                 PackageImage.objects.create(package=package, image=img)
+
+    #         # 4. DETECT AND HANDLE MULTIPLE DAYS
+    #         day_indices = set()
+    #         for key in data.keys():
+    #             match = re.search(r"_(\d+)$", key)
+    #             if match:
+    #                 day_indices.add(int(match.group(1)))
+
+    #         for day in sorted(day_indices):
+    #             day_number = int(data.get(f"day_{day}", day))
+    #             day_description = data.get(f"description_{day}", "")
+    #             day_night = data.get(f"night_option_{day}", "")
+
+            
+    #             print(day_night,'nyt')
+
+    #             day_plan = DayPlan.objects.create(
+    #                 package=package,
+    #                 day_number=day_number,
+    #                 description=day_description,
+    #                 night=str_to_bool(day_night)
+    #             ) 
+    #             print('after days')
+
+
+    #             # --- PLACE ---
+    #             place = Place.objects.create(
+    #                 day_plan=day_plan,
+    #                 name=data.get(f"place_name_{day}", ""),
+    #                 description=data.get(f"place_description_{day}", "")
+    #             )
+    #             for i in range(1, 5):
+    #                 img = files.get(f"place_image_{day}_{i}")
+    #                 if img:
+    #                     PlaceImage.objects.create(place=place, image=img)
+
+    #             # --- STAY ---
+    #             stay = Stay.objects.create(
+    #                 day_plan=day_plan,
+    #                 hotel_name=data.get(f"stay_name_{day}", ""),
+    #                 description=data.get(f"stay_description_{day}", ""),
+    #                 location=data.get(f"location_{day}", ""),
+    #                 is_ac=data.get(f"is_ac_{day}", "false").lower() == "true",
+    #                 has_breakfast=data.get(f"has_breakfast_{day}", "false").lower() == "true"
+    #             )
+    #             for i in range(1, 5):
+    #                 img = files.get(f"stay_image_{day}_{i}")
+    #                 if img:
+    #                     StayImage.objects.create(stay=stay, image=img)
+
+    #             # --- MEAL ---
+    #             meal_time_str = data.get(f"meal_time_{day}")
+    #             meal_time = None
+    #             if meal_time_str and re.match(r"^\d{2}:\d{2}$", meal_time_str):
+    #                 meal_time = datetime.strptime(meal_time_str, "%H:%M").time()
+
+    #             meal = Meal.objects.create(
+    #                 day_plan=day_plan,
+    #                 type=data.get(f"meal_type_{day}", "breakfast"),
+    #                 description=data.get(f"meal_description_{day}", ""),
+    #                 restaurant_name=data.get(f"restaurant_name_{day}", ""),
+    #                 location=data.get(f"meal_location_{day}", ""),
+    #                 time=meal_time
+    #             )
+    #             for i in range(1, 5):
+    #                 img = files.get(f"meal_image_{day}_{i}")
+    #                 if img:
+    #                     MealImage.objects.create(meal=meal, image=img)
+
+    #             # --- ACTIVITY ---
+    #             activity_time_str = data.get(f"activity_time_{day}")
+    #             activity_time = None
+    #             if activity_time_str and re.match(r"^\d{2}:\d{2}$", activity_time_str):
+    #                 activity_time = datetime.strptime(activity_time_str, "%H:%M").time()
+
+
+    #             activity = Activity.objects.create(
+    #                 day_plan=day_plan,
+    #                 name=data.get(f"activity_name_{day}", ""),
+    #                 description=data.get(f"activity_description_{day}", ""),
+    #                 location=data.get(f"activity_location_{day}", ""),
+    #                 time=activity_time
+    #             )
+    #             for i in range(1, 5):
+    #                 img = files.get(f"activity_image_{day}_{i}")
+    #                 if img:
+    #                     ActivityImage.objects.create(activity=activity, image=img)
+
+    #         return Response({"message": "Package created successfully with all day plans."}, status=201)
+
+    #     except Exception as e:
+    #         return Response({"error": str(e)}, status=500)
+
+
+
+
     def post(self, request):
         try:
             vendor = Vendor.objects.filter(user=request.user).first()
@@ -982,44 +1135,34 @@ class CreatePackageAndDayPlanAPIView(APIView):
 
             data = request.data
             files = request.FILES
-            print(data.get("sub_category"),'inc'),
 
             def str_to_bool(value):
                 return str(value).lower() in ['true', '1', 'yes']
-            
-            sub_category_id = data.get("sub_category")
-            sub_category = PackageSubCategory.objects.get(id=sub_category_id)
 
-            day_indices = set()
-            for key in data.keys():
-                match = re.search(r"_(\d+)$", key)
-                if match:
-                    day_indices.add(int(match.group(1)))
+            sub_category = PackageSubCategory.objects.get(id=data.get("sub_category"))
+
+            # Detect total days
+            day_indices = {
+                int(re.search(r"_(\d+)", key).group(1))
+                for key in data.keys()
+                if re.search(r"_(\d+)", key)
+            }
             total_days = len(day_indices)
-            print(total_days,'days')
-            
 
-            # 1. CREATE PACKAGE
             package = Package.objects.create(
                 vendor=vendor,
                 places=data.get("places"),
                 sub_category=sub_category,
-                # description=data.get("description"),
                 header_image=data.get("header_image"),
-               
                 days=total_days,
                 extra_charge_per_km=data.get("extra_charge_per_km"),
                 price_per_person=data.get("price_per_person"),
                 bus_location=data.get("bus_location"),
-                # ac_available=data.get("ac_available"),
-                # guide_included=data.get("guide_included"),
                 ac_available=str_to_bool(data.get("ac_available")),
                 guide_included=str_to_bool(data.get("guide_included")),
-                # longitude=data.get("longitude"),
-                # latitude=data.get("latitude"),
             )
 
-            # 2. SET BUSES
+            # Buses
             buses_raw = data.getlist("buses")
             try:
                 buses = [int(b) for b in json.loads(buses_raw[0])]
@@ -1027,102 +1170,130 @@ class CreatePackageAndDayPlanAPIView(APIView):
                 buses = [int(b) for b in buses_raw]
             package.buses.set(buses)
 
-            # 3. PACKAGE IMAGES
-            if files.getlist("package_images"):
-                for img in files.getlist("package_images"):
-                    PackageImage.objects.create(package=package, image=img)
+            # Package images
+            for img in files.getlist("package_images"):
+                PackageImage.objects.create(package=package, image=img)
 
-            # 4. DETECT AND HANDLE MULTIPLE DAYS
-            day_indices = set()
-            for key in data.keys():
-                match = re.search(r"_(\d+)$", key)
-                if match:
-                    day_indices.add(int(match.group(1)))
-
+            # Loop through days
             for day in sorted(day_indices):
                 day_number = int(data.get(f"day_{day}", day))
-                day_description = data.get(f"description_{day}", "")
-                day_night = data.get(f"night_option_{day}", "")
-
-            
-                print(day_night,'nyt')
+                description = data.get(f"description_{day}", "")
+                night = str_to_bool(data.get(f"night_option_{day}", ""))
 
                 day_plan = DayPlan.objects.create(
                     package=package,
                     day_number=day_number,
-                    description=day_description,
-                    night=str_to_bool(day_night)
-                ) 
-                print('after days')
-
-
-                # --- PLACE ---
-                place = Place.objects.create(
-                    day_plan=day_plan,
-                    name=data.get(f"place_name_{day}", ""),
-                    description=data.get(f"place_description_{day}", "")
+                    description=description,
+                    night=night
                 )
-                for i in range(1, 5):
-                    img = files.get(f"place_image_{day}_{i}")
-                    if img:
-                        PlaceImage.objects.create(place=place, image=img)
 
-                # --- STAY ---
+                # --- Multiple Places ---
+                place_keys = [k for k in data.keys() if k.startswith(f"place_name_{day}_")]
+                for k in place_keys:
+                    idx = k.split('_')[-1]
+                    place = Place.objects.create(
+                        day_plan=day_plan,
+                        name=data.get(f"place_name_{day}_{idx}", ""),
+                        description=data.get(f"place_description_{day}_{idx}", "")
+                    )
+                    for i in range(1, 5):
+                        img = files.get(f"place_image_{day}_{idx}_{i}")
+                        if img:
+                            PlaceImage.objects.create(place=place, image=img)
+
+                # --- Only One Stay ---
+                if Stay.objects.filter(day_plan=day_plan).exists():
+                    return Response({"error": f"A Stay already exists for Day {day}."}, status=400)
+
                 stay = Stay.objects.create(
                     day_plan=day_plan,
                     hotel_name=data.get(f"stay_name_{day}", ""),
                     description=data.get(f"stay_description_{day}", ""),
                     location=data.get(f"location_{day}", ""),
-                    is_ac=data.get(f"is_ac_{day}", "false").lower() == "true",
-                    has_breakfast=data.get(f"has_breakfast_{day}", "false").lower() == "true"
+                    is_ac=str_to_bool(data.get(f"is_ac_{day}", "false")),
+                    has_breakfast=str_to_bool(data.get(f"has_breakfast_{day}", "false"))
                 )
                 for i in range(1, 5):
                     img = files.get(f"stay_image_{day}_{i}")
                     if img:
                         StayImage.objects.create(stay=stay, image=img)
 
-                # --- MEAL ---
-                meal_time_str = data.get(f"meal_time_{day}")
-                meal_time = None
-                if meal_time_str and re.match(r"^\d{2}:\d{2}$", meal_time_str):
-                    meal_time = datetime.strptime(meal_time_str, "%H:%M").time()
+                # --- Multiple Meals ---
+                meal_keys = [k for k in data.keys() if k.startswith(f"meal_type_{day}_")]
+                for k in meal_keys:
+                    idx = k.split('_')[-1]
+                    meal_time_str = data.get(f"meal_time_{day}_{idx}")
+                    meal_time = datetime.strptime(meal_time_str, "%H:%M").time() if meal_time_str and re.match(r"^\d{2}:\d{2}$", meal_time_str) else None
 
-                meal = Meal.objects.create(
-                    day_plan=day_plan,
-                    type=data.get(f"meal_type_{day}", "breakfast"),
-                    description=data.get(f"meal_description_{day}", ""),
-                    restaurant_name=data.get(f"restaurant_name_{day}", ""),
-                    location=data.get(f"meal_location_{day}", ""),
-                    time=meal_time
-                )
-                for i in range(1, 5):
-                    img = files.get(f"meal_image_{day}_{i}")
-                    if img:
-                        MealImage.objects.create(meal=meal, image=img)
+                    meal = Meal.objects.create(
+                        day_plan=day_plan,
+                        type=data.get(f"meal_type_{day}_{idx}", "breakfast"),
+                        description=data.get(f"meal_description_{day}_{idx}", ""),
+                        restaurant_name=data.get(f"restaurant_name_{day}_{idx}", ""),
+                        location=data.get(f"meal_location_{day}_{idx}", ""),
+                        time=meal_time
+                    )
+                    for i in range(1, 5):
+                        img = files.get(f"meal_image_{day}_{idx}_{i}")
+                        if img:
+                            MealImage.objects.create(meal=meal, image=img)
 
-                # --- ACTIVITY ---
-                activity_time_str = data.get(f"activity_time_{day}")
-                activity_time = None
-                if activity_time_str and re.match(r"^\d{2}:\d{2}$", activity_time_str):
-                    activity_time = datetime.strptime(activity_time_str, "%H:%M").time()
+                # --- Multiple Activities ---
+                activity_keys = [k for k in data.keys() if k.startswith(f"activity_name_{day}_")]
+                for k in activity_keys:
+                    idx = k.split('_')[-1]
+                    activity_time_str = data.get(f"activity_time_{day}_{idx}")
+                    activity_time = datetime.strptime(activity_time_str, "%H:%M").time() if activity_time_str and re.match(r"^\d{2}:\d{2}$", activity_time_str) else None
 
+                    activity = Activity.objects.create(
+                        day_plan=day_plan,
+                        name=data.get(f"activity_name_{day}_{idx}", ""),
+                        description=data.get(f"activity_description_{day}_{idx}", ""),
+                        location=data.get(f"activity_location_{day}_{idx}", ""),
+                        time=activity_time
+                    )
+                    for i in range(1, 5):
+                        img = files.get(f"activity_image_{day}_{idx}_{i}")
+                        if img:
+                            ActivityImage.objects.create(activity=activity, image=img)
 
-                activity = Activity.objects.create(
-                    day_plan=day_plan,
-                    name=data.get(f"activity_name_{day}", ""),
-                    description=data.get(f"activity_description_{day}", ""),
-                    location=data.get(f"activity_location_{day}", ""),
-                    time=activity_time
-                )
-                for i in range(1, 5):
-                    img = files.get(f"activity_image_{day}_{i}")
-                    if img:
-                        ActivityImage.objects.create(activity=activity, image=img)
-
-            return Response({"message": "Package created successfully with all day plans."}, status=201)
+            return Response({"message": "Package created successfully with all details."}, status=201)
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
