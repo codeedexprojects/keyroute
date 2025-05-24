@@ -370,7 +370,7 @@ class FooterSectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = FooterSection
 
-        fields = ['id','title', 'description', 'image']
+        fields = ['id', 'package', 'image']
 
 
 # --------------------------------------------------------
