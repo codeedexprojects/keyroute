@@ -250,7 +250,7 @@ class PackageBookingListCreateAPIView(APIView):
                 package_name = booking.package.name if hasattr(booking.package, 'name') else "Tour package"
                 send_notification(
                     user=request.user,
-                    message=f"Your booking for {package_name} has been successfully created! Booking ID: {booking.id}"
+                    message=f"Your booking for {package_name} has been successfully created! Booking ID: {booking.booking_id}"
                 )
 
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -279,7 +279,7 @@ class PackageBookingUpdateAPIView(APIView):
             package_name = booking.package.name if hasattr(booking.package, 'name') else "Tour package"
             send_notification(
                 user=request.user,
-                message=f"Your booking for {package_name} has been successfully updated! Booking ID: {booking.id}"
+                message=f"Your booking for {package_name} has been successfully updated! Booking ID: {booking.booking_id}"
             )
             
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -343,7 +343,7 @@ class BusBookingListCreateAPIView(APIView):
                 "mobile": request.data.get('mobile', ''),
                 "city": request.data.get('city', ''),
                 "booking_type": "bus",
-                "booking_id": booking.id
+                "booking_id": booking.booking_id
             }
 
             travelerSerializer = TravelerCreateSerializer(data=traveler_data)
@@ -355,7 +355,7 @@ class BusBookingListCreateAPIView(APIView):
 
                 send_notification(
                     user=request.user,
-                    message=f"Your bus booking for {bus_name} {route_info} has been confirmed! Booking ID: {booking.id}"
+                    message=f"Your bus booking for {bus_name} {route_info} has been confirmed! Booking ID: {booking.booking_id}"
                 )
 
                 return Response(serializer.data, status=status.HTTP_201_CREATED)

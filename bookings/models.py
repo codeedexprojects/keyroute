@@ -119,7 +119,7 @@ class Travelers(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
-        booking_id = self.bus_booking.id if self.bus_booking else self.package_booking.id
+        booking_id = self.bus_booking.booking_id if self.bus_booking else self.package_booking.booking_id
         booking_type = "Bus" if self.bus_booking else "Package"
         return f"{self.first_name} {self.last_name or ''} - {booking_type} #{booking_id}"
     

@@ -1544,7 +1544,7 @@ class PaymentDetailsAPIView(APIView):
         # Bus Booking Data
         for booking in bus_bookings:
             data.append({
-                'id': booking.id,
+                'id': booking.booking_id,
                 'booking_type': 'Bus Booking',
                 'vendor_name': booking.bus.vendor.full_name,
                 'bus_or_package': booking.bus.bus_name,
@@ -1556,7 +1556,7 @@ class PaymentDetailsAPIView(APIView):
         # Package Booking Data
         for booking in package_bookings:
             data.append({
-                'id': booking.id,
+                'id': booking.booking_id,
                 'booking_type': 'Package Booking',
                 'vendor_name': booking.package.vendor.full_name,
                 'bus_or_package': booking.package.places,
@@ -1605,7 +1605,7 @@ class SinglePaymentDetailAPIView(APIView):
             try:
                 booking = BusBooking.objects.select_related('bus__vendor').get(id=booking_id)
                 data = {
-                    'id': booking.id,
+                    'id': booking.booking_id,
                     'booking_type': 'Bus Booking',
                     'vendor_name': booking.bus.vendor.full_name,
                     'bus_or_package': booking.bus.bus_name,
@@ -1622,7 +1622,7 @@ class SinglePaymentDetailAPIView(APIView):
             try:
                 booking = PackageBooking.objects.select_related('package__vendor').get(id=booking_id)
                 data = {
-                    'id': booking.id,
+                    'id': booking.booking_id,
                     'booking_type': 'Package Booking',
                     'vendor_name': booking.package.vendor.full_name,
                     'bus_or_package': booking.package.places,
