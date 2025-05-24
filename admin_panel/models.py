@@ -265,6 +265,8 @@ class AdminCommission(models.Model):
     advance_amount = models.DecimalField(max_digits=10, decimal_places=2)
     commission_percentage = models.DecimalField(max_digits=5, decimal_places=2)
     revenue_to_admin = models.DecimalField(max_digits=10, decimal_places=2)
+    original_revenue = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    referral_deduction = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
