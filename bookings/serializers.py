@@ -1087,7 +1087,7 @@ class BusListingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Bus
-        fields = ['id','bus_name', 'location', 'capacity', 'base_price', 'amenities', 'features',
+        fields = ['id','bus_name', 'bus_number','location', 'capacity', 'base_price', 'amenities', 'features',
                   'average_rating', 'total_reviews', 'is_favorite', 'images',
                   'all_reviews', 'bus_review_summary']
 

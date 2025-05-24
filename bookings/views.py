@@ -759,8 +759,15 @@ class AdvertisementListAPIView(APIView):
 
 
 class PackageDriverDetailListAPIView(APIView):
-    def get(self, request,booking_id):
-        booking = PackageBooking.objects.get(booking_id=booking_id)
-        drivers = PackageDriverDetail.objects.filter(package_booking=booking)
-        serializer = PackageDriverDetailSerializer(drivers, many=True)
+    def get(self, request, booking_id):
+        try:
+            booking = PackageBooking.objects.get(booking_id=booking_id)
+        except PackageBooking.DoesNotExist:
+            return Response(
+                {"error": f"No booking found with booking_id '{booking_id}'."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        drivers = PackageDriverDetail.objects.filter(package_booking=booking).first()
+        serializer = PackageDriverDetailSerializer(drivers)
         return Response(serializer.data, status=status.HTTP_200_OK)
