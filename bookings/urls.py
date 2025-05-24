@@ -6,6 +6,7 @@ from .views import (
     TravelerCreateAPIView, PackageBookingTravelersAPIView, BusBookingTravelersAPIView,
     TravelerDetailAPIView, UserBookingsByStatus,CancelBookingView,PackageCategoryListAPIView,PackageSubCategoryListAPIView,SingleBusListAPIView,SinglePackageListAPIView,
     PopularBusApi,PackageBookingUpdateAPIView,PackageDriverDetailListAPIView,FooterSectionListAPIView,AdvertisementListAPIView
+
 )
 
 urlpatterns = [
