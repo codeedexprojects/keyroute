@@ -9,6 +9,8 @@ from .models import ReferralRewardTransaction
 from admin_panel.models import Experience,Sight
 from admin_panel.models import *
 import calendar
+from vendors.models import *
+from bookings.serializers import *
 
 User = get_user_model()
 
@@ -142,6 +144,17 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+    
+
+class BusFeatureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusFeature
+        fields = ['id', 'name']    
+
+class AmenitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Amenity
+        fields = ['id', 'name', 'icon']
 
 
 class FavouriteSerializer(serializers.ModelSerializer):
@@ -157,8 +170,7 @@ class FavouriteSerializer(serializers.ModelSerializer):
 
     def get_bus_details(self, obj):
         if obj.bus:
-            from vendors.serializers import BusSerializer
-            return BusSerializer(obj.bus).data
+            return BusListingSerializer(obj.bus).data
         return None
         
     def get_package_details(self, obj):
