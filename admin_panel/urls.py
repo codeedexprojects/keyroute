@@ -88,6 +88,10 @@ urlpatterns = [
 
     # EXPLORE LISTING
     path('api/admin/explore/list/', ExploreSectionListView.as_view(), name='explore-list'),
+    # SINGLE EXPLORING
+    path('api/admin/explore/single/<int:sight_id>/', ExploreSectionDetailView.as_view(), name='explore-detail'),
+
+
 
 
     #ALL BOOKINGS
