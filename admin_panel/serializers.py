@@ -171,6 +171,7 @@ class BusDetailSerializer(serializers.ModelSerializer):
 # ADMIN SIDE VENDOR PACKAGE LISING
 class AdminPackageListSerializer(serializers.ModelSerializer):
     sub_category_name = serializers.CharField(source='sub_category.name', read_only=True)
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
@@ -181,7 +182,15 @@ class AdminPackageListSerializer(serializers.ModelSerializer):
             'ac_available',
             'guide_included',
             'sub_category_name',
+            'image'
         ]
+
+    def get_image(self, obj):
+        first_image = obj.package_images.first()
+        if first_image and first_image.image:
+            request = self.context.get('request')
+            return request.build_absolute_uri(first_image.image.url) if request else first_image.image.url
+        return None
 
 
 

@@ -42,7 +42,7 @@ urlpatterns = [
     path('api/admin/vendors/<int:vendor_id>/buses/', AdminVendorBusListAPIView.as_view()),
 
     
-
+    # noted
     # PACKAGE LISTING by vendor id  AND SINGLE DETAILS
     path('api/admin/vendor/<int:vendor_id>/packages/', AdminVendorPackageListAPIView.as_view()),
     path('api/admin/vendor/package/<int:package_id>/', AdminPackageDetailAPIView.as_view()),
