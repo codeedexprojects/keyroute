@@ -1,5 +1,8 @@
 from django.urls import path
 from admin_panel.views import *
+from rest_framework_simplejwt.views import (
+    TokenRefreshView,
+)
 
 urlpatterns = [
     path('api/admin/login/', AdminLoginAPIView.as_view(), name='admin-login'),
@@ -22,6 +25,8 @@ urlpatterns = [
     # USERS LIST
     path('api/admin/users/', AllUsersAPIView.as_view(), name='all-users'),
     path('api/admin/users/<int:user_id>/', AllUsersAPIView.as_view(), name='single-user'),
+    #USER PDF
+    path('api/admin/users/pdf/', AllUsersPDFAPIView.as_view(), name='users-pdf'),
 
     # VENODR CREATING AND LISING
     path('api/admin/create-vendor/', AdminCreateVendorAPIView.as_view(), name='admin-create-vendor'),
@@ -30,12 +35,15 @@ urlpatterns = [
     # VENDOR SINGLE DATA
     path('api/admin/vendors/<int:vendor_id>/', AdminVendorDetailAPIView.as_view(), name='admin-vendor-detail'),
 
+    # VENDOR  STATUS
+    path('api/admin/toggle-vendor-status/<int:vendor_id>/', ToggleVendorStatusView.as_view(), name='toggle-vendor-status'), 
+
     # SINGLE VENDOR BUS LIST
     path('api/admin/vendors/<int:vendor_id>/buses/', AdminVendorBusListAPIView.as_view()),
 
     
 
-    # PACKAGE LISTING AND SINGLE DETAILS
+    # PACKAGE LISTING by vendor id  AND SINGLE DETAILS
     path('api/admin/vendor/<int:vendor_id>/packages/', AdminVendorPackageListAPIView.as_view()),
     path('api/admin/vendor/package/<int:package_id>/', AdminPackageDetailAPIView.as_view()),
 
@@ -139,5 +147,10 @@ urlpatterns = [
     # PACKAGE LISTING
     path('api/admin/packages/', AdminPackageListView.as_view(), name='admin-package-list'),
     path('api/admin/packages/<int:pk>/', AdminPackageDetailView.as_view(), name='admin-package-detail'),
+
+
+
+    path('api/admin/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'), 
+    path('api/admin/users/<int:user_id>/toggle-status/', ToggleUserActiveStatusAPIView.as_view(), name='toggle-user-status'),
 
 ] 
