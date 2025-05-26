@@ -907,95 +907,6 @@ class ExploreSectionCreateView(APIView):
 
 
 
-
-    # def post(self, request, *args, **kwargs):
-    #     data = request.data
-
-    #     # 1. SIGHT DATA
-    #     sight_data = {
-    #         'title': data.get('sight[title]'),
-    #         'description': data.get('sight[description]'),
-    #         'season_description': data.get('sight[season_description]'),
-    #     }
-
-    #     sight_images = []
-    #     index = 1
-    #     while f'sight_image_{index}' in request.FILES:
-    #         sight_images.append(request.FILES[f'sight_image_{index}'])
-    #         index += 1
-
-    #     # 2. EXPERIENCE DATA
-    #     experience_data = []
-    #     exp_index = 0
-    #     while f'experiences[{exp_index}][description]' in data:
-    #         exp = {
-    #             'description': data.get(f'experiences[{exp_index}][description]'),
-    #             'header': data.get(f'experiences[{exp_index}][header]'),
-    #             'sub_header': data.get(f'experiences[{exp_index}][sub_header]'),
-    #             'images': []
-    #         }
-
-    #         img_index = 0
-    #         while f'experiences[{exp_index}][images][{img_index}]' in request.FILES:
-    #             exp['images'].append(request.FILES[f'experiences[{exp_index}][images][{img_index}]'])
-    #             img_index += 1
-
-    #         experience_data.append(exp)
-    #         exp_index += 1
-
-    #     # 3. SEASON DATA
-    #     season_data = {
-    #         'from_date': data.get('season[from_date]'),
-    #         'to_date': data.get('season[to_date]'),
-    #         'header': data.get('season[header]'),
-    #         'icon1': data.get('season[icon1]'),
-    #         'icon1_description': data.get('season[icon1_description]'),
-    #         'icon2': data.get('season[icon2]'),
-    #         'icon2_description': data.get('season[icon2_description]'),
-    #         'icon3': data.get('season[icon3]'),
-    #         'icon3_description': data.get('season[icon3_description]'),
-    #     }
-
-    #     # 4. SAVE DATA
-    #     sight_serializer = SightSerializer(data=sight_data)
-    #     if sight_serializer.is_valid():
-    #         sight_instance = sight_serializer.save()
-
-    #         for img in sight_images:
-    #             SightImage.objects.create(sight=sight_instance, image=img)
-
-    #         # Save each experience and its images
-    #         for exp in experience_data:
-    #             exp_data = {
-    #                 'description': exp['description'],
-    #                 'header': exp['header'],
-    #                 'sub_header': exp['sub_header'],
-    #             }
-    #             exp_serializer = ExperienceSerializer(data=exp_data)
-    #             if exp_serializer.is_valid():
-    #                 experience_instance = exp_serializer.save(sight=sight_instance)
-    #                 for image in exp['images']:
-    #                     ExperienceImage.objects.create(experience=experience_instance, image=image)
-    #             else:
-    #                 return Response({"error": exp_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
-    #         season_data['sight'] = sight_instance.id
-    #         season_serializer = SeasonTimeSerializer(data=season_data)
-    #         if season_serializer.is_valid():
-    #             season_serializer.save(sight=sight_instance)
-    #         else:
-    #             return Response({"error": season_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
-    #         return Response({"message": "Sight, images, experiences (with multiple images), and season created successfully!"}, status=status.HTTP_201_CREATED)
-
-    #     return Response({"error": sight_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-
-  
-
-
     def post(self, request, *args, **kwargs):
         data = request.data
 
@@ -1088,56 +999,135 @@ class ExploreSectionCreateView(APIView):
 
 
 
+    # def patch(self, request, *args, **kwargs):
+    #     print('is working')
+    #     sight_id = kwargs.get('pk')   
+    #     try:
+    #         sight_instance = Sight.objects.get(pk=sight_id)
+    #     except Sight.DoesNotExist:
+    #         return Response({"error": "Sight not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    #     data = request.data
+
+    #     sight_data = {
+    #         'title': data.get('sight[title]'),
+    #         'description': data.get('sight[description]'),
+    #         'season_description': data.get('sight[season_description]'),
+    #         'image': data.get('sight[image]')
+    #     }
+    #     sight_data = {key: value for key, value in sight_data.items() if value is not None}
+
+    #     sight_serializer = SightSerializer(sight_instance, data=sight_data, partial=True)
+    #     if sight_serializer.is_valid():
+    #         sight_serializer.save()
+    #     else:
+    #         return Response({"error": sight_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    #     experience_data = []
+    #     index = 0
+    #     while f'experiences[{index}][description]' in data:
+    #         exp = {
+    #             'description': data.get(f'experiences[{index}][description]'),
+    #             'image': data.get(f'experiences[{index}][image]')
+    #         }
+    #         experience_data.append(exp)
+    #         index += 1
+
+    #     if experience_data:
+            
+
+    #         for exp in experience_data:
+    #             exp_serializer = ExperienceSerializer(data=exp)
+    #             if exp_serializer.is_valid():
+    #                 exp_serializer.save(sight=sight_instance)
+    #             else:
+    #                 return Response({"error": exp_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    #     return Response({"message": "Sight updated successfully."}, status=status.HTTP_200_OK)
 
 
+    def put(self, request, *args, **kwargs):
+        data = request.data
+        sight_id = kwargs.get("sight_id")
 
-
-
-    def patch(self, request, *args, **kwargs):
-        print('is working')
-        sight_id = kwargs.get('pk')   
         try:
-            sight_instance = Sight.objects.get(pk=sight_id)
+            sight_instance = Sight.objects.get(id=sight_id)
         except Sight.DoesNotExist:
             return Response({"error": "Sight not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        data = request.data
+        # --- 1. Update Sight Fields if Present ---
+        update_data = {}
+        if data.get('sight[title]'): update_data['title'] = data.get('sight[title]')
+        if data.get('sight[description]'): update_data['description'] = data.get('sight[description]')
+        if data.get('sight[season_description]'): update_data['season_description'] = data.get('sight[season_description]')
 
-        sight_data = {
-            'title': data.get('sight[title]'),
-            'description': data.get('sight[description]'),
-            'season_description': data.get('sight[season_description]'),
-            'image': data.get('sight[image]')
-        }
-        sight_data = {key: value for key, value in sight_data.items() if value is not None}
-
-        sight_serializer = SightSerializer(sight_instance, data=sight_data, partial=True)
+        sight_serializer = SightSerializer(sight_instance, data=update_data, partial=True)
         if sight_serializer.is_valid():
             sight_serializer.save()
         else:
             return Response({"error": sight_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-        experience_data = []
-        index = 0
-        while f'experiences[{index}][description]' in data:
-            exp = {
-                'description': data.get(f'experiences[{index}][description]'),
-                'image': data.get(f'experiences[{index}][image]')
-            }
-            experience_data.append(exp)
+        # --- 2. Add New Sight Images if Present ---
+        index = 1
+        while f'sight_image_{index}' in request.FILES:
+            SightImage.objects.create(
+                sight=sight_instance,
+                image=request.FILES[f'sight_image_{index}']
+            )
             index += 1
 
-        if experience_data:
-            
+        # --- 3. Add New Experience(s) if Provided ---
+        exp_index = 0
+        while f'experiences[{exp_index}][description]' in data:
+            exp_data = {
+                'description': data.get(f'experiences[{exp_index}][description]'),
+                'header': data.get(f'experiences[{exp_index}][header]'),
+                'sub_header': data.get(f'experiences[{exp_index}][sub_header]')
+            }
+            exp_serializer = ExperienceSerializer(data=exp_data)
+            if exp_serializer.is_valid():
+                experience_instance = exp_serializer.save(sight=sight_instance)
 
-            for exp in experience_data:
-                exp_serializer = ExperienceSerializer(data=exp)
-                if exp_serializer.is_valid():
-                    exp_serializer.save(sight=sight_instance)
-                else:
-                    return Response({"error": exp_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+                # Attach new images to this experience
+                img_index = 0
+                while f'experiences[{exp_index}][images][{img_index}]' in request.FILES:
+                    ExperienceImage.objects.create(
+                        experience=experience_instance,
+                        image=request.FILES[f'experiences[{exp_index}][images][{img_index}]']
+                    )
+                    img_index += 1
+            else:
+                return Response({"error": exp_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+            exp_index += 1
 
-        return Response({"message": "Sight updated successfully."}, status=status.HTTP_200_OK)
+        # --- 4. Add New Season Entries if Provided ---
+        season_index = 0
+        while f'season[{season_index}][from_date]' in data and season_index < 3:
+            season_data = {
+                'from_date': data.get(f'season[{season_index}][from_date]'),
+                'to_date': data.get(f'season[{season_index}][to_date]'),
+                'header': data.get(f'season[{season_index}][header]'),
+                'icon1': data.get(f'season[{season_index}][icon1]'),
+                'icon1_description': data.get(f'season[{season_index}][icon1_description]') or "",
+                'icon2': data.get(f'season[{season_index}][icon2]'),
+                'icon2_description': data.get(f'season[{season_index}][icon2_description]') or "",
+                'icon3': data.get(f'season[{season_index}][icon3]'),
+                'icon3_description': data.get(f'season[{season_index}][icon3_description]') or "",
+                'sight': sight_instance.id
+            }
+            season_serializer = SeasonTimeSerializer(data=season_data)
+            if season_serializer.is_valid():
+                season_serializer.save()
+            else:
+                return Response({"error": season_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+            season_index += 1
+
+        return Response({"message": "Sight section updated successfully with partial data!"}, status=status.HTTP_200_OK)
+
+
+
+
+
 
 
 
@@ -1353,18 +1343,49 @@ class AdminPackageSubCategoryAPIView(APIView):
             return Response({"message": "Package SubCategory created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    # def get(self, request, pk=None):
+    #     if pk:
+    #         subcategory = self.get_object(pk)
+    #         if not subcategory:
+    #             return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    #         serializer = PackageSubCategorySerializer(subcategory)
+    #         return Response({"subcategory": serializer.data}, status=status.HTTP_200_OK)
+
+    #     subcategories = PackageSubCategory.objects.all()
+    #     serializer = PackageSubCategorySerializer(subcategories, many=True)
+    #     return Response({"subcategories": serializer.data}, status=status.HTTP_200_OK)
+
+    
     def get(self, request, pk=None):
         if pk:
             subcategory = self.get_object(pk)
             if not subcategory:
                 return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
-
             serializer = PackageSubCategorySerializer(subcategory)
             return Response({"subcategory": serializer.data}, status=status.HTTP_200_OK)
 
-        subcategories = PackageSubCategory.objects.all()
+        # Filter by category_id if provided
+        category_id = request.query_params.get('category_id')
+        if category_id:
+            subcategories = PackageSubCategory.objects.filter(category__id=category_id)
+        else:
+            subcategories = PackageSubCategory.objects.all()
+
         serializer = PackageSubCategorySerializer(subcategories, many=True)
         return Response({"subcategories": serializer.data}, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+
+
 
     def put(self, request, pk):
         if not request.user.is_staff:
@@ -2069,3 +2090,22 @@ class AppReviewListView(APIView):
         reviews = AppReview.objects.all().order_by('-created_at')
         serializer = AppReviewSerializer(reviews, many=True)
         return Response({"message": "App reviews fetched successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+
+
+class AllReviewsListView(APIView):
+    def get(self, request):
+        bus_reviews = BusReview.objects.all().order_by('-created_at')
+        package_reviews = PackageReview.objects.all().order_by('-created_at')
+        app_reviews = AppReview.objects.all().order_by('-created_at')
+
+        bus_serializer = BusReviewSerializer(bus_reviews, many=True)
+        package_serializer = PackageReviewSerializer(package_reviews, many=True)
+        app_serializer = AppReviewSerializer(app_reviews, many=True)
+
+        return Response({
+            "message": "All reviews fetched successfully!",
+            "bus_reviews": bus_serializer.data,
+            "package_reviews": package_serializer.data,
+            "app_reviews": app_serializer.data,
+        }, status=status.HTTP_200_OK)
+    

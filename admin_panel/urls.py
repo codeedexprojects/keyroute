@@ -81,7 +81,7 @@ urlpatterns = [
 
 # -----------------------------
 
-    # EXPLORE
+    # EXPLORE create and edit
     path('api/admin/explore/create/', ExploreSectionCreateView.as_view(), name='create-explore-section'),
     # edit
     path('api/admin/explore/<int:pk>/', ExploreSectionCreateView.as_view(), name='create-explore-section'),
@@ -166,6 +166,7 @@ urlpatterns = [
     path('api/admin/reviews/bus/', BusReviewListView.as_view(), name='bus-review-list'),
     path('api/admin/reviews/package/', PackageReviewListView.as_view(), name='package-review-list'),
     path('api/admin/reviews/app/', AppReviewListView.as_view(), name='app-review-list'),
+    path('api/admin/reviews/all/', AllReviewsListView.as_view(), name='all-review-list'),
 
 
 
