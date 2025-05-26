@@ -1000,6 +1000,7 @@ class ExploreSectionCreateView(APIView):
 
 
 
+
     # def put(self, request, *args, **kwargs):
     #     data = request.data
     #     sight_id = kwargs.get("pk")
@@ -1011,12 +1012,9 @@ class ExploreSectionCreateView(APIView):
 
     #     # --- 1. Update Sight Fields if Present ---
     #     update_data = {}
-    #     if data.get('sight[title]'):
-    #         update_data['title'] = data.get('sight[title]')
-    #     if data.get('sight[description]'):
-    #         update_data['description'] = data.get('sight[description]')
-    #     if data.get('sight[season_description]'):
-    #         update_data['season_description'] = data.get('sight[season_description]')
+    #     if data.get('sight[title]'): update_data['title'] = data.get('sight[title]')
+    #     if data.get('sight[description]'): update_data['description'] = data.get('sight[description]')
+    #     if data.get('sight[season_description]'): update_data['season_description'] = data.get('sight[season_description]')
 
     #     sight_serializer = SightSerializer(sight_instance, data=update_data, partial=True)
     #     if sight_serializer.is_valid():
@@ -1024,14 +1022,23 @@ class ExploreSectionCreateView(APIView):
     #     else:
     #         return Response({"error": sight_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-    #     # --- 2. Add New Sight Images if Present ---
-    #     index = 1
-    #     while f'sight_image_{index}' in request.FILES:
-    #         SightImage.objects.create(
-    #             sight=sight_instance,
-    #             image=request.FILES[f'sight_image_{index}']
-    #         )
-    #         index += 1
+    #     # --- 2. Update Existing Sight Images if Present ---
+    #     image_index = 0
+    #     while True:
+    #         image_id_key = f'sight_image[{image_index}][id]'  # e.g. sight_image[0][id]
+    #         image_file_key = f'sight_image[{image_index}][file]'  # e.g. sight_image[0][file]
+    #         if image_id_key in data and image_file_key in request.FILES:
+    #             try:
+    #                 img_id = int(data.get(image_id_key))
+    #                 sight_image_instance = SightImage.objects.get(id=img_id, sight=sight_instance)
+    #                 sight_image_instance.image = request.FILES[image_file_key]
+    #                 sight_image_instance.save()
+    #             except (SightImage.DoesNotExist, ValueError):
+    #                 # Image not found or invalid ID, ignore or handle error
+    #                 pass
+    #             image_index += 1
+    #         else:
+    #             break
 
     #     # --- 3. Add New Experience(s) if Provided ---
     #     exp_index = 0
@@ -1057,36 +1064,31 @@ class ExploreSectionCreateView(APIView):
     #             return Response({"error": exp_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
     #         exp_index += 1
 
-    #     # --- 4. Update Existing Season Entries Only ---
+    #     # --- 4. Update Existing Season Entries if Provided ---
     #     season_index = 0
-    #     while f'season[{season_index}][id]' in data:
-    #         season_id = data.get(f'season[{season_index}][id]')
-
+    #     while f'season[{season_index}][id]' in data and season_index < 3:
     #         try:
+    #             season_id = int(data.get(f'season[{season_index}][id]'))
     #             season_instance = SeasonTime.objects.get(id=season_id, sight=sight_instance)
-    #         except SeasonTime.DoesNotExist:
-    #             # If season with this id & sight doesn't exist, skip updating this entry
-    #             season_index += 1
-    #             continue
-
-    #         season_data = {
-    #             'from_date': data.get(f'season[{season_index}][from_date]'),
-    #             'to_date': data.get(f'season[{season_index}][to_date]'),
-    #             'header': data.get(f'season[{season_index}][header]'),
-    #             'icon1': data.get(f'season[{season_index}][icon1]'),
-    #             'icon1_description': data.get(f'season[{season_index}][icon1_description]') or "",
-    #             'icon2': data.get(f'season[{season_index}][icon2]'),
-    #             'icon2_description': data.get(f'season[{season_index}][icon2_description]') or "",
-    #             'icon3': data.get(f'season[{season_index}][icon3]'),
-    #             'icon3_description': data.get(f'season[{season_index}][icon3_description]') or "",
-    #         }
-
-    #         season_serializer = SeasonTimeSerializer(season_instance, data=season_data, partial=True)
-    #         if season_serializer.is_valid():
-    #             season_serializer.save()
-    #         else:
-    #             return Response({"error": season_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
+    #             season_data = {
+    #                 'from_date': data.get(f'season[{season_index}][from_date]'),
+    #                 'to_date': data.get(f'season[{season_index}][to_date]'),
+    #                 'header': data.get(f'season[{season_index}][header]'),
+    #                 'icon1': data.get(f'season[{season_index}][icon1]'),
+    #                 'icon1_description': data.get(f'season[{season_index}][icon1_description]') or "",
+    #                 'icon2': data.get(f'season[{season_index}][icon2]'),
+    #                 'icon2_description': data.get(f'season[{season_index}][icon2_description]') or "",
+    #                 'icon3': data.get(f'season[{season_index}][icon3]'),
+    #                 'icon3_description': data.get(f'season[{season_index}][icon3_description]') or "",
+    #             }
+    #             season_serializer = SeasonTimeSerializer(season_instance, data=season_data, partial=True)
+    #             if season_serializer.is_valid():
+    #                 season_serializer.save()
+    #             else:
+    #                 return Response({"error": season_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+    #         except (SeasonTime.DoesNotExist, ValueError):
+    #             # Season not found or invalid ID, ignore or handle error
+    #             pass
     #         season_index += 1
 
     #     return Response({"message": "Sight section updated successfully with partial data!"}, status=status.HTTP_200_OK)
@@ -1117,8 +1119,8 @@ class ExploreSectionCreateView(APIView):
         # --- 2. Update Existing Sight Images if Present ---
         image_index = 0
         while True:
-            image_id_key = f'sight_image[{image_index}][id]'  # e.g. sight_image[0][id]
-            image_file_key = f'sight_image[{image_index}][file]'  # e.g. sight_image[0][file]
+            image_id_key = f'sight_image[{image_index}][id]'
+            image_file_key = f'sight_image[{image_index}][file]'
             if image_id_key in data and image_file_key in request.FILES:
                 try:
                     img_id = int(data.get(image_id_key))
@@ -1126,34 +1128,41 @@ class ExploreSectionCreateView(APIView):
                     sight_image_instance.image = request.FILES[image_file_key]
                     sight_image_instance.save()
                 except (SightImage.DoesNotExist, ValueError):
-                    # Image not found or invalid ID, ignore or handle error
                     pass
                 image_index += 1
             else:
                 break
 
-        # --- 3. Add New Experience(s) if Provided ---
+        # --- 3. Update Existing Experiences if Provided ---
         exp_index = 0
-        while f'experiences[{exp_index}][description]' in data:
-            exp_data = {
-                'description': data.get(f'experiences[{exp_index}][description]'),
-                'header': data.get(f'experiences[{exp_index}][header]'),
-                'sub_header': data.get(f'experiences[{exp_index}][sub_header]')
-            }
-            exp_serializer = ExperienceSerializer(data=exp_data)
-            if exp_serializer.is_valid():
-                experience_instance = exp_serializer.save(sight=sight_instance)
+        while f'experiences[{exp_index}][id]' in data:
+            try:
+                exp_id = int(data.get(f'experiences[{exp_index}][id]'))
+                experience_instance = Experience.objects.get(id=exp_id, sight=sight_instance)
 
-                # Attach new images to this experience
-                img_index = 0
-                while f'experiences[{exp_index}][images][{img_index}]' in request.FILES:
-                    ExperienceImage.objects.create(
-                        experience=experience_instance,
-                        image=request.FILES[f'experiences[{exp_index}][images][{img_index}]']
-                    )
-                    img_index += 1
-            else:
-                return Response({"error": exp_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+                exp_data = {
+                    'description': data.get(f'experiences[{exp_index}][description]'),
+                    'header': data.get(f'experiences[{exp_index}][header]'),
+                    'sub_header': data.get(f'experiences[{exp_index}][sub_header]')
+                }
+
+                exp_serializer = ExperienceSerializer(experience_instance, data=exp_data, partial=True)
+                if exp_serializer.is_valid():
+                    experience_instance = exp_serializer.save()
+
+                    # Add new images if provided
+                    img_index = 0
+                    while f'experiences[{exp_index}][images][{img_index}]' in request.FILES:
+                        ExperienceImage.objects.create(
+                            experience=experience_instance,
+                            image=request.FILES[f'experiences[{exp_index}][images][{img_index}]']
+                        )
+                        img_index += 1
+                else:
+                    return Response({"error": exp_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            except (Experience.DoesNotExist, ValueError):
+                pass
             exp_index += 1
 
         # --- 4. Update Existing Season Entries if Provided ---
@@ -1179,12 +1188,10 @@ class ExploreSectionCreateView(APIView):
                 else:
                     return Response({"error": season_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
             except (SeasonTime.DoesNotExist, ValueError):
-                # Season not found or invalid ID, ignore or handle error
                 pass
             season_index += 1
 
         return Response({"message": "Sight section updated successfully with partial data!"}, status=status.HTTP_200_OK)
-
 
 
 
