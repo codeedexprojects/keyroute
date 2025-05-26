@@ -1872,7 +1872,20 @@ class AdminCreateUserAPIView(APIView):
 
 
 
+class ToggleUserActiveStatusAPIView(APIView):
+    def post(self, request, user_id):
+        user = get_object_or_404(User, id=user_id)
 
+        user.is_active = not user.is_active  # Toggle the value
+        user.save()
+
+        status_msg = "User is now active." if user.is_active else "User has been blocked."
+
+        return Response({
+            "user_id": user.id,
+            "is_active": user.is_active,
+            "message": status_msg
+        }, status=status.HTTP_200_OK)
 
 
 

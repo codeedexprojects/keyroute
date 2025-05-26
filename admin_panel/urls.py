@@ -146,5 +146,6 @@ urlpatterns = [
 
 
     path('api/admin/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'), 
+    path('api/admin/users/<int:user_id>/toggle-status/', ToggleUserActiveStatusAPIView.as_view(), name='toggle-user-status'),
 
 ] 
