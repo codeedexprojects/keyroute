@@ -183,7 +183,7 @@ class FooterSection(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Footer Section - {self.title}"
+        return f"Footer Section - {self.package.id}"
 
 
 class FooterImage(models.Model):
