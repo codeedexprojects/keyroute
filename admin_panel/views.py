@@ -709,6 +709,7 @@ class LimitedDealCreateView(APIView):
 
 
 
+
 class FooterSectionCreateView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
