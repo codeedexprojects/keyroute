@@ -1090,12 +1090,6 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
             raise serializers.ValidationError({"error": f"Unexpected error during referral processing: {str(e)}"})
 
         return booking
-    
-
-class BusReviewSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = BusReview
-        fields = '__all__'
 
 
 class BusListingSerializer(serializers.ModelSerializer):
@@ -1121,10 +1115,8 @@ class BusListingSerializer(serializers.ModelSerializer):
         return obj.bus_reviews.count()
     
     def get_reviews(self, obj):
-        reviews = BusReview.objects.filter(bus=obj)
-        return BusReviewSerializer(reviews, many=True).data
+        return obj.bus_reviews
 
-    
     def get_is_favorite(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:

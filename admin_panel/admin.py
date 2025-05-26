@@ -36,6 +36,7 @@ admin.site.register(SeasonTime)
 admin.site.register(SightImage)
 admin.site.register(ExperienceImage)
 admin.site.register(ReferAndEarn)
+admin.site.register(FooterImage)
 
 
 
