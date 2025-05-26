@@ -1090,7 +1090,12 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
             raise serializers.ValidationError({"error": f"Unexpected error during referral processing: {str(e)}"})
 
         return booking
+    
 
+class BusReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusReview
+        fields = '__all__'
 
 
 class BusListingSerializer(serializers.ModelSerializer):
@@ -1102,12 +1107,13 @@ class BusListingSerializer(serializers.ModelSerializer):
     images = BusImageSerializer(many=True, read_only=True)
     all_reviews = BusReviewSerializer(many=True, read_only=True)
     bus_review_summary = serializers.SerializerMethodField()
+    reviews = serializers.SerializerMethodField()
 
     class Meta:
         model = Bus
         fields = ['id','bus_name', 'bus_number','location', 'capacity', 'base_price', 'amenities', 'features',
                   'average_rating', 'total_reviews', 'is_favorite', 'images',
-                  'all_reviews', 'bus_review_summary']
+                  'all_reviews', 'bus_review_summary','reviews']
 
     def get_average_rating(self, obj):
         avg = obj.bus_reviews.aggregate(avg=Avg('rating'))['avg']
@@ -1115,6 +1121,11 @@ class BusListingSerializer(serializers.ModelSerializer):
 
     def get_total_reviews(self, obj):
         return obj.bus_reviews.count()
+    
+    def get_reviews(self, obj):
+        bus_id = Bus.objects.get(id=obj.id)
+        reviews = BusReview.objects.filter(bus=bus_id)
+        return reviews
     
     def get_is_favorite(self, obj):
         request = self.context.get('request')
