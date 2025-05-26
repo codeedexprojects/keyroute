@@ -29,6 +29,13 @@ from itertools import chain
 from operator import attrgetter
 from django.db.models.functions import TruncMonth
 
+from django.http import HttpResponse
+from django.template.loader import render_to_string
+from xhtml2pdf import pisa
+
+import io
+
+
 
 # Create your views here.
 
@@ -165,21 +172,6 @@ class AllUsersAPIView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    # def get(self, request, user_id=None):
-    #     if user_id:
-    #         try:
-    #             user = User.objects.get(id=user_id, role=User.USER)
-    #             serializer = UserSerializer(user)
-    #             return Response(serializer.data, status=status.HTTP_200_OK)
-    #         except User.DoesNotExist:
-    #             return Response({"error": "User not found or not a normal user."}, status=status.HTTP_404_NOT_FOUND)
-    #     else:
-    #         users = User.objects.filter(role=User.USER)
-    #         serializer = UserSerializer(users, many=True)
-    #         return Response({
-    #             "total_users": users.count(),
-    #             "users": serializer.data
-    #         }, status=status.HTTP_200_OK)
 
     def get(self, request, user_id=None):
         if user_id:
@@ -1845,8 +1837,8 @@ class AdminPackageDetailView(APIView):
         except Package.DoesNotExist:
             return Response({"detail": "Package not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # serializer = PackageDetailSerializer(package, context={'request': request})
-        # return Response(serializer.data)
+        serializer = AdminPackageDetailSerializer(package, context={'request': request})
+        return Response(serializer.data)
 
 
 
@@ -1886,6 +1878,62 @@ class ToggleUserActiveStatusAPIView(APIView):
             "is_active": user.is_active,
             "message": status_msg
         }, status=status.HTTP_200_OK)
+
+
+
+
+
+
+class AllUsersPDFAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        users = User.objects.filter(role=User.USER)
+        booked_user_ids = set(
+            list(BusBooking.objects.values_list('user_id', flat=True)) +
+            list(PackageBooking.objects.values_list('user_id', flat=True))
+        )
+        booked_users = User.objects.filter(id__in=booked_user_ids, role=User.USER)
+        active_users = users.filter(is_active=True)
+        inactive_users = users.filter(is_active=False)
+
+        context = {
+            "total_users": users.count(),
+            "booked_users_count": booked_users.count(),
+            "active_users_count": active_users.count(),
+            "inactive_users_count": inactive_users.count(),
+            "users": users
+        }
+
+        # Render HTML to a string using a Django template
+        html_string = render_to_string("users_report.html", context)
+
+        # Create a file-like buffer
+        result = io.BytesIO()
+        pdf = pisa.pisaDocument(io.BytesIO(html_string.encode("UTF-8")), result)
+
+        if not pdf.err:
+            response = HttpResponse(result.getvalue(), content_type='application/pdf')
+            response['Content-Disposition'] = 'attachment; filename="users_report.pdf"'
+            return response
+        else:
+            return Response({"error": "PDF generation failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

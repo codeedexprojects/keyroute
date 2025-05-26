@@ -167,7 +167,6 @@ class AdminPackageListSerializer(serializers.ModelSerializer):
             'id',
             'places',
             'days',
-            'nights',
             'ac_available',
             'guide_included',
             'sub_category_name',
@@ -247,15 +246,18 @@ class DayPlanSerializer(serializers.ModelSerializer):
 class AdminPackageDetailSerializer(serializers.ModelSerializer):
     sub_category = PackageSubCategorySerializer(read_only=True)
     day_plans = DayPlanSerializer(many=True, read_only=True)
+    travels_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
         fields = [
             'id',
             'sub_category',
+            'extra_charge_per_km',
+            'price_per_person',
+            'travels_name', 
             'places',
             'days',
-            'nights',
             'ac_available',
             'guide_included',
             'header_image',
@@ -263,6 +265,12 @@ class AdminPackageDetailSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at'
         ]
+
+
+    def get_travels_name(self, obj):
+      
+        travels_names = obj.buses.select_related('vendor').values_list('vendor__travels_name', flat=True).distinct()
+        return list(travels_names)
 
 # -------------------------------- END---------------
 
