@@ -160,4 +160,16 @@ urlpatterns = [
     path('api/admin/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'), 
     path('api/admin/users/<int:user_id>/toggle-status/', ToggleUserActiveStatusAPIView.as_view(), name='toggle-user-status'),
 
+
+
+
+    path('api/admin/reviews/bus/', BusReviewListView.as_view(), name='bus-review-list'),
+    path('api/admin/reviews/package/', PackageReviewListView.as_view(), name='package-review-list'),
+    path('api/admin/reviews/app/', AppReviewListView.as_view(), name='app-review-list'),
+
+
+
+
+
+
 ] 
