@@ -1402,19 +1402,6 @@ class AdminPackageSubCategoryAPIView(APIView):
             return Response({"message": "Package SubCategory created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    # def get(self, request, pk=None):
-    #     if pk:
-    #         subcategory = self.get_object(pk)
-    #         if not subcategory:
-    #             return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
-
-    #         serializer = PackageSubCategorySerializer(subcategory)
-    #         return Response({"subcategory": serializer.data}, status=status.HTTP_200_OK)
-
-    #     subcategories = PackageSubCategory.objects.all()
-    #     serializer = PackageSubCategorySerializer(subcategories, many=True)
-    #     return Response({"subcategories": serializer.data}, status=status.HTTP_200_OK)
-
     
     def get(self, request, pk=None):
         if pk:

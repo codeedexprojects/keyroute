@@ -2815,24 +2815,7 @@ class VendorBusyDateCreateView(APIView):
     permission_classes = [IsAuthenticated]
     
 
-    # def post(self, request):
-    #     try:
-    #         vendor = Vendor.objects.filter(user=request.user).first()
-    #         if not vendor:
-    #             return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
-
-    #         serializer = VendorBusyDateSerializer(data=request.data)
-    #         if serializer.is_valid():
-    #             VendorBusyDate.objects.create(
-    #                 vendor=vendor,
-    #                 **serializer.validated_data
-    #             )
-    #             return Response({"message": "Busy date created successfully!"}, status=status.HTTP_201_CREATED)
-    #         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    #     except Exception as e:
-    #         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
+    
 
 
     def post(self, request):
