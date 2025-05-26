@@ -35,6 +35,9 @@ urlpatterns = [
     # VENDOR SINGLE DATA
     path('api/admin/vendors/<int:vendor_id>/', AdminVendorDetailAPIView.as_view(), name='admin-vendor-detail'),
 
+    # VENDOR  STATUS
+    path('api/admin/toggle-vendor-status/<int:vendor_id>/', ToggleVendorStatusView.as_view(), name='toggle-vendor-status'), 
+
     # SINGLE VENDOR BUS LIST
     path('api/admin/vendors/<int:vendor_id>/buses/', AdminVendorBusListAPIView.as_view()),
 

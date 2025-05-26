@@ -255,6 +255,7 @@ class AdminVendorDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, vendor_id):
         try:
+            print('vendor single')
             vendor = Vendor.objects.get(pk=vendor_id)
         except Vendor.DoesNotExist:
             return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -1924,7 +1925,19 @@ class AllUsersPDFAPIView(APIView):
 
 
 
+class ToggleVendorStatusView(APIView):
+    permission_classes = [IsAdminUser]   
 
+    def post(self, request, vendor_id):
+        vendor = get_object_or_404(User, id=vendor_id, role=User.VENDOR)
+        vendor.is_active = not vendor.is_active
+        vendor.save()
+        return Response({
+            'vendor_id': vendor.id,
+            'name': vendor.name,
+            'is_active': vendor.is_active,
+            'message': 'Vendor status updated successfully.'
+        }, status=status.HTTP_200_OK)
 
 
 
