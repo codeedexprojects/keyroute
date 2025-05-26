@@ -178,13 +178,21 @@ class ReferAndEarn(models.Model):
 
 
 class FooterSection(models.Model):
-    image = models.ImageField(upload_to="footer_sections/")
+    main_image  = models.ImageField(upload_to="footer_sections/")
     package = models.ForeignKey('vendors.Package', on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Footer Section - {self.title}"
 
+
+class FooterImage(models.Model):
+    footer_section = models.ForeignKey(FooterSection, on_delete=models.CASCADE, related_name='extra_images')
+    image = models.ImageField(upload_to="footer_sections/extra/")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Extra Image for Footer Section - {self.footer_section.id}"
 
  
 

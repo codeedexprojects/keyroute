@@ -18,7 +18,7 @@ class ReferralCodeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['referral_code', 'price']
+        fields = ['referral_code', 'price','image']
 
     def get_price(self, obj):
         refer_and_earn_obj = ReferAndEarn.objects.first()

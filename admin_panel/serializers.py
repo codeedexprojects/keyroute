@@ -5,7 +5,7 @@ from vendors.serializers import *
 from .models import AdminCommissionSlab, AdminCommission
 from bookings.models import *
 from .models import *
-from reviews.models import BusReview
+from reviews.models import BusReview,PackageReview,AppReview
 class VendorSerializer1(serializers.ModelSerializer):
     class Meta:
         model = Vendor
@@ -372,13 +372,17 @@ class ReferAndEarnSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at']
 
 
-
+class FooterImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FooterImage
+        fields = ['id', 'image', 'uploaded_at']
 
 class FooterSectionSerializer(serializers.ModelSerializer):
+    extra_images = FooterImageSerializer(many=True, read_only=True) 
     class Meta:
         model = FooterSection
 
-        fields = ['id', 'package', 'image']
+        fields = ['id', 'package', 'main_image','extra_images']
 
 
 # --------------------------------------------------------
@@ -773,7 +777,20 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
 
 
 
+class BusReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusReview
+        fields = ['id', 'user', 'bus', 'rating', 'comment', 'created_at']
 
+class PackageReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageReview
+        fields = ['id', 'user', 'package', 'rating', 'comment', 'created_at']
+
+class AppReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AppReview
+        fields = ['id', 'user', 'rating', 'comment', 'created_at']
 
 
 
