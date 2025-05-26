@@ -59,6 +59,7 @@ urlpatterns = [
     # path('api/admin/advertisement/<int:ad_id>/', AdvertisementDetailView.as_view(), name='advertisement-detail'),
 
     # ADV , LIMITED DEAL,FOOTER, REFER LISTING ----------------------------------------
+    path('api/admin/advertisement/', AdvertisementListView.as_view()),
     path('api/admin/advertisement/<int:ad_id>/', AdvertisementDetailView.as_view()),
     path('api/admin/limited-deals/', LimitedDealListView.as_view()),
     path('api/admin/limited-deals/<int:deal_id>/', LimitedDealDetailView.as_view()),
@@ -68,6 +69,8 @@ urlpatterns = [
     path('api/admin/refer-and-earn/<int:ref_id>/', ReferAndEarnDetailView.as_view()),
 
 # -----------------------------------------------------------
+
+
 
     # CREATING
 
@@ -85,6 +88,10 @@ urlpatterns = [
 
     # EXPLORE LISTING
     path('api/admin/explore/list/', ExploreSectionListView.as_view(), name='explore-list'),
+    # SINGLE EXPLORING
+    path('api/admin/explore/single/<int:sight_id>/', ExploreSectionDetailView.as_view(), name='explore-detail'),
+
+
 
 
     #ALL BOOKINGS
