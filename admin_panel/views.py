@@ -313,6 +313,7 @@ class AdminVendorPackageListAPIView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, vendor_id):
         try:
+            print('hello')
             vendor = Vendor.objects.get(user=vendor_id)
         except Vendor.DoesNotExist:
             return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -330,6 +331,7 @@ class AdminPackageDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, package_id):
         try:
+            print('hello')
             package = Package.objects.get(pk=package_id)
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=status.HTTP_404_NOT_FOUND)
