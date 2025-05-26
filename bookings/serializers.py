@@ -1100,12 +1100,15 @@ class BusListingSerializer(serializers.ModelSerializer):
     is_favorite = serializers.SerializerMethodField()
     images = BusImageSerializer(many=True, read_only=True)
     bus_review_summary = serializers.SerializerMethodField()
-    reviews = BusReviewSerializer(many=True,read_only=True)
+    reviews = serializers.SerializerMethodField()  # Fix here
 
     class Meta:
         model = Bus
-        fields = ['id','bus_name', 'bus_number','location', 'capacity', 'base_price', 'amenities', 'features',
-                  'average_rating', 'total_reviews', 'is_favorite', 'images', 'bus_review_summary','reviews']
+        fields = [
+            'id', 'bus_name', 'bus_number', 'location', 'capacity', 'base_price',
+            'amenities', 'features', 'average_rating', 'total_reviews', 'is_favorite',
+            'images', 'bus_review_summary', 'reviews'
+        ]
 
     def get_average_rating(self, obj):
         avg = obj.bus_reviews.aggregate(avg=Avg('rating'))['avg']
@@ -1113,9 +1116,10 @@ class BusListingSerializer(serializers.ModelSerializer):
 
     def get_total_reviews(self, obj):
         return obj.bus_reviews.count()
-    
+
     def get_reviews(self, obj):
-        return obj.bus_reviews
+        reviews = obj.bus_reviews.all()
+        return BusReviewSerializer(reviews, many=True).data
 
     def get_is_favorite(self, obj):
         request = self.context.get('request')
