@@ -733,15 +733,25 @@ class PackageSerializer(serializers.ModelSerializer):
 
     def get_price_per_person(self, obj):
         return int(obj.price_per_person)
-
+    
 class PopularBusSerializer(serializers.ModelSerializer):
     average_rating = serializers.SerializerMethodField()
     total_reviews = serializers.SerializerMethodField()
     is_favorite = serializers.SerializerMethodField()
+    bus_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Bus
-        fields = ['id','bus_name','capacity','average_rating','total_reviews','is_popular','is_favorite']
+        fields = [
+            'id',
+            'bus_name',
+            'capacity',
+            'average_rating',
+            'total_reviews',
+            'is_popular',
+            'is_favorite',
+            'bus_image',  # 👈 include in output
+        ]
 
     def get_average_rating(self, obj):
         avg = obj.bus_reviews.aggregate(avg=Avg('rating'))['avg']
@@ -755,7 +765,15 @@ class PopularBusSerializer(serializers.ModelSerializer):
         if request and request.user.is_authenticated:
             return Favourite.objects.filter(user=request.user, bus=obj).exists()
         return False
-    
+
+    def get_bus_image(self, obj):
+        request = self.context.get('request')
+        image = obj.images.first()
+        if image and image.bus_view_image:
+            if request:
+                return request.build_absolute_uri(image.bus_view_image.url)
+            return image.bus_view_image.url
+        return None
 
 class ListPackageSerializer(serializers.ModelSerializer):
     average_rating = serializers.FloatField(read_only=True)
@@ -1087,7 +1105,7 @@ class BusListingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Bus
-        fields = ['id','bus_name', 'location', 'capacity', 'base_price', 'amenities', 'features',
+        fields = ['id','bus_name', 'bus_number','location', 'capacity', 'base_price', 'amenities', 'features',
                   'average_rating', 'total_reviews', 'is_favorite', 'images',
                   'all_reviews', 'bus_review_summary']
 
