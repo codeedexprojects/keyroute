@@ -708,17 +708,49 @@ class FooterSectionCreateView(APIView):
     authentication_classes = [JWTAuthentication]
     parser_classes = [MultiPartParser, FormParser]
 
+    # def post(self, request):
+    #     try:
+    #         footer = {
+    #             'image': request.FILES.get('image'),
+    #             'package': request.data.get('package')   
+    #         }
+    #         serializer = FooterSectionSerializer(data=footer)
+    #         if serializer.is_valid():
+    #             serializer.save()
+    #             return Response({'message': 'Footer section saved successfully!'}, status=201)
+    #         return Response({'error': serializer.errors}, status=400)
+    #     except Exception as e:
+    #         return Response({'error': str(e)}, status=400)
+
     def post(self, request):
         try:
-            footer = {
-                'image': request.FILES.get('image'),
-                'package': request.data.get('package')   
+            main_image = request.FILES.get('main_image')
+            if not main_image:
+                return Response({'error': 'Main image is required.'}, status=400)
+
+            extra_images = []
+            for key in request.FILES:
+                if key.startswith('image') and key != 'main_image':
+                    extra_images.append(request.FILES[key])
+
+            # Create FooterSection with main image
+            footer_data = {
+                'main_image': main_image,
+                'package': request.data.get('package')
             }
-            serializer = FooterSectionSerializer(data=footer)
-            if serializer.is_valid():
-                serializer.save()
-                return Response({'message': 'Footer section saved successfully!'}, status=201)
-            return Response({'error': serializer.errors}, status=400)
+            footer_serializer = FooterSectionSerializer(data=footer_data)
+
+            if footer_serializer.is_valid():
+                footer = footer_serializer.save()
+
+                # Save additional FooterImage entries
+                for img in extra_images:
+                    FooterImage.objects.create(footer_section=footer, image=img)
+
+                return Response({'message': 'Footer section with images saved successfully!'}, status=201)
+
+            return Response({'error': footer_serializer.errors}, status=400)
+
         except Exception as e:
             return Response({'error': str(e)}, status=400)
 
@@ -732,6 +764,8 @@ class ReferAndEarnCreateView(APIView):
 
     def post(self, request):
         try:
+            if ReferAndEarn.objects.exists():
+                return Response({'error': 'A Refer and Earn entry already exists. Cannot add another one.'}, status=400)
             refer_data = {
                 'image': request.FILES.get('image'),
                 'price': request.data.get('price')
@@ -2013,13 +2047,25 @@ class ToggleVendorStatusView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+class BusReviewListView(APIView):
+    def get(self, request):
+        reviews = BusReview.objects.all().order_by('-created_at')
+        serializer = BusReviewSerializer(reviews, many=True)
+        return Response({"message": "Bus reviews fetched successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+
+
+class PackageReviewListView(APIView):
+    def get(self, request):
+        reviews = PackageReview.objects.all().order_by('-created_at')
+        serializer = PackageReviewSerializer(reviews, many=True)
+        return Response({"message": "Package reviews fetched successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
 
 
 
 
 
-
-
-
-
-
+class AppReviewListView(APIView):
+    def get(self, request):
+        reviews = AppReview.objects.all().order_by('-created_at')
+        serializer = AppReviewSerializer(reviews, many=True)
+        return Response({"message": "App reviews fetched successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
