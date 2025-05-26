@@ -65,12 +65,22 @@ class AdminVendorSerializer(serializers.ModelSerializer):
         validated_data['user'] = user
         return Vendor.objects.create(**validated_data)
 
+class VendorBusyDateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VendorBusyDate
+        fields = ['date', 'from_time', 'to_time', 'reason']
+
+
 
 
 class VendorFullSerializer(serializers.ModelSerializer):
     user_id = serializers.IntegerField(source='user.id')
     buses = BusSerializer(source='bus_set', many=True, read_only=True)
     packages = PackageSerializer(source='package_set', many=True, read_only=True)
+    # busy_dates = VendorBusyDateSerializer(source='busy_dates', many=True, read_only=True)
+    busy_dates = VendorBusyDateSerializer(many=True, read_only=True)
+
+    
 
     bus_count = serializers.SerializerMethodField()
     package_count = serializers.SerializerMethodField()
@@ -94,7 +104,8 @@ class VendorFullSerializer(serializers.ModelSerializer):
             'package_count',
             'buses',
             'ongoing_buses',
-            'packages'
+            'packages',
+            'busy_dates', 
         ]
 
     def get_bus_count(self, obj):
@@ -390,7 +401,7 @@ class SightImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = SightImage
         fields = ['id', 'image']
-        
+
 
 class ExperienceImageSerializer(serializers.ModelSerializer):
     class Meta:
