@@ -390,6 +390,7 @@ class SightImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = SightImage
         fields = ['id', 'image']
+        
 
 class ExperienceImageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -402,14 +403,14 @@ class ExperienceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Experience
-        fields = ['images', 'description','header','sub_header']
+        fields = ['id','images', 'description','header','sub_header']
 
 
 class SightSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Sight
-        fields = ['title', 'description', 'season_description']
+        fields = ['id','title', 'description', 'season_description']
 
 class SeasonTimeSerializer(serializers.ModelSerializer):
     class Meta:

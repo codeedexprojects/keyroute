@@ -442,13 +442,13 @@ class PackageSubCategorySerializer(serializers.ModelSerializer):
         return value
 
 
-def validate_days_nights(days, nights):
-    if days < 0 or nights < 0:
-        raise ValidationError("Days and nights must be non-negative numbers.")
+# def validate_days_nights(days, nights):
+#     if days < 0 or nights < 0:
+#         raise ValidationError("Days and nights must be non-negative numbers.")
 
-def validate_places(places):
-    if not places.strip():
-        raise ValidationError("Places field cannot be empty.")
+# def validate_places(places):
+#     if not places.strip():
+#         raise ValidationError("Places field cannot be empty.")
 
 
 class PackageImageSerializer(serializers.ModelSerializer):
