@@ -14,6 +14,7 @@ User = get_user_model()
 
 class ReferralCodeSerializer(serializers.ModelSerializer):
     price = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -22,6 +23,10 @@ class ReferralCodeSerializer(serializers.ModelSerializer):
     def get_price(self, obj):
         refer_and_earn_obj = ReferAndEarn.objects.first()
         return refer_and_earn_obj.price if refer_and_earn_obj else None
+    
+    def get_image(self, obj):
+        refer_and_earn_obj = ReferAndEarn.objects.first()
+        return refer_and_earn_obj.image if refer_and_earn_obj and refer_and_earn_obj.image else None
 
 class LoginSerializer(serializers.Serializer):
     mobile = serializers.CharField(max_length=15)
