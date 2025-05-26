@@ -749,7 +749,11 @@ class ReferAndEarnCreateView(APIView):
 
 
 
-
+class AdvertisementListView(APIView):
+    def get(self, request, *args, **kwargs):
+        advertisements = Advertisement.objects.all()
+        serializer = AdvertisementSerializer(advertisements, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 
@@ -763,6 +767,16 @@ class AdvertisementDetailView(APIView):
 
         serializer = AdvertisementSerializer(advertisement)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+    def delete(self, request, ad_id, *args, **kwargs):
+        try:
+            advertisement = Advertisement.objects.get(id=ad_id)
+        except Advertisement.DoesNotExist:
+            return Response({"error": "Advertisement not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        advertisement.delete()
+        return Response({"message": "Advertisement deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
 
 
@@ -781,6 +795,17 @@ class LimitedDealDetailView(APIView):
 
         serializer = LimitedDealSerializer(deal)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def delete(self, request, deal_id, *args, **kwargs):
+        try:
+            deal = LimitedDeal.objects.get(id=deal_id)
+        except LimitedDeal.DoesNotExist:
+            return Response({"error": "LimitedDeal not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        deal.delete()
+        return Response({"message": "LimitedDeal deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
 
 
 class FooterSectionListView(APIView):
@@ -798,6 +823,16 @@ class FooterSectionDetailView(APIView):
 
         serializer = FooterSectionSerializer(footer)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+    def delete(self, request, footer_id, *args, **kwargs):
+        try:
+            footer = FooterSection.objects.get(id=footer_id)
+        except FooterSection.DoesNotExist:
+            return Response({"error": "FooterSection not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        footer.delete()
+        return Response({"message": "FooterSection deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
 
 class ReferAndEarnListView(APIView):
@@ -815,6 +850,16 @@ class ReferAndEarnDetailView(APIView):
 
         serializer = ReferAndEarnSerializer(ref)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+    def delete(self, request, ref_id, *args, **kwargs):
+        try:
+            ref = ReferAndEarn.objects.get(id=ref_id)
+        except ReferAndEarn.DoesNotExist:
+            return Response({"error": "ReferAndEarn not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        ref.delete()
+        return Response({"message": "ReferAndEarn entry deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
 
 
