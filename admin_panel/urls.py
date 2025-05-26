@@ -1,5 +1,8 @@
 from django.urls import path
 from admin_panel.views import *
+from rest_framework_simplejwt.views import (
+    TokenRefreshView,
+)
 
 urlpatterns = [
     path('api/admin/login/', AdminLoginAPIView.as_view(), name='admin-login'),
@@ -139,5 +142,9 @@ urlpatterns = [
     # PACKAGE LISTING
     path('api/admin/packages/', AdminPackageListView.as_view(), name='admin-package-list'),
     path('api/admin/packages/<int:pk>/', AdminPackageDetailView.as_view(), name='admin-package-detail'),
+
+
+
+    path('api/admin/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'), 
 
 ] 
