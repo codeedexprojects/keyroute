@@ -1134,7 +1134,20 @@ class ExploreSectionListView(APIView):
         serializer = SightListSerializer(sights, many=True)
         return Response({"message": "Explore section fetched successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
 
+# EXPLORE DETAIL
+class ExploreSectionDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
+    def get(self, request, sight_id, *args, **kwargs):
+        try:
+            print('explroe details is workig')
+            sight = Sight.objects.get(id=sight_id)
+        except Sight.DoesNotExist:
+            return Response({"error": "Sight not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = SightListSerializer(sight)
+        return Response({"message": "Explore section detail fetched successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
 
 
 
