@@ -25,6 +25,8 @@ urlpatterns = [
     # USERS LIST
     path('api/admin/users/', AllUsersAPIView.as_view(), name='all-users'),
     path('api/admin/users/<int:user_id>/', AllUsersAPIView.as_view(), name='single-user'),
+    #USER PDF
+    path('api/admin/users/pdf/', AllUsersPDFAPIView.as_view(), name='users-pdf'),
 
     # VENODR CREATING AND LISING
     path('api/admin/create-vendor/', AdminCreateVendorAPIView.as_view(), name='admin-create-vendor'),
@@ -38,7 +40,7 @@ urlpatterns = [
 
     
 
-    # PACKAGE LISTING AND SINGLE DETAILS
+    # PACKAGE LISTING by vendor id  AND SINGLE DETAILS
     path('api/admin/vendor/<int:vendor_id>/packages/', AdminVendorPackageListAPIView.as_view()),
     path('api/admin/vendor/package/<int:package_id>/', AdminPackageDetailAPIView.as_view()),
 
