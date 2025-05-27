@@ -900,6 +900,25 @@ class ReferAndEarnDetailView(APIView):
 
 
 
+    def patch(self, request, ref_id, *args, **kwargs):
+        try:
+            ref = ReferAndEarn.objects.get(id=ref_id)
+        except ReferAndEarn.DoesNotExist:
+            return Response({"error": "ReferAndEarn not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ReferAndEarnSerializer(ref, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
 #EXPLROE CREATING
 class ExploreSectionCreateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -1994,19 +2013,38 @@ class SingleBusDetailAPIView(APIView):
 
 
 
+# class AdminPackageListView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         sub_category_id = request.query_params.get('sub_category_id')
+#         if not sub_category_id:
+#             return Response({"detail": "Sub category ID is required."}, status=400)
+
+#         packages = Package.objects.filter(sub_category_id=sub_category_id).prefetch_related('buses__features', 'buses__vendor')
+#         # serializer = PackageListSerializer(packages, many=True)
+#         serializer = AdminPackageListSerializer(packages, many=True)
+#         return Response(serializer.data)
+
+
+
 class AdminPackageListView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         sub_category_id = request.query_params.get('sub_category_id')
-        if not sub_category_id:
-            return Response({"detail": "Sub category ID is required."}, status=400)
 
-        packages = Package.objects.filter(sub_category_id=sub_category_id).prefetch_related('buses__features', 'buses__vendor')
-        # serializer = PackageListSerializer(packages, many=True)
+        if sub_category_id:
+            packages = Package.objects.filter(sub_category_id=sub_category_id)
+        else:
+            packages = Package.objects.all()
+
+        packages = packages.prefetch_related('buses__features', 'buses__vendor')
         serializer = AdminPackageListSerializer(packages, many=True)
-        return Response(serializer.data)
+        return Response(serializer.data, status=200)
+
 
 
 

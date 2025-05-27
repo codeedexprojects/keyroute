@@ -180,7 +180,7 @@ class AdminPackageListSerializer(serializers.ModelSerializer):
             'places',
             'days',
             'ac_available',
-            'guide_included',
+            'guide_included', 
             'sub_category_name',
             'image'
         ]
