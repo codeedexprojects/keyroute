@@ -28,7 +28,9 @@ class ReferralCodeSerializer(serializers.ModelSerializer):
     
     def get_image(self, obj):
         refer_and_earn_obj = ReferAndEarn.objects.first()
-        return refer_and_earn_obj.image if refer_and_earn_obj and refer_and_earn_obj.image else None
+        if refer_and_earn_obj and refer_and_earn_obj.image:
+            return refer_and_earn_obj.image.url
+        return None
 
 class LoginSerializer(serializers.Serializer):
     mobile = serializers.CharField(max_length=15)

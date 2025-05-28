@@ -351,9 +351,9 @@ class ListFavourites(APIView):
         user = request.user
 
         if bus_or_package == "bus":
-            favourites = Favourite.objects.filter(user=user, bus__isnull=False)
+            favourites = Favourite.objects.filter(user=user).exclude(bus=None)
         elif bus_or_package == "package":
-            favourites = Favourite.objects.filter(user=user, package__isnull=False)
+            favourites = Favourite.objects.filter(user=user).exclude(package=None)
         else:
             return Response({'error': 'Invalid type. Use "bus" or "package".'}, status=status.HTTP_400_BAD_REQUEST)
 
