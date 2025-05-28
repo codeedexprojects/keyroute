@@ -818,6 +818,29 @@ class AppReviewSerializer(serializers.ModelSerializer):
 
 
 
+class UnifiedReviewSerializer(serializers.Serializer):
+    user = serializers.CharField()
+    rating = serializers.FloatField()
+    comment = serializers.CharField(allow_blank=True, allow_null=True)
+    created_at = serializers.DateTimeField()
+    type = serializers.CharField()
+    related_name = serializers.CharField()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
