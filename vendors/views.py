@@ -3656,12 +3656,17 @@ class AcceptPackageBookingView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    def post(self, request, booking_id):
-        print('is working',booking_id)
+    def post(self, request, booking_id1):
+        print('is working',booking_id1)
         try:
             vendor = request.user.vendor   
+            # package_booking = PackageBooking.objects.filter(
+            #     id=booking_id, 
+            #     booking_status='pending',   
+            #     package__vendor=vendor   
+            # ).first()
             package_booking = PackageBooking.objects.filter(
-                id=booking_id, 
+                booking_id=booking_id1, 
                 booking_status='pending',   
                 package__vendor=vendor   
             ).first()
