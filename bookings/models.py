@@ -176,3 +176,15 @@ class PackageDriverDetail(models.Model):
 
     def __str__(self):
         return self.name
+    
+
+class UserBusSearch(models.Model):
+    user = models.ForeignKey(User,on_delete=models.CASCADE, related_name="user_bus_searches")
+    one_way = models.BooleanField(default=True)
+    from_lat = models.FloatField()
+    from_lon = models.FloatField()
+    to_lat = models.FloatField()
+    to_lon = models.FloatField()
+    seat = models.IntegerField()
+    ac = models.BooleanField(default=False)
+    pushback = models.BooleanField(default=False)
