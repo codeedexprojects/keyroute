@@ -8,14 +8,19 @@ class BusReviewSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = BusReview
-        fields = ["user",'profile_image',"bus","rating", "comment", "created_at"]
+        fields = ["user", "profile_image", "bus", "rating", "comment", "created_at"]
 
     def get_user(self, obj):
         return obj.user.name if obj.user.name else obj.user.email
-    
+
     def get_profile_image(self, obj):
+        request = self.context.get('request')
         if obj.user.profile_image:
-            return obj.user.profile_image.url
+            image_url = obj.user.profile_image.url
+            if request is not None:
+                return request.build_absolute_uri(image_url)
+            else:
+                return image_url
         return None
 
 
