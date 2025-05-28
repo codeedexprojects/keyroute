@@ -9,19 +9,28 @@ from .models import ReferralRewardTransaction
 from admin_panel.models import Experience,Sight
 from admin_panel.models import *
 import calendar
+from vendors.models import *
+from bookings.serializers import *
 
 User = get_user_model()
 
 class ReferralCodeSerializer(serializers.ModelSerializer):
     price = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ['referral_code', 'price']
+        fields = ['referral_code', 'price','image']
 
     def get_price(self, obj):
         refer_and_earn_obj = ReferAndEarn.objects.first()
         return refer_and_earn_obj.price if refer_and_earn_obj else None
+    
+    def get_image(self, obj):
+        refer_and_earn_obj = ReferAndEarn.objects.first()
+        if refer_and_earn_obj and refer_and_earn_obj.image:
+            return refer_and_earn_obj.image.url
+        return None
 
 class LoginSerializer(serializers.Serializer):
     mobile = serializers.CharField(max_length=15)
@@ -137,6 +146,17 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+    
+
+class BusFeatureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusFeature
+        fields = ['id', 'name']    
+
+class AmenitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Amenity
+        fields = ['id', 'name', 'icon']
 
 
 class FavouriteSerializer(serializers.ModelSerializer):
@@ -152,13 +172,12 @@ class FavouriteSerializer(serializers.ModelSerializer):
 
     def get_bus_details(self, obj):
         if obj.bus:
-            from vendors.serializers import BusSerializer
-            return BusSerializer(obj.bus).data
+            return BusListingSerializer(obj.bus).data
         return None
         
     def get_package_details(self, obj):
         if obj.package:
-            from vendors.serializers import PackageSerializer
+            from bookings.serializers import PackageSerializer
             return PackageSerializer(obj.package).data
         return None
 
