@@ -23,7 +23,7 @@ from vendors.models import PackageCategory,PackageSubCategory
 from vendors.serializers import PackageCategorySerializer,PackageSubCategorySerializer
 from .serializers import (PackageFilterSerializer,PackageBookingUpdateSerializer,BusFilterSerializer,
                           ListPackageSerializer,ListingUserPackageSerializer,
-                          PackageSerializer,SinglePackageBookingSerilizer,
+                          UserBusSearchSerializer,SinglePackageBookingSerilizer,
                           SingleBusBookingSerializer,PopularBusSerializer,BusListingSerializer,FooterSectionSerializer,AdvertisementSerializer)
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
@@ -841,8 +841,26 @@ class AdvertisementListAPIView(APIView):
 
 
 class PackageDriverDetailListAPIView(APIView):
-    def get(self, request,booking_id):
-        booking = PackageBooking.objects.get(booking_id=booking_id)
-        drivers = PackageDriverDetail.objects.filter(package_booking=booking)
-        serializer = PackageDriverDetailSerializer(drivers, many=True)
+    def get(self, request, booking_id):
+        try:
+            booking = PackageBooking.objects.get(booking_id=booking_id)
+        except PackageBooking.DoesNotExist:
+            return Response(
+                {"error": f"No booking found with booking_id '{booking_id}'."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        drivers = PackageDriverDetail.objects.filter(package_booking=booking).first()
+        serializer = PackageDriverDetailSerializer(drivers)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+class UserBusSearchCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = UserBusSearchSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
