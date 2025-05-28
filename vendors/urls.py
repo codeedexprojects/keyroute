@@ -166,7 +166,7 @@ urlpatterns = [
 
     # REQUEST ACCEPT
     path('api/vendor/accepting-bus-bookings/<int:booking_id>/', AcceptBusBookingView.as_view(), name='accept-bus-bookings'),
-    path('api/vendor/accepting-package-bookings/<int:booking_id>/', AcceptPackageBookingView.as_view(), name='accept-package-bookings'),
+    path('api/vendor/accepting-package-bookings/<int:booking_id1>/', AcceptPackageBookingView.as_view(), name='accept-package-bookings'),
     
     
     
