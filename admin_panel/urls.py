@@ -52,7 +52,7 @@ urlpatterns = [
     path('api/admin/categories/', PackageCategoryListAPIView.as_view()),
 
     # NORMAL USER CREATING
-    path('api/admin/create-user/', AdminCreateUserView.as_view(), name='admin-create-user'),
+    # path('api/admin/create-user/', AdminCreateUserView.as_view(), name='admin-create-user'),
 
     #Advertisement CREATING AND LISTING
     # path('api/admin/sections/', AllSectionsCreateView.as_view(), name='create-sections'),
@@ -148,7 +148,7 @@ urlpatterns = [
     path('api/admin/bus/<int:bus_id>/', SingleBusDetailAPIView.as_view(), name='bus-detail'),
 
     # USER CREATION
-    path('api/admin/admin/create-user/', AdminCreateUserAPIView.as_view(), name='admin-create-user'),
+    path('api/admin/create-user/', AdminCreateUserAPIView.as_view(), name='admin-create-user'),
 
 
     # PACKAGE LISTING

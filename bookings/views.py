@@ -668,6 +668,14 @@ class BookingFilterByDate(APIView):
                 created_at__lte=end_datetime,
                 bus__vendor=vendor
             )
+
+           
+
+
+
+
+
+
             serializer = BusBookingSerializer(bookings, many=True)
         elif booking_type == 'package':
             bookings = PackageBooking.objects.filter(
@@ -703,6 +711,80 @@ class BookingFilterByDate(APIView):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
     
+
+
+    # def get(self, request, booking_type, date):
+    #     try:
+    #         vendor = Vendor.objects.get(user=request.user)
+    #     except Vendor.DoesNotExist:
+    #         return Response(
+    #             {"detail": "Unauthorized: Only vendors can access this data."},
+    #             status=status.HTTP_403_FORBIDDEN
+    #         )
+
+    #     parsed_date = parse_date(date)
+    #     if not parsed_date:
+    #         return Response(
+    #             {"error": "Invalid date format. Use YYYY-MM-DD."},
+    #             status=status.HTTP_400_BAD_REQUEST
+    #         )
+
+    #     start_datetime = datetime.combine(parsed_date, time.min)
+    #     end_datetime = datetime.combine(parsed_date, time.max)
+
+    #     if booking_type == 'bus':
+    #         bookings = BusBooking.objects.filter(
+    #             created_at__range=(start_datetime, end_datetime),
+    #             bus__vendor=vendor
+    #         )
+    #         serializer = BusBookingSerializer(bookings, many=True)
+    #         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    #     elif booking_type == 'package':
+    #         bookings = PackageBooking.objects.filter(
+    #             created_at__range=(start_datetime, end_datetime),
+    #             package__vendor=vendor
+    #         )
+    #         serializer = PackageBookingSerializer(bookings, many=True)
+    #         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    #     elif booking_type == 'all':
+    #         bus_bookings = BusBooking.objects.filter(
+    #             created_at__range=(start_datetime, end_datetime),
+    #             bus__vendor=vendor
+    #         )
+    #         package_bookings = PackageBooking.objects.filter(
+    #             created_at__range=(start_datetime, end_datetime),
+    #             package__vendor=vendor
+    #         )
+            
+    #         bus_data = BusBookingSerializer(bus_bookings, many=True).data
+    #         package_data = PackageBookingSerializer(package_bookings, many=True).data
+            
+    #         return Response({
+    #             "bus_bookings": bus_data,
+    #             "package_bookings": package_data
+    #         }, status=status.HTTP_200_OK)
+
+    #     else:
+    #         return Response(
+    #             {"error": "Invalid booking type. Must be 'bus', 'package', or 'all'."},
+    #             status=status.HTTP_400_BAD_REQUEST
+    #         )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 class PackageCategoryListAPIView(APIView):
     def get(self, request):
