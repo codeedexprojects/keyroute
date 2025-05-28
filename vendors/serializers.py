@@ -1503,3 +1503,8 @@ class PackageBookingREQUESTSerializer(serializers.ModelSerializer):
 
     def get_paid_amount(self, obj):
         return obj.advance_amount   
+    
+
+
+
+    

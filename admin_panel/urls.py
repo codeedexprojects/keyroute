@@ -169,7 +169,8 @@ urlpatterns = [
     path('api/admin/reviews/all/', AllReviewsListView.as_view(), name='all-review-list'),
 
 
-
+    # DASHBOARD RECENT REVIEW
+    path('api/admin/recent-reviews/', RecentReviewsAPIView.as_view(), name='recent-reviews'),
 
 
 
