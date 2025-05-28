@@ -299,3 +299,16 @@ class SightSerializer(serializers.ModelSerializer):
     class Meta:
         model = Sight
         fields = '__all__'
+
+
+class LimitedDealImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LimitedDealImage
+        fields = ['id', 'image']
+
+class LimitedDealSerializer(serializers.ModelSerializer):
+    images = LimitedDealImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = LimitedDeal
+        fields = ['id', 'title', 'created_at', 'terms_and_conditions', 'offer', 'subtitle', 'images']

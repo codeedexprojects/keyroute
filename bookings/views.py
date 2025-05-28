@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.db.models import Sum, Count
-from .models import PackageBooking, BusBooking, Travelers
+from .models import PackageBooking, BusBooking, Travelers, UserBusSearch
 from .serializers import (
     PackageBookingSerializer, BusBookingSerializer, 
     TravelerSerializer, TravelerCreateSerializer
@@ -120,33 +120,15 @@ class SinglePackageListAPIView(APIView):
 
 
 class BusListAPIView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        lat = request.query_params.get('lat')
-        lon = request.query_params.get('lon')
-        search = request.query_params.get('search')
-        capacity = request.query_params.get('capacity')
-        ac = request.query_params.get('ac')  # expects "true" or "false"
-        pushback = request.query_params.get('pushback')  # expects "true" or "false"
-
-        # 1. Validate coordinates
-        if lat is None or lon is None:
-            return Response(
-                {"error": "Latitude (lat) and Longitude (lon) query parameters are required."},
-                status=400
-            )
         try:
-            lat = float(lat)
-            lon = float(lon)
-            if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
-                return Response(
-                    {"error": "Latitude must be between -90 and 90, and longitude between -180 and 180."},
-                    status=400
-                )
-            user_coords = (lat, lon)
-        except ValueError:
-            return Response({"error": "Latitude and longitude must be valid float values."}, status=400)
+            user_search = UserBusSearch.objects.get(user=request.user)
+        except UserBusSearch.DoesNotExist:
+            return Response({"error": "No bus search data found for this user."}, status=404)
+
+        user_coords = (user_search.from_lat, user_search.from_lon)
 
         # Optional debug log for location
         try:
@@ -156,26 +138,19 @@ class BusListAPIView(APIView):
         except Exception as e:
             print(f"Geolocation error: {e}")
 
-        # 2. Initial queryset
+        # Initial queryset
         buses = Bus.objects.filter(latitude__isnull=False, longitude__isnull=False)
 
-        # 3. Search filter has priority
-        if search:
-            buses = buses.filter(bus_name__icontains=search)
-        else:
-            # Apply additional filters
-            if capacity:
-                try:
-                    buses = buses.filter(capacity__gte=int(capacity))
-                except ValueError:
-                    return Response({"error": "Capacity must be an integer."}, status=400)
+        # Filter by seat
+        buses = buses.filter(capacity__gte=user_search.seat)
 
-            if ac == 'true':
-                buses = buses.filter(features__name__iexact='ac')
-            if pushback == 'true':
-                buses = buses.filter(features__name__iexact='pushback')
+        # Filter by features
+        if user_search.ac:
+            buses = buses.filter(features__name__iexact='ac')
+        if user_search.pushback:
+            buses = buses.filter(features__name__iexact='pushback')
 
-        # 4. Distance filter: within 30 km
+        # Distance filter: within 30 km
         nearby_buses = []
         for bus in buses.distinct():
             if bus.latitude is not None and bus.longitude is not None:
@@ -187,7 +162,6 @@ class BusListAPIView(APIView):
         if not nearby_buses:
             return Response({"message": "No buses found near your location within 30 km."}, status=200)
 
-        # 5. Serialize result
         serializer = BusListingSerializer(nearby_buses, many=True, context={'request': request})
         return Response(serializer.data)
     
@@ -859,8 +833,14 @@ class UserBusSearchCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = UserBusSearchSerializer(data=request.data)
+        try:
+            user_search = UserBusSearch.objects.get(user=request.user)
+            serializer = UserBusSearchSerializer(user_search, data=request.data)
+        except UserBusSearch.DoesNotExist:
+            serializer = UserBusSearchSerializer(data=request.data)
+
         if serializer.is_valid():
             serializer.save(user=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
