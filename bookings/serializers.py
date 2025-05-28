@@ -1,6 +1,6 @@
 
 from rest_framework import serializers
-from .models import BusBooking, PackageBooking, Travelers, BusDriverDetail, PackageDriverDetail
+from .models import BusBooking, PackageBooking, Travelers, UserBusSearch, PackageDriverDetail
 from vendors.models import Package, Bus
 from admin_panel.utils import get_admin_commission_from_db, get_advance_amount_from_db
 from admin_panel.models import AdminCommission
@@ -1104,7 +1104,7 @@ class BusListingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bus
         fields = [
-            'id', 'bus_name', 'bus_number', 'location', 'capacity', 'base_price',
+            'id', 'bus_name', 'bus_number', 'location','price_per_km', 'capacity', 'base_price',
             'amenities', 'features', 'average_rating', 'total_reviews', 'is_favorite',
             'images', 'bus_review_summary', 'reviews'
         ]
@@ -1221,3 +1221,10 @@ class PackageSerializer(serializers.ModelSerializer):
         if value < 0:
             raise serializers.ValidationError("Nights cannot be negative.")
         return value
+    
+
+class UserBusSearchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserBusSearch
+        fields = '__all__'
+        read_only_fields = ['user']
