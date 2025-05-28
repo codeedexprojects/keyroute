@@ -508,3 +508,9 @@ class SimilarExperienceView(APIView):
 
         serializer = ExperienceSerializer(similar_experiences, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+class LimitedDealListAPIView(APIView):
+    def get(self, request):
+        deals = LimitedDeal.objects.all().order_by('-created_at')
+        serializer = LimitedDealSerializer(deals, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
