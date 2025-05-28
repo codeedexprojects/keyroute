@@ -176,13 +176,20 @@ class AllUsersAPIView(APIView):
     def get(self, request, user_id=None):
         if user_id:
             try:
-                user = User.objects.get(id=user_id, role=User.USER)
+                
+
+
+
+                # user = User.objects.get(id=user_id, role=User.USER)
+                user = User.objects.filter(role=User.USER).order_by('-created_at')  # or '-created_at'
+
                 serializer = UserSerializer(user)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             except User.DoesNotExist:
                 return Response({"error": "User not found or not a normal user."}, status=status.HTTP_404_NOT_FOUND)
         else:
-            users = User.objects.filter(role=User.USER)
+            # users = User.objects.filter(role=User.USER)
+            users = User.objects.filter(role=User.USER).order_by('-created_at')
 
             booked_users_bus = BusBooking.objects.values('user_id')
             booked_users_package = PackageBooking.objects.values('user_id')
@@ -1504,7 +1511,9 @@ class AdminVendorOverview(APIView):
    
 
     def get(self, request):
-        vendors = Vendor.objects.all()
+        # vendors = Vendor.objects.all()
+        vendors = Vendor.objects.all().order_by('-created_at')
+
         today = timezone.now().date()
 
         data = []
@@ -2202,3 +2211,66 @@ class AllReviewsListView(APIView):
             "app_reviews": app_serializer.data,
         }, status=status.HTTP_200_OK)
     
+
+
+
+
+
+class RecentReviewsAPIView(APIView):
+    def get(self, request):
+        bus_reviews = BusReview.objects.select_related('user', 'bus').all()
+        package_reviews = PackageReview.objects.select_related('user', 'package').all()
+        app_reviews = AppReview.objects.select_related('user').all()
+
+        # Annotate each review with a type and related name (for frontend display)
+        def annotate_reviews(queryset, type_label, get_related_name):
+            for review in queryset:
+                review.type = type_label
+                review.related_name = get_related_name(review)
+                yield review
+
+        combined_reviews = list(chain(
+            annotate_reviews(bus_reviews, "bus", lambda r: r.bus.bus_name),
+            annotate_reviews(package_reviews, "package", lambda r: str(r.package)),
+            annotate_reviews(app_reviews, "app", lambda r: "App Feedback")
+        ))
+
+        # Sort by created_at descending
+        sorted_reviews = sorted(combined_reviews, key=attrgetter('created_at'), reverse=True)
+
+        # Serialize manually using UnifiedReviewSerializer
+        serialized = UnifiedReviewSerializer([
+            {
+                "user": review.user.name,
+                "rating": review.rating,
+                "comment": review.comment,
+                "created_at": review.created_at,
+                "type": review.type,
+                "related_name": review.related_name
+            }
+            for review in sorted_reviews
+        ], many=True)
+
+        return Response(serialized.data, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
