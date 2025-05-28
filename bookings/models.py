@@ -66,6 +66,10 @@ class BusBooking(BaseBooking):
     booking_id = models.PositiveIntegerField(unique=True, editable=False)
     bus = models.ForeignKey(Bus, on_delete=models.CASCADE, related_name='bookings')
     one_way = models.BooleanField(default=True)
+    from_lat = models.FloatField()
+    from_lon = models.FloatField()
+    to_lat = models.FloatField(null=True, blank=True)
+    to_lon = models.FloatField(null=True, blank=True)
     
     def __str__(self):
         return f"Bus Booking #{self.booking_id} - {self.from_location} to {self.to_location} ({self.start_date})"
@@ -179,7 +183,7 @@ class PackageDriverDetail(models.Model):
     
 
 class UserBusSearch(models.Model):
-    user = models.ForeignKey(User,on_delete=models.CASCADE, related_name="user_bus_searches")
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="bus_search")
     one_way = models.BooleanField(default=True)
     from_lat = models.FloatField()
     from_lon = models.FloatField()

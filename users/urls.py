@@ -4,7 +4,7 @@ from .views import (UserLogoutView, UserProfileAPIView,  AuthenticationView,
                     GetWalletView,OngoingReferralsView,ReferralHistoryView,
                     SightDetailView,ExperienceView,ExperienceDetailView,RemoveFavouriteAPIView,SeasonTimeDetailView,
                     SeasonTimeView,SightView,GreetingAPIView,ResendOTPView,
-                    SimilarExperienceView)
+                    SimilarExperienceView,LimitedDealListAPIView)
 
 urlpatterns = [
     path('auth/', AuthenticationView.as_view(), name='authentication'),
@@ -40,4 +40,6 @@ urlpatterns = [
     path('greeting/', GreetingAPIView.as_view(), name='greeting'),
 
     path('sights/<int:sight_id>/similar-experiences/<int:exclude_experience_id>/', SimilarExperienceView.as_view(), name='similar-experiences'),
+
+    path('limited-deals/', LimitedDealListAPIView.as_view(), name='limited-deal-list'),
 ]
