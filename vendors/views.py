@@ -2099,9 +2099,33 @@ class PackageBookingRevenueListView(APIView):
 
 
 class LatestSingleBookingView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    # def get(self, request):
+    #     print('latest booking')
+
+    #     latest_bus = BusBooking.objects.order_by('-created_at').first()
+    #     latest_package = PackageBooking.objects.order_by('-created_at').first()
+
+    #     latest = max(
+    #         filter(None, [latest_bus, latest_package]),
+    #         key=lambda x: x.created_at,
+    #         default=None
+    #     )
+
+    #     if not latest:
+    #         return Response({"message": "No bookings found."}, status=status.HTTP_204_NO_CONTENT)
+
+    #     serializer = CombinedBookingSerializer(latest)
+    #     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
     def get(self, request):
-        latest_bus = BusBooking.objects.order_by('-created_at').first()
-        latest_package = PackageBooking.objects.order_by('-created_at').first()
+        user = request.user   
+
+        latest_bus = BusBooking.objects.filter(user=user).order_by('-created_at').first()
+        latest_package = PackageBooking.objects.filter(user=user).order_by('-created_at').first()
 
         latest = max(
             filter(None, [latest_bus, latest_package]),
@@ -2110,10 +2134,12 @@ class LatestSingleBookingView(APIView):
         )
 
         if not latest:
-            return Response({"message": "No bookings found."}, status=status.HTTP_204_NO_CONTENT)
+            return Response({"message": "No bookings found for the current user."}, status=status.HTTP_204_NO_CONTENT)
 
         serializer = CombinedBookingSerializer(latest)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 
 
 
@@ -2121,31 +2147,6 @@ class VendorBusBookingListView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
     """API View to get the current vendor's bus bookings"""
-
-    # def get(self, request, format=None):
-    #     try:
-    #         vendor = Vendor.objects.get(user=request.user)
-    #     except Vendor.DoesNotExist:
-    #         return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
-        
-    #     current_year = datetime.now().year
-    #     current_month = datetime.now().month
-        
-    #     bookings = BusBooking.objects.filter(bus__vendor=vendor)
-        
-    #     total = bookings.filter(
-    #         created_at__year=current_year,
-    #         created_at__month=current_month
-    #     ).aggregate(total=Sum('total_amount'))['total']
-        
-    #     monthly_revenue = float(total) if total else 0.0
-
-    #     serializer = BusBookingDetailSerializer(bookings, many=True)
-        
-    #     return Response({
-    #         "bookings": serializer.data,
-    #         "monthly_revenue": monthly_revenue
-    #     }, status=status.HTTP_200_OK)
 
 
 
