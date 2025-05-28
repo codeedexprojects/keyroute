@@ -325,7 +325,6 @@ class PackageBookingSerializer(BaseBookingSerializer):
         }
 
     def get_package_details(self, obj):
-        from vendors.serializers import PackageSerializer
         return PackageSerializer(obj.package).data
 
     def get_booking_type(self, obj):
@@ -1174,3 +1173,51 @@ class AdvertisementSerializer(serializers.ModelSerializer):
         model = Advertisement
         fields = ['id', 'title', 'subtitle', 'type', 'image', 'created_at']
 
+
+class PackageSerializer(serializers.ModelSerializer):
+    day_plans = DayPlanSerializer(many=True, write_only=True)
+    buses = serializers.PrimaryKeyRelatedField(queryset=Bus.objects.all(), many=True)
+    travels_name = serializers.SerializerMethodField()
+    travels_location = serializers.SerializerMethodField()
+    day_plans_read = DayPlanSerializer(source='dayplan_set', many=True, read_only=True)
+    is_favorite = serializers.SerializerMethodField()
+    average_rating = serializers.ReadOnlyField()
+    total_reviews = serializers.ReadOnlyField()
+    price_per_person = serializers.SerializerMethodField()
+    package_images = PackageImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Package
+        fields = [
+            'id',
+            'sub_category', 'header_image', 'places', 'days',
+            'ac_available', 'guide_included', 'buses', 
+            'day_plans','day_plans_read','average_rating', 'total_reviews','price_per_person','is_favorite','travels_name','travels_location','package_images'
+        ]
+    
+    def get_travels_name(self, obj):
+        return obj.vendor.travels_name
+    
+    def get_travels_location(self, obj):
+        return obj.vendor.location
+
+    def get_price_per_person(self, obj):
+        if obj.price_per_person is not None:
+            return int(obj.price_per_person)
+        return 0
+    
+    def get_is_favorite(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return Favourite.objects.filter(user=request.user, package=obj).exists()
+        return False
+    
+    def validate_days(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Days must be greater than 0.")
+        return value
+
+    def validate_nights(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Nights cannot be negative.")
+        return value

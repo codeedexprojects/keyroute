@@ -177,7 +177,7 @@ class FavouriteSerializer(serializers.ModelSerializer):
         
     def get_package_details(self, obj):
         if obj.package:
-            from vendors.serializers import PackageSerializer
+            from bookings.serializers import PackageSerializer
             return PackageSerializer(obj.package).data
         return None
 
