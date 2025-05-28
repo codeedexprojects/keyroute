@@ -442,13 +442,13 @@ class PackageSubCategorySerializer(serializers.ModelSerializer):
         return value
 
 
-def validate_days_nights(days, nights):
-    if days < 0 or nights < 0:
-        raise ValidationError("Days and nights must be non-negative numbers.")
+# def validate_days_nights(days, nights):
+#     if days < 0 or nights < 0:
+#         raise ValidationError("Days and nights must be non-negative numbers.")
 
-def validate_places(places):
-    if not places.strip():
-        raise ValidationError("Places field cannot be empty.")
+# def validate_places(places):
+#     if not places.strip():
+#         raise ValidationError("Places field cannot be empty.")
 
 
 class PackageImageSerializer(serializers.ModelSerializer):
@@ -1423,7 +1423,7 @@ class BusBookingRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = BusBooking
         fields = [
-            'id', 'bus_number', 'from_location', 'to_location', 'total_amount',
+            'booking_id', 'bus_number', 'from_location', 'to_location', 'total_amount',
             'commission_amount', 'trip_type', 'total_travelers', 'first_traveler_name',
             'created_date','paid_amount'
         ]
@@ -1469,7 +1469,7 @@ class PackageBookingREQUESTSerializer(serializers.ModelSerializer):
     class Meta:
         model = PackageBooking
         fields = [
-            'id', 'package_name', 'from_location', 'to_location', 'total_amount',
+            'booking_id','package_name', 'from_location', 'to_location', 'total_amount',
             'commission_amount', 'trip_type', 'total_members', 'one_member_name',
             'created_date', 'paid_amount'
         ]

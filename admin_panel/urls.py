@@ -1,5 +1,8 @@
 from django.urls import path
 from admin_panel.views import *
+from rest_framework_simplejwt.views import (
+    TokenRefreshView,
+)
 
 urlpatterns = [
     path('api/admin/login/', AdminLoginAPIView.as_view(), name='admin-login'),
@@ -22,6 +25,8 @@ urlpatterns = [
     # USERS LIST
     path('api/admin/users/', AllUsersAPIView.as_view(), name='all-users'),
     path('api/admin/users/<int:user_id>/', AllUsersAPIView.as_view(), name='single-user'),
+    #USER PDF
+    path('api/admin/users/pdf/', AllUsersPDFAPIView.as_view(), name='users-pdf'),
 
     # VENODR CREATING AND LISING
     path('api/admin/create-vendor/', AdminCreateVendorAPIView.as_view(), name='admin-create-vendor'),
@@ -30,12 +35,15 @@ urlpatterns = [
     # VENDOR SINGLE DATA
     path('api/admin/vendors/<int:vendor_id>/', AdminVendorDetailAPIView.as_view(), name='admin-vendor-detail'),
 
+    # VENDOR  STATUS
+    path('api/admin/toggle-vendor-status/<int:vendor_id>/', ToggleVendorStatusView.as_view(), name='toggle-vendor-status'), 
+
     # SINGLE VENDOR BUS LIST
     path('api/admin/vendors/<int:vendor_id>/buses/', AdminVendorBusListAPIView.as_view()),
 
     
-
-    # PACKAGE LISTING AND SINGLE DETAILS
+    # noted
+    # PACKAGE LISTING by vendor id  AND SINGLE DETAILS
     path('api/admin/vendor/<int:vendor_id>/packages/', AdminVendorPackageListAPIView.as_view()),
     path('api/admin/vendor/package/<int:package_id>/', AdminPackageDetailAPIView.as_view()),
 
@@ -44,13 +52,14 @@ urlpatterns = [
     path('api/admin/categories/', PackageCategoryListAPIView.as_view()),
 
     # NORMAL USER CREATING
-    path('api/admin/create-user/', AdminCreateUserView.as_view(), name='admin-create-user'),
+    # path('api/admin/create-user/', AdminCreateUserView.as_view(), name='admin-create-user'),
 
     #Advertisement CREATING AND LISTING
     # path('api/admin/sections/', AllSectionsCreateView.as_view(), name='create-sections'),
     # path('api/admin/advertisement/<int:ad_id>/', AdvertisementDetailView.as_view(), name='advertisement-detail'),
 
     # ADV , LIMITED DEAL,FOOTER, REFER LISTING ----------------------------------------
+    path('api/admin/advertisement/', AdvertisementListView.as_view()),
     path('api/admin/advertisement/<int:ad_id>/', AdvertisementDetailView.as_view()),
     path('api/admin/limited-deals/', LimitedDealListView.as_view()),
     path('api/admin/limited-deals/<int:deal_id>/', LimitedDealDetailView.as_view()),
@@ -61,6 +70,8 @@ urlpatterns = [
 
 # -----------------------------------------------------------
 
+
+
     # CREATING
 
     path('api/admin/create/advertisement/', AdvertisementCreateView.as_view(), name='create_advertisement'),
@@ -70,13 +81,17 @@ urlpatterns = [
 
 # -----------------------------
 
-    # EXPLORE
+    # EXPLORE create and edit
     path('api/admin/explore/create/', ExploreSectionCreateView.as_view(), name='create-explore-section'),
     # edit
     path('api/admin/explore/<int:pk>/', ExploreSectionCreateView.as_view(), name='create-explore-section'),
 
     # EXPLORE LISTING
     path('api/admin/explore/list/', ExploreSectionListView.as_view(), name='explore-list'),
+    # SINGLE EXPLORING
+    path('api/admin/explore/single/<int:sight_id>/', ExploreSectionDetailView.as_view(), name='explore-detail'),
+
+
 
 
     #ALL BOOKINGS
@@ -133,11 +148,29 @@ urlpatterns = [
     path('api/admin/bus/<int:bus_id>/', SingleBusDetailAPIView.as_view(), name='bus-detail'),
 
     # USER CREATION
-    path('api/admin/admin/create-user/', AdminCreateUserAPIView.as_view(), name='admin-create-user'),
+    path('api/admin/create-user/', AdminCreateUserAPIView.as_view(), name='admin-create-user'),
 
 
     # PACKAGE LISTING
     path('api/admin/packages/', AdminPackageListView.as_view(), name='admin-package-list'),
     path('api/admin/packages/<int:pk>/', AdminPackageDetailView.as_view(), name='admin-package-detail'),
+
+
+
+    path('api/admin/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'), 
+    path('api/admin/users/<int:user_id>/toggle-status/', ToggleUserActiveStatusAPIView.as_view(), name='toggle-user-status'),
+
+
+
+
+    path('api/admin/reviews/bus/', BusReviewListView.as_view(), name='bus-review-list'),
+    path('api/admin/reviews/package/', PackageReviewListView.as_view(), name='package-review-list'),
+    path('api/admin/reviews/app/', AppReviewListView.as_view(), name='app-review-list'),
+    path('api/admin/reviews/all/', AllReviewsListView.as_view(), name='all-review-list'),
+
+
+
+
+
 
 ] 
