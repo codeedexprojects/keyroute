@@ -3596,10 +3596,12 @@ class AcceptBusBookingView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    def post(self, request, booking_id):
+    def post(self, request, booking_id1):
         try:
             vendor = request.user.vendor
-            bus_booking = BusBooking.objects.get(id=booking_id, bus__vendor=vendor)
+            # bus_booking = BusBooking.objects.get(id=booking_id, bus__vendor=vendor)
+            bus_booking = BusBooking.objects.get(booking_id=booking_id1, bus__vendor=vendor)
+
 
             if bus_booking.booking_status != 'pending':
                 return Response({"error": "Booking is already accepted or declined."}, status=status.HTTP_400_BAD_REQUEST)
