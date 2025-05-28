@@ -3,10 +3,20 @@ from .models import BusReview, PackageReview,AppReview
 from django.db.models import Avg
 
 class BusReviewSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+    profile_image = serializers.SerializerMethodField()
     
     class Meta:
         model = BusReview
-        fields = ["user","bus","rating", "comment", "created_at"]
+        fields = ["user",'profile_image',"bus","rating", "comment", "created_at"]
+
+    def get_user(self, obj):
+        return obj.user.name if obj.user.name else obj.user.email
+    
+    def get_profile_image(self, obj):
+        if obj.user.profile_image:
+            return obj.user.profile_image.url
+        return None
 
 
 class PackageReviewSerializer(serializers.ModelSerializer):
