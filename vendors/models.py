@@ -69,6 +69,7 @@ class Bus(models.Model):
     vehicle_insurance = models.FileField(upload_to='insurance/')
     amenities = models.ManyToManyField(Amenity, related_name='buses', blank=True)
     base_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    base_price_km = models.IntegerField()
     price_per_km = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     features = models.ManyToManyField(BusFeature, related_name='buses', blank=True)
     minimum_fare = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
