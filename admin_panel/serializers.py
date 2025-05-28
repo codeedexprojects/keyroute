@@ -399,10 +399,11 @@ class FooterImageSerializer(serializers.ModelSerializer):
 
 class FooterSectionSerializer(serializers.ModelSerializer):
     extra_images = FooterImageSerializer(many=True, read_only=True) 
+    package = PackageSerializer() 
     class Meta:
         model = FooterSection
 
-        fields = ['id', 'package', 'main_image','extra_images']
+        fields = ['id', 'package', 'main_image','extra_images','package']
 
 
 # --------------------------------------------------------
