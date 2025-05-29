@@ -407,42 +407,58 @@ class PackageSubCategoryAPIView(APIView):
 
     def get_object(self, pk):
         try:
-            return PackageSubCategory.objects.get(pk=pk)
-        except PackageSubCategory.DoesNotExist:
+            return PackageCategory.objects.get(pk=pk)
+        except PackageCategory.DoesNotExist:
             return None
 
-    # def post(self, request):
-    #     try:
-    #         vendor = Vendor.objects.get(user=request.user)
-    #     except Vendor.DoesNotExist:
-    #         return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    #     data = request.data.copy()
-        
-    #     try:
-    #         category = PackageCategory.objects.get(id=data["category"], vendor=vendor)
-    #     except PackageCategory.DoesNotExist:
-    #         return Response({"error": "Invalid category for this vendor."}, status=status.HTTP_400_BAD_REQUEST)
 
-    #     serializer = PackageSubCategorySerializer(data=data)
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response({"message": "Package SubCategory created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    # def get(self, request, pk=None):
+    #     if pk:
+    #         subcategory = self.get_object(pk)
+    #         if not subcategory:
+    #             return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    #         serializer = PackageSubCategorySerializer(subcategory)
+    #         return Response({"subcategory": serializer.data}, status=status.HTTP_200_OK)
+
+    #     subcategories = PackageSubCategory.objects.all()
+    #     serializer = PackageSubCategorySerializer(subcategories, many=True)
+    #     return Response({"subcategories": serializer.data}, status=status.HTTP_200_OK)
 
 
     def get(self, request, pk=None):
+        # Get by primary key (subcategory ID)
         if pk:
-            subcategory = self.get_object(pk)
+            subcategory = PackageSubCategory.objects.filter(pk=pk).first()
             if not subcategory:
                 return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
 
             serializer = PackageSubCategorySerializer(subcategory)
             return Response({"subcategory": serializer.data}, status=status.HTTP_200_OK)
 
-        subcategories = PackageSubCategory.objects.all()
+        # Optional category ID filter
+        category_id = request.query_params.get('category_id')
+        if category_id:
+            subcategories = PackageSubCategory.objects.filter(category_id=category_id)
+        else:
+            subcategories = PackageSubCategory.objects.all()
+
         serializer = PackageSubCategorySerializer(subcategories, many=True)
         return Response({"subcategories": serializer.data}, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     # def put(self, request, pk):
     #     subcategory = self.get_object(pk)
@@ -4347,4 +4363,3 @@ class PackageUpdateAPIView(APIView):
 
 
 
-    
