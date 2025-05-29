@@ -413,42 +413,15 @@ class PackageSubCategoryAPIView(APIView):
 
 
 
-    # def get(self, request, pk=None):
-    #     if pk:
-    #         subcategory = self.get_object(pk)
-    #         if not subcategory:
-    #             return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
-
-    #         serializer = PackageSubCategorySerializer(subcategory)
-    #         return Response({"subcategory": serializer.data}, status=status.HTTP_200_OK)
-
-    #     subcategories = PackageSubCategory.objects.all()
-    #     serializer = PackageSubCategorySerializer(subcategories, many=True)
-    #     return Response({"subcategories": serializer.data}, status=status.HTTP_200_OK)
 
 
-    def get(self, request, pk=None):
-        # Get by primary key (subcategory ID)
-        if pk:
-            subcategory = PackageSubCategory.objects.filter(pk=pk).first()
-            if not subcategory:
-                return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
-
-            serializer = PackageSubCategorySerializer(subcategory)
-            return Response({"subcategory": serializer.data}, status=status.HTTP_200_OK)
-
-        # Optional category ID filter
-        category_id = request.query_params.get('category_id')
-        if category_id:
-            subcategories = PackageSubCategory.objects.filter(category_id=category_id)
-        else:
-            subcategories = PackageSubCategory.objects.all()
+    def get(self, request, pk):  # pk is mandatory now
+        subcategories = PackageSubCategory.objects.filter(category_id=pk)
+        if not subcategories.exists():
+            return Response({"error": "No subcategories found for this category."}, status=status.HTTP_404_NOT_FOUND)
 
         serializer = PackageSubCategorySerializer(subcategories, many=True)
         return Response({"subcategories": serializer.data}, status=status.HTTP_200_OK)
-
-
-
 
 
 
