@@ -1216,10 +1216,7 @@ class CreatePackageAndDayPlanAPIView(APIView):
                 meal_keys = [k for k in data.keys() if k.startswith(f"meal_type_{day}_")]
                 for k in meal_keys:
                     idx = k.split('_')[-1]
-                    # meal_time_str = data.get(f"meal_time_{day}_{idx}")
-                    # print(meal_time_str,'str')
-                    # meal_time = datetime.strptime(meal_time_str, "%H:%M").time() if meal_time_str and re.match(r"^\d{2}:\d{2}$", meal_time_str) else None
-
+                   
 
 
                     meal_time = None  # Default
