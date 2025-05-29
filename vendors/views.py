@@ -415,7 +415,7 @@ class PackageSubCategoryAPIView(APIView):
 
 
 
-    def get(self, request, pk):  # pk is mandatory now
+    def get(self, request, pk):  
         subcategories = PackageSubCategory.objects.filter(category_id=pk)
         if not subcategories.exists():
             return Response({"error": "No subcategories found for this category."}, status=status.HTTP_404_NOT_FOUND)
@@ -4328,6 +4328,19 @@ class PackageUpdateAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
