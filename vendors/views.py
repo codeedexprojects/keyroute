@@ -3642,11 +3642,11 @@ class AcceptedBusBookingDetailView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    def get(self, request, booking_id):
+    def get(self, request, booking_id1):
         try:
             vendor = request.user.vendor   
             bus_booking = BusBooking.objects.filter(
-                id=booking_id, 
+                booking_id=booking_id1, 
                 booking_status='accepted',  
                 bus__vendor=vendor   
             ).first()
@@ -3723,11 +3723,11 @@ class AcceptedPackageBookingDetailView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    def get(self, request, booking_id):
+    def get(self, request, booking_id1):
         try:
             vendor = request.user.vendor   
             package_booking = PackageBooking.objects.filter(
-                id=booking_id, 
+                booking_id=booking_id1, 
                 booking_status='accepted',   
                 package__vendor=vendor   
             ).first()

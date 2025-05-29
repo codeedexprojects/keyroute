@@ -1093,7 +1093,7 @@ class BusBookingBasicSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BusBooking
-        fields = ['id','bus_number', 'from_location', 'to_location', 'total_amount','commission_amount','trip_type','total_members',
+        fields = ['booking_id','bus_number', 'from_location', 'to_location', 'total_amount','commission_amount','trip_type','total_members',
             'one_member_name','created_date','earnings']
 
 
@@ -1438,7 +1438,7 @@ class AcceptedPackageBookingSerializer(serializers.ModelSerializer):
 class PackageBookingListSerializer(serializers.ModelSerializer):
     class Meta:
         model = PackageBooking
-        fields = ['id', 'start_date', 'total_amount', 'advance_amount', 'payment_status', 'booking_status', 
+        fields = ['booking_id', 'start_date', 'total_amount', 'advance_amount', 'payment_status', 'booking_status', 
                   'from_location', 'to_location', 'created_at', 'total_travelers', 'male', 'female', 'children', 
                   'cancelation_reason']
 
