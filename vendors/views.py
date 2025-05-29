@@ -1815,7 +1815,7 @@ class VendorProfileAPIView(APIView):
     def patch(self, request):
         try:
             vendor = Vendor.objects.get(user=request.user)
-            serializer = VendorSerializer(vendor, data=request.data, partial=True)
+            serializer = VendorUpdateSerializer(vendor, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
                 return Response({"message": "Vendor profile updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
