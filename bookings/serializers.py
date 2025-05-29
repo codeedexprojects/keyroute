@@ -1421,18 +1421,29 @@ class PackageSerializer(serializers.ModelSerializer):
     
 
 class UserBusSearchSerializer(serializers.ModelSerializer):
-    pick_up_date = serializers.DateField(format='%d,%m,%Y')
-    return_date = serializers.DateField(format='%d,%m,%Y', allow_null=True)
-    
+    pick_up_date = serializers.DateField(
+        format='%d-%m-%Y',
+        input_formats=['%d-%m-%Y'],
+        required=False,
+        allow_null=True
+    )
+    return_date = serializers.DateField(
+        format='%d-%m-%Y',
+        input_formats=['%d-%m-%Y'],
+        required=False,
+        allow_null=True
+    )
+
     class Meta:
         model = UserBusSearch
         fields = '__all__'
         read_only_fields = ['user']
         extra_kwargs = {
-            'to_lat': {'required': False},
-            'to_lon': {'required': False},
-            'seat': {'required': False},
-            'pick_up_date': {'required': False},
-            'return_date': {'required': False},
-            'search': {'required': False},
+            'to_lat': {'required': False, 'allow_null': True},
+            'to_lon': {'required': False, 'allow_null': True},
+            'seat': {'required': False, 'allow_null': True},
+            'pick_up_time': {'required': False, 'allow_null': True},
+            'pick_up_date': {'required': False, 'allow_null': True},
+            'return_date': {'required': False, 'allow_null': True},
+            'search': {'required': False, 'allow_null': True},
         }
