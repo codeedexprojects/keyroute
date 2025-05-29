@@ -55,8 +55,13 @@ class BaseBookingSerializer(serializers.ModelSerializer):
             'advance_amount': {'write_only': False, 'required': False},
         }
 
+import requests
+import logging
+from decimal import Decimal
+from django.conf import settings
+
 class BusBookingSerializer(BaseBookingSerializer):
-    total_travelers = TravelerSerializer(many=True, required=False, read_only=True)
+    travelers = TravelerSerializer(many=True, required=False, read_only=True)
     bus_details = serializers.SerializerMethodField(read_only=True)
     booking_type = serializers.SerializerMethodField()
 
@@ -69,14 +74,19 @@ class BusBookingSerializer(BaseBookingSerializer):
         help_text="Amount user chooses to pay initially. Must be >= advance_amount."
     )
 
+    # Location fields are now read from UserBusSearch model
+    # No need to pass them in the serializer
+
     class Meta:
         model = BusBooking
         fields = BaseBookingSerializer.Meta.fields + [
-            'bus', 'bus_details', 'one_way', 'total_travelers', 'booking_type', 'partial_amount'
+            'bus', 'bus_details', 'one_way', 'travelers', 'booking_type', 
+            'partial_amount'
         ]
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
             'advance_amount': {'write_only': False, 'required': False},
+            'total_amount':{'write_only': False, 'required': False}
         }
 
     def get_bus_details(self, obj):
@@ -86,9 +96,137 @@ class BusBookingSerializer(BaseBookingSerializer):
     def get_booking_type(self, obj):
         return "bus"
 
+    def calculate_distance_google_api(self, from_lat, from_lon, to_lat, to_lon):
+        """
+        Calculate distance using Google Distance Matrix API
+        Returns distance in kilometers
+        """
+        try:
+            # Google Distance Matrix API endpoint
+            url = "https://maps.googleapis.com/maps/api/distancematrix/json"
+            
+            # API parameters
+            params = {
+                'origins': f"{from_lat},{from_lon}",
+                'destinations': f"{to_lat},{to_lon}",
+                'units': 'metric',
+                'mode': 'driving',
+                'key': settings.GOOGLE_DISTANCE_MATRIX_API_KEY  # Add this to your settings
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            if data['status'] == 'OK':
+                element = data['rows'][0]['elements'][0]
+                if element['status'] == 'OK':
+                    # Distance in meters, convert to kilometers
+                    distance_km = element['distance']['value'] / 1000
+                    return Decimal(str(round(distance_km, 2)))
+                else:
+                    raise Exception(f"Google API element error: {element['status']}")
+            else:
+                raise Exception(f"Google API error: {data['status']}")
+                
+        except Exception as e:
+            logging.error(f"Error calculating distance with Google API: {str(e)}")
+            # Fallback to simple calculation if API fails
+            return self.calculate_distance_fallback(from_lat, from_lon, to_lat, to_lon)
+
+    def calculate_distance_fallback(self, from_lat, from_lon, to_lat, to_lon):
+        """
+        Fallback distance calculation using Haversine formula
+        Returns distance in kilometers
+        """
+        try:
+            from math import radians, cos, sin, asin, sqrt
+            
+            # Convert decimal degrees to radians
+            from_lat, from_lon, to_lat, to_lon = map(radians, [from_lat, from_lon, to_lat, to_lon])
+            
+            # Haversine formula
+            dlat = to_lat - from_lat
+            dlon = to_lon - from_lon
+            a = sin(dlat/2)**2 + cos(from_lat) * cos(to_lat) * sin(dlon/2)**2
+            c = 2 * asin(sqrt(a))
+            r = 6371  # Radius of earth in kilometers
+            
+            distance_km = c * r
+            return Decimal(str(round(distance_km, 2)))
+        except Exception as e:
+            logging.error(f"Error in fallback distance calculation: {str(e)}")
+            return Decimal('10.0')  # Default fallback distance
+
+    def calculate_total_amount(self, bus, distance_km, seat_count):
+        """
+        Calculate total amount based on distance and bus pricing
+        """
+        try:
+            base_price = bus.base_price or Decimal('0.00')
+            base_price_km = bus.base_price_km or 0
+            price_per_km = bus.price_per_km or Decimal('0.00')
+            minimum_fare = bus.minimum_fare or Decimal('0.00')
+            
+            # Calculate amount based on distance
+            if distance_km <= base_price_km:
+                # Within base price range
+                total_amount = base_price
+            else:
+                # Base price + additional km charges
+                additional_km = distance_km - base_price_km
+                additional_charges = additional_km * price_per_km
+                total_amount = base_price + additional_charges
+            
+            # Apply seat multiplier
+            total_amount = total_amount * seat_count
+            
+            # Ensure minimum fare is met
+            if total_amount < minimum_fare:
+                total_amount = minimum_fare
+            
+            return total_amount
+            
+        except Exception as e:
+            logging.error(f"Error calculating total amount: {str(e)}")
+            raise serializers.ValidationError("Error calculating trip amount. Please try again.")
+
     def create(self, validated_data):
         import logging
         logger = logging.getLogger(__name__)
+
+        # Get user and bus
+        user = self.context['request'].user
+        bus = validated_data.get('bus')
+
+        # Get location data from UserBusSearch
+        try:
+            bus_search = UserBusSearch.objects.get(user=user)
+            from_lat = bus_search.from_lat
+            from_lon = bus_search.from_lon
+            to_lat = bus_search.to_lat
+            to_lon = bus_search.to_lon
+            seat_count = bus_search.seat
+        except UserBusSearch.DoesNotExist:
+            logger.error(f"No bus search data found for user {user.id}")
+            raise serializers.ValidationError("Bus search data not found. Please search for buses first.")
+
+        # Calculate distance using Google Distance Matrix API
+        distance_km = self.calculate_distance_google_api(from_lat, from_lon, to_lat, to_lon)
+        logger.info(f"Calculated distance: {distance_km} km")
+
+        # Calculate total amount based on distance and bus pricing
+        calculated_total = self.calculate_total_amount(bus, distance_km, seat_count)
+        validated_data['total_amount'] = calculated_total
+        
+        # Add location data to validated_data for saving in booking
+        validated_data['from_lat'] = from_lat
+        validated_data['from_lon'] = from_lon
+        validated_data['to_lat'] = to_lat
+        validated_data['to_lon'] = to_lon
+
+        logger.info(f"Calculated total amount: {calculated_total} for distance: {distance_km} km")
 
         # Get the total amount from validated data
         total_amount = validated_data.get('total_amount')
