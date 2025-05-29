@@ -1216,8 +1216,35 @@ class CreatePackageAndDayPlanAPIView(APIView):
                 meal_keys = [k for k in data.keys() if k.startswith(f"meal_type_{day}_")]
                 for k in meal_keys:
                     idx = k.split('_')[-1]
-                    meal_time_str = data.get(f"meal_time_{day}_{idx}")
-                    meal_time = datetime.strptime(meal_time_str, "%H:%M").time() if meal_time_str and re.match(r"^\d{2}:\d{2}$", meal_time_str) else None
+                    # meal_time_str = data.get(f"meal_time_{day}_{idx}")
+                    # print(meal_time_str,'str')
+                    # meal_time = datetime.strptime(meal_time_str, "%H:%M").time() if meal_time_str and re.match(r"^\d{2}:\d{2}$", meal_time_str) else None
+
+
+
+                    meal_time = None  # Default
+
+                    # Get the raw time string
+                    raw_meal_time_str = data.get(f"meal_time_{day}_{idx}", "")
+
+                    if raw_meal_time_str:
+                        # Clean any invisible characters and whitespace
+                        meal_time_str = raw_meal_time_str.strip().replace('\u200e', '').replace('\u200f', '')
+
+                        print(repr(meal_time_str), 'repr')
+
+                        # Check format and try to parse
+                        if re.match(r"^\d{2}:\d{2}$", meal_time_str):
+                            try:
+                                meal_time = datetime.strptime(meal_time_str, "%H:%M").time()
+                            except ValueError as e:
+                                print(f"Time parsing error for '{meal_time_str}': {e}")
+                    else:
+                        print(f"No valid meal_time_str for {day=} {idx=}")
+
+
+                    print(meal_time,'time')
+
 
                     meal = Meal.objects.create(
                         day_plan=day_plan,
