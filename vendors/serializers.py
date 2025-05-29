@@ -461,7 +461,7 @@ class PackageImageSerializer(serializers.ModelSerializer):
 
 
 
-
+# SAMPLE
 class PackageSerializer(serializers.ModelSerializer):
     vendor_name = serializers.CharField(source='vendor.name', read_only=True)  
     sub_category_name = serializers.CharField(source='sub_category.name', read_only=True)  
