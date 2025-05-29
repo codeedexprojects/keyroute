@@ -4,8 +4,10 @@ from .views import (
     PackageBookingListCreateAPIView, PackageBookingDetailAPIView,
     BusBookingListCreateAPIView, BusBookingDetailAPIView,
     TravelerCreateAPIView, PackageBookingTravelersAPIView, BusBookingTravelersAPIView,
-    TravelerDetailAPIView, UserBookingsByStatus,CancelBookingView,PackageCategoryListAPIView,PackageSubCategoryListAPIView,SingleBusListAPIView,SinglePackageListAPIView,
-    PopularBusApi,PackageBookingUpdateAPIView,PackageDriverDetailListAPIView,UserBusSearchCreateAPIView,FooterSectionListAPIView,AdvertisementListAPIView
+    TravelerDetailAPIView, UserBookingsByStatus,CancelBookingView,PackageCategoryListAPIView,PackageSubCategoryListAPIView,
+    SingleBusListAPIView,SinglePackageListAPIView,
+    PopularBusApi,PackageBookingUpdateAPIView,PackageDriverDetailListAPIView,UserBusSearchCreateAPIView,
+    FooterSectionListAPIView,AdvertisementListAPIView,PilgrimagePackagesAPIView
 
 )
 
@@ -48,5 +50,7 @@ urlpatterns = [
 
     path('advertisements/', AdvertisementListAPIView.as_view(), name='advertisement-list'),
 
-    path('bus-search/',UserBusSearchCreateAPIView.as_view(),name="bus-search")
+    path('bus-search/',UserBusSearchCreateAPIView.as_view(),name="bus-search"),
+
+    path('packages/pilgrimage/', PilgrimagePackagesAPIView.as_view(), name='pilgrimage-packages'),
 ]
