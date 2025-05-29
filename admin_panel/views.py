@@ -2260,6 +2260,19 @@ class RecentReviewsAPIView(APIView):
 
 
 
+class TogglePopularStatusAPIView(APIView):
+    def post(self, request, bus_id):
+        try:
+            bus = Bus.objects.get(id=bus_id)
+            bus.is_popular = not bus.is_popular  # Toggle status
+            bus.save()
+            return Response({
+                "message": "Popular status updated successfully.",
+                "bus_id": bus.id,
+                "is_popular": bus.is_popular
+            }, status=status.HTTP_200_OK)
+        except Bus.DoesNotExist:
+            return Response({"error": "Bus not found."}, status=status.HTTP_404_NOT_FOUND)
 
 
 
