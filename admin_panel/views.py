@@ -717,20 +717,7 @@ class FooterSectionCreateView(APIView):
     authentication_classes = [JWTAuthentication]
     parser_classes = [MultiPartParser, FormParser]
 
-    # def post(self, request):
-    #     try:
-    #         footer = {
-    #             'image': request.FILES.get('image'),
-    #             'package': request.data.get('package')   
-    #         }
-    #         serializer = FooterSectionSerializer(data=footer)
-    #         if serializer.is_valid():
-    #             serializer.save()
-    #             return Response({'message': 'Footer section saved successfully!'}, status=201)
-    #         return Response({'error': serializer.errors}, status=400)
-    #     except Exception as e:
-    #         return Response({'error': str(e)}, status=400)
-
+   
     def post(self, request):
         try:
             main_image = request.FILES.get('main_image')
@@ -742,7 +729,6 @@ class FooterSectionCreateView(APIView):
                 if key.startswith('image') and key != 'main_image':
                     extra_images.append(request.FILES[key])
 
-            # Create FooterSection with main image
             footer_data = {
                 'main_image': main_image,
                 'package': request.data.get('package')
@@ -752,7 +738,6 @@ class FooterSectionCreateView(APIView):
             if footer_serializer.is_valid():
                 footer = footer_serializer.save()
 
-                # Save additional FooterImage entries
                 for img in extra_images:
                     FooterImage.objects.create(footer_section=footer, image=img)
 

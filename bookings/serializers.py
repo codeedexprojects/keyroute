@@ -111,7 +111,7 @@ class BusBookingSerializer(BaseBookingSerializer):
                 'destinations': f"{to_lat},{to_lon}",
                 'units': 'metric',
                 'mode': 'driving',
-                'key': settings.GOOGLE_DISTANCE_MATRIX_API_KEY  # Add this to your settings
+                'key': settings.GOOGLE_DISTANCE_MATRIX_API_KEY   
             }
             
             response = requests.get(url, params=params, timeout=10)
@@ -132,7 +132,6 @@ class BusBookingSerializer(BaseBookingSerializer):
                 
         except Exception as e:
             logging.error(f"Error calculating distance with Google API: {str(e)}")
-            # Fallback to simple calculation if API fails
             return self.calculate_distance_fallback(from_lat, from_lon, to_lat, to_lon)
 
     def calculate_distance_fallback(self, from_lat, from_lon, to_lat, to_lon):
