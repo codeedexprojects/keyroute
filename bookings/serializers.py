@@ -207,7 +207,14 @@ class BusBookingSerializer(BaseBookingSerializer):
             from_lon = bus_search.from_lon
             to_lat = bus_search.to_lat
             to_lon = bus_search.to_lon
-            seat_count = bus_search.seat
+            seat_count = bus_search.seat or 1
+            
+            # Add start_date and end_date from pick_up_date and return_date
+            if bus_search.pick_up_date:
+                validated_data['start_date'] = bus_search.pick_up_date
+            if bus_search.return_date:
+                validated_data['end_date'] = bus_search.return_date
+                
         except UserBusSearch.DoesNotExist:
             logger.error(f"No bus search data found for user {user.id}")
             raise serializers.ValidationError("Bus search data not found. Please search for buses first.")
@@ -1237,14 +1244,15 @@ class BusListingSerializer(serializers.ModelSerializer):
     is_favorite = serializers.SerializerMethodField()
     images = BusImageSerializer(many=True, read_only=True)
     bus_review_summary = serializers.SerializerMethodField()
-    reviews = serializers.SerializerMethodField()  # Fix here
+    reviews = serializers.SerializerMethodField()
+    price = serializers.SerializerMethodField()  # New price field
 
     class Meta:
         model = Bus
         fields = [
-            'id', 'bus_name', 'bus_number', 'location','price_per_km', 'capacity', 'base_price',
+            'id', 'bus_name', 'bus_number', 'location', 'price_per_km', 'capacity', 'base_price',
             'amenities', 'features', 'average_rating', 'total_reviews', 'is_favorite',
-            'images', 'bus_review_summary', 'reviews'
+            'images', 'bus_review_summary', 'reviews', 'price'
         ]
 
     def get_average_rating(self, obj):
@@ -1283,6 +1291,51 @@ class BusListingSerializer(serializers.ModelSerializer):
             "rating_breakdown": rating_breakdown
         }
 
+    def get_price(self, obj):
+        """Calculate and return the trip price"""
+        user_search = self.context.get('user_search')
+        
+        if not user_search or not user_search.to_lat or not user_search.to_lon:
+            return "Select destination"
+        
+        try:
+            from decimal import Decimal
+            
+            # Calculate distance using the same methods as in BusListAPIView
+            view = BusListAPIView()
+            distance_km = view.calculate_distance_google_api(
+                user_search.from_lat, user_search.from_lon, 
+                user_search.to_lat, user_search.to_lon
+            )
+            
+            seat_count = user_search.seat or 1
+            base_price = obj.base_price or Decimal('0.00')
+            base_price_km = obj.base_price_km or 0
+            price_per_km = obj.price_per_km or Decimal('0.00')
+            minimum_fare = obj.minimum_fare or Decimal('0.00')
+            
+            # Calculate amount based on distance
+            if distance_km <= base_price_km:
+                # Within base price range
+                total_amount = base_price
+            else:
+                # Base price + additional km charges
+                additional_km = distance_km - base_price_km
+                additional_charges = additional_km * price_per_km
+                total_amount = base_price + additional_charges
+            
+            # Apply seat multiplier
+            total_amount = total_amount * seat_count
+            
+            # Ensure minimum fare is met
+            if total_amount < minimum_fare:
+                total_amount = minimum_fare
+            
+            return float(total_amount)
+            
+        except Exception as e:
+            return "Price calculation error"
+
     def to_representation(self, instance):
         """Make base_price an integer in the output."""
         data = super().to_representation(instance)
@@ -1297,11 +1350,17 @@ class PackageDriverDetailSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class FooterImagesSerilizer(serializers.ModelSerializer):
+    class Meta:
+        model = FooterImage
+        fields = '__all__'
+
 class FooterSectionSerializer(serializers.ModelSerializer):
-    image = serializers.ImageField(use_url=True)
+    images = FooterImagesSerilizer(many=True)
+
     class Meta:
         model = FooterSection
-        fields = ['id', 'image', 'package', 'created_at']
+        fields = ['id', 'main_image', 'images','package', 'created_at']
 
 
 class AdvertisementSerializer(serializers.ModelSerializer):
@@ -1366,3 +1425,11 @@ class UserBusSearchSerializer(serializers.ModelSerializer):
         model = UserBusSearch
         fields = '__all__'
         read_only_fields = ['user']
+        extra_kwargs = {
+            'to_lat': {'required': False},
+            'to_lon': {'required': False},
+            'seat': {'required': False},
+            'pick_up_date': {'required': False},
+            'return_date': {'required': False},
+            'search': {'required': False},
+        }
