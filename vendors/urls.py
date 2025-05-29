@@ -158,8 +158,8 @@ urlpatterns = [
 
 
     # ACCEPTED SINGLE DATAS BUS AND PACKAGE
-    path('api/vendor/accepted-bus-booking-detail/<int:booking_id>/', AcceptedBusBookingDetailView.as_view(),name='accepted_bus_booking_detail'),
-    path('api/vendor/accepted-package-booking/<int:booking_id>/', AcceptedPackageBookingDetailView.as_view(), name='accepted_package_booking_detail'),
+    path('api/vendor/accepted-bus-booking-detail/<int:booking_id1>/', AcceptedBusBookingDetailView.as_view(),name='accepted_bus_booking_detail'),
+    path('api/vendor/accepted-package-booking/<int:booking_id1>/', AcceptedPackageBookingDetailView.as_view(), name='accepted_package_booking_detail'),
 
 
     #PACKAGE ACCEPTED DECLIED LIST
