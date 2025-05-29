@@ -13,7 +13,7 @@ from bookings.models import *
 
 class VendorSerializer(serializers.ModelSerializer):
 
-    # mobile = serializers.CharField(source='user.mobile', read_only=True)
+    phone_number = serializers.CharField(source='user.mobile', read_only=True)
     mobile = serializers.CharField(write_only=True) 
     password = serializers.CharField(write_only=True)
     # profile_image = serializers.SerializerMethodField()
@@ -24,7 +24,7 @@ class VendorSerializer(serializers.ModelSerializer):
         fields = [
             'mobile', 'email_address', 'password', 'full_name',  
             'travels_name', 'location', 'landmark', 'address', 
-            'city', 'state', 'pincode','district','profile_image',
+            'city', 'state', 'pincode','district','profile_image','phone_number'
         ]
 
     def validate_mobile(self, value):
@@ -98,7 +98,37 @@ class VendorSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
-    
+
+
+
+class VendorUpdateSerializer(serializers.ModelSerializer):
+    mobile = serializers.CharField(source='user.mobile', required=False)
+
+    class Meta:
+        model = Vendor
+        fields = [
+            "full_name", "email_address", "travels_name", "location", "landmark",
+            "address", "city", "state", "pincode", "district", "mobile"
+        ]
+
+    def update(self, instance, validated_data):
+        # Extract nested user data if present
+        user_data = validated_data.pop('user', {})
+
+        # Update Vendor fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Update related User fields
+        if user_data:
+            user = instance.user
+            for attr, value in user_data.items():
+                setattr(user, attr, value)
+            user.save()
+
+        return instance
+
 
 class PackageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -449,6 +479,7 @@ class PackageSubCategorySerializer(serializers.ModelSerializer):
 # def validate_places(places):
 #     if not places.strip():
 #         raise ValidationError("Places field cannot be empty.")
+
 
 
 class PackageImageSerializer(serializers.ModelSerializer):
@@ -1062,7 +1093,7 @@ class BusBookingBasicSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BusBooking
-        fields = ['id','bus_number', 'from_location', 'to_location', 'total_amount','commission_amount','trip_type','total_members',
+        fields = ['booking_id','bus_number', 'from_location', 'to_location', 'total_amount','commission_amount','trip_type','total_members',
             'one_member_name','created_date','earnings']
 
 
@@ -1407,7 +1438,7 @@ class AcceptedPackageBookingSerializer(serializers.ModelSerializer):
 class PackageBookingListSerializer(serializers.ModelSerializer):
     class Meta:
         model = PackageBooking
-        fields = ['id', 'start_date', 'total_amount', 'advance_amount', 'payment_status', 'booking_status', 
+        fields = ['booking_id', 'start_date', 'total_amount', 'advance_amount', 'payment_status', 'booking_status', 
                   'from_location', 'to_location', 'created_at', 'total_travelers', 'male', 'female', 'children', 
                   'cancelation_reason']
 
