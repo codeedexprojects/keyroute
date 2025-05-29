@@ -71,6 +71,8 @@ class BusBooking(BaseBooking):
     from_lon = models.FloatField()
     to_lat = models.FloatField(null=True, blank=True)
     to_lon = models.FloatField(null=True, blank=True)
+    return_date = models.DateField(null=True,blank=True)
+    pick_up_time = models.TimeField(null=True,blank=True)
     
     def __str__(self):
         return f"Bus Booking #{self.booking_id} - {self.from_location} to {self.to_location} ({self.start_date})"
