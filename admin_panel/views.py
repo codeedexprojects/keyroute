@@ -2262,9 +2262,35 @@ class TogglePopularStatusAPIView(APIView):
 
 
 
+class AdminBusDeleteView(APIView):
+    permission_classes = [IsAdminUser]
+    authentication_classes = [JWTAuthentication]
+
+    def delete(self, request, pk):
+        try:
+            bus = Bus.objects.get(pk=pk)
+            bus.delete()
+            return Response({'message': 'Bus deleted successfully'}, status=status.HTTP_200_OK)
+        except Bus.DoesNotExist:
+            return Response({'error': 'Bus not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
+class AdminPackageDeleteView(APIView):
+    permission_classes = [IsAdminUser]
+    authentication_classes = [JWTAuthentication]
+
+    def delete(self, request, pk):
+        try:
+            package = Package.objects.get(pk=pk)
+            package.delete()
+            return Response({'message': 'Package deleted successfully'}, status=status.HTTP_200_OK)
+        except Package.DoesNotExist:
+            return Response({'error': 'Package not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
