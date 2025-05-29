@@ -24,7 +24,7 @@ from vendors.serializers import PackageCategorySerializer,PackageSubCategorySeri
 from .serializers import (PackageFilterSerializer,PackageBookingUpdateSerializer,BusFilterSerializer,
                           ListPackageSerializer,ListingUserPackageSerializer,
                           UserBusSearchSerializer,SinglePackageBookingSerilizer,
-                          SingleBusBookingSerializer,PopularBusSerializer,BusListingSerializer,FooterSectionSerializer,AdvertisementSerializer)
+                          SingleBusBookingSerializer,PackageSerializer,PopularBusSerializer,BusListingSerializer,FooterSectionSerializer,AdvertisementSerializer)
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from .utils import *
@@ -844,3 +844,12 @@ class UserBusSearchCreateAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class PilgrimagePackagesAPIView(APIView):
+
+    def get(self, request, format=None):
+        packages = Package.objects.filter(sub_category__category__name__iexact='pilgrimage')
+
+        serializer = PackageSerializer(packages, many=True, context={'request': request})
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
