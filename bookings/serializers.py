@@ -64,6 +64,7 @@ class BusBookingSerializer(BaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     bus_details = serializers.SerializerMethodField(read_only=True)
     booking_type = serializers.SerializerMethodField()
+    price = serializers.SerializerMethodField()
 
     # Partial payment field
     partial_amount = serializers.DecimalField(
@@ -81,7 +82,7 @@ class BusBookingSerializer(BaseBookingSerializer):
         model = BusBooking
         fields = BaseBookingSerializer.Meta.fields + [
             'bus', 'bus_details', 'one_way', 'travelers', 'booking_type', 
-            'partial_amount'
+            'partial_amount','return_date','pick_up_time','price'
         ]
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
@@ -159,11 +160,20 @@ class BusBookingSerializer(BaseBookingSerializer):
             logging.error(f"Error in fallback distance calculation: {str(e)}")
             return Decimal('10.0')  # Default fallback distance
 
-    def calculate_total_amount(self, bus, distance_km, seat_count):
+    def calculate_trip_price(self, bus, user_search):
         """
-        Calculate total amount based on distance and bus pricing
+        Centralized method to calculate trip price
+        Returns the total price as Decimal
         """
         try:
+            # Get distance
+            distance_km = self.calculate_distance_google_api(
+                user_search.from_lat, user_search.from_lon, 
+                user_search.to_lat, user_search.to_lon
+            )
+            
+            # Get pricing details from bus
+            seat_count = user_search.seat or 1
             base_price = bus.base_price or Decimal('0.00')
             base_price_km = bus.base_price_km or 0
             price_per_km = bus.price_per_km or Decimal('0.00')
@@ -186,11 +196,30 @@ class BusBookingSerializer(BaseBookingSerializer):
             if total_amount < minimum_fare:
                 total_amount = minimum_fare
             
-            return total_amount
+            return total_amount, distance_km
             
         except Exception as e:
-            logging.error(f"Error calculating total amount: {str(e)}")
-            raise serializers.ValidationError("Error calculating trip amount. Please try again.")
+            logging.error(f"Error calculating trip price: {str(e)}")
+            raise serializers.ValidationError("Error calculating trip price. Please try again.")
+        
+    def get_price(self, obj):
+        """Calculate and return the trip price"""
+        user = self.context['request'].user
+        
+        try:
+            user_search = UserBusSearch.objects.get(user=user)
+            
+            if not user_search or not user_search.to_lat or not user_search.to_lon:
+                return "Select destination"
+            
+            total_amount, _ = self.calculate_trip_price(obj.bus, user_search)
+            return float(total_amount)
+            
+        except UserBusSearch.DoesNotExist:
+            return "Search data not found"
+        except Exception as e:
+            logging.error(f"Error in get_price: {str(e)}")
+            return "Price calculation error"
 
     def create(self, validated_data):
         import logging
@@ -207,24 +236,28 @@ class BusBookingSerializer(BaseBookingSerializer):
             from_lon = bus_search.from_lon
             to_lat = bus_search.to_lat
             to_lon = bus_search.to_lon
-            seat_count = bus_search.seat or 1
             
             # Add start_date and end_date from pick_up_date and return_date
             if bus_search.pick_up_date:
                 validated_data['start_date'] = bus_search.pick_up_date
             if bus_search.return_date:
-                validated_data['end_date'] = bus_search.return_date
+                validated_data['return_date'] = bus_search.return_date
+            if bus_search.pick_up_time:
+                validated_data['pick_up_time'] = bus_search.pick_up_time
+            if bus_search.one_way:
+                validated_data['one_way'] = bus_search.one_way
+            else:
+                validated_data['one_way'] = bus_search.one_way
                 
         except UserBusSearch.DoesNotExist:
             logger.error(f"No bus search data found for user {user.id}")
             raise serializers.ValidationError("Bus search data not found. Please search for buses first.")
 
-        # Calculate distance using Google Distance Matrix API
-        distance_km = self.calculate_distance_google_api(from_lat, from_lon, to_lat, to_lon)
-        logger.info(f"Calculated distance: {distance_km} km")
+        # Calculate total amount using centralized method
+        calculated_total, distance_km = self.calculate_trip_price(bus, bus_search)
+        logger.info(f"Calculated distance: {distance_km} km, Total amount: {calculated_total}")
 
-        # Calculate total amount based on distance and bus pricing
-        calculated_total = self.calculate_total_amount(bus, distance_km, seat_count)
+        # Set the total_amount to the calculated price
         validated_data['total_amount'] = calculated_total
         
         # Add location data to validated_data for saving in booking
@@ -233,11 +266,8 @@ class BusBookingSerializer(BaseBookingSerializer):
         validated_data['to_lat'] = to_lat
         validated_data['to_lon'] = to_lon
 
-        logger.info(f"Calculated total amount: {calculated_total} for distance: {distance_km} km")
-
-        # Get the total amount from validated data
+        # Get the total amount (this is now the same as the price)
         total_amount = validated_data.get('total_amount')
-        user = self.context['request'].user
 
         # Apply wallet balance if available
         try:
@@ -303,7 +333,6 @@ class BusBookingSerializer(BaseBookingSerializer):
             referral_deduction=Decimal('0.00')  # Will be updated when referral is credited
         )
 
-        # Process referral if applicable
         try:
             wallet = Wallet.objects.get(user=user)
             if wallet.referred_by and not wallet.referral_used:
@@ -319,7 +348,6 @@ class BusBookingSerializer(BaseBookingSerializer):
                         referrer = User.objects.filter(mobile=wallet.referred_by).first()
 
                 if referrer:
-                    # Create referral reward transaction (will be credited only after trip completion)
                     ReferralRewardTransaction.objects.create(
                         referrer=referrer,
                         referred_user=user,
@@ -352,7 +380,7 @@ class SingleBusBookingSerializer(serializers.ModelSerializer):
         fields = [
             'booking_id', 'from_location', 'to_location', 'start_date', 
             'end_date', 'total_travelers', 'total_amount', 
-            'paid_amount', 'bus_name', 'booking_type'
+            'paid_amount', 'bus_name', 'booking_type','one_way'
         ]
 
     def get_booking_type(self, obj):
@@ -365,31 +393,34 @@ class SingleBusBookingSerializer(serializers.ModelSerializer):
         return obj.bus.bus_name
 
     def get_end_date(self, obj):
-        origin = obj.from_location
-        destination = obj.to_location
-        api_key = settings.GOOGLE_MAPS_API_KEY
+        if obj.one_way:
+            origin = obj.from_location
+            destination = obj.to_location
+            api_key = settings.GOOGLE_MAPS_API_KEY
 
-        url = (
-            f'https://maps.googleapis.com/maps/api/distancematrix/json'
-            f'?origins={origin}&destinations={destination}'
-            f'&mode=driving&key={api_key}'
-        )
-        
-        try:
-            response = requests.get(url)
-            data = response.json()
+            url = (
+                f'https://maps.googleapis.com/maps/api/distancematrix/json'
+                f'?origins={origin}&destinations={destination}'
+                f'&mode=driving&key={api_key}'
+            )
+            
+            try:
+                response = requests.get(url)
+                data = response.json()
 
-            if data['status'] == 'OK':
-                element = data['rows'][0]['elements'][0]
-                if element['status'] == 'OK':
-                    duration_seconds = element['duration']['value']
-                    duration = timedelta(seconds=duration_seconds)
-                    end_date = obj.start_date + duration
-                    return end_date
-        except Exception as e:
-            print("Error getting travel time:", e)
+                if data['status'] == 'OK':
+                    element = data['rows'][0]['elements'][0]
+                    if element['status'] == 'OK':
+                        duration_seconds = element['duration']['value']
+                        duration = timedelta(seconds=duration_seconds)
+                        end_date = obj.start_date + duration
+                        return end_date
+            except Exception as e:
+                print("Error getting travel time:", e)
 
-        return obj.start_date
+            return obj.start_date
+        else:
+            return obj.return_date
 
 from datetime import timedelta
 from django.db.models import Count, Q
@@ -1293,6 +1324,9 @@ class BusListingSerializer(serializers.ModelSerializer):
 
     def get_price(self, obj):
         """Calculate and return the trip price"""
+        user = self.context['request'].user
+        user_search = UserBusSearch.objects.get(user=user)
+
         user_search = self.context.get('user_search')
         
         if not user_search or not user_search.to_lat or not user_search.to_lon:
@@ -1350,17 +1384,17 @@ class PackageDriverDetailSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class FooterImagesSerilizer(serializers.ModelSerializer):
+class FooterImagesSerializer(serializers.ModelSerializer):
     class Meta:
         model = FooterImage
         fields = '__all__'
 
 class FooterSectionSerializer(serializers.ModelSerializer):
-    images = FooterImagesSerilizer(many=True)
+    footer_images = FooterImagesSerializer(many=True, read_only=True)
 
     class Meta:
         model = FooterSection
-        fields = ['id', 'main_image', 'images','package', 'created_at']
+        fields = ['id', 'main_image', 'footer_images', 'package', 'created_at']
 
 
 class AdvertisementSerializer(serializers.ModelSerializer):
