@@ -1300,8 +1300,8 @@ class BusListingSerializer(serializers.ModelSerializer):
         
         try:
             from decimal import Decimal
+            from .views import BusListAPIView
             
-            # Calculate distance using the same methods as in BusListAPIView
             view = BusListAPIView()
             distance_km = view.calculate_distance_google_api(
                 user_search.from_lat, user_search.from_lon, 
