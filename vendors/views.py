@@ -1815,7 +1815,7 @@ class VendorProfileAPIView(APIView):
     def patch(self, request):
         try:
             vendor = Vendor.objects.get(user=request.user)
-            serializer = VendorSerializer(vendor, data=request.data, partial=True)
+            serializer = VendorUpdateSerializer(vendor, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
                 return Response({"message": "Vendor profile updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
@@ -3642,11 +3642,11 @@ class AcceptedBusBookingDetailView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    def get(self, request, booking_id):
+    def get(self, request, booking_id1):
         try:
             vendor = request.user.vendor   
             bus_booking = BusBooking.objects.filter(
-                id=booking_id, 
+                booking_id=booking_id1, 
                 booking_status='accepted',  
                 bus__vendor=vendor   
             ).first()
@@ -3723,11 +3723,11 @@ class AcceptedPackageBookingDetailView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    def get(self, request, booking_id):
+    def get(self, request, booking_id1):
         try:
             vendor = request.user.vendor   
             package_booking = PackageBooking.objects.filter(
-                id=booking_id, 
+                booking_id=booking_id1, 
                 booking_status='accepted',   
                 package__vendor=vendor   
             ).first()
