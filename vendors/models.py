@@ -299,6 +299,7 @@ class VendorNotification(models.Model):
 
 class VendorBusyDate(models.Model):
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='busy_dates')
+    buses = models.ManyToManyField('Bus', related_name='busy_dates')
     date = models.DateField()
     from_time = models.TimeField(blank=True, null=True)
     to_time = models.TimeField(blank=True, null=True)
