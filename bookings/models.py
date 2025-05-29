@@ -4,6 +4,7 @@ from django.core.validators import FileExtensionValidator, MinValueValidator
 from django.contrib.auth import get_user_model
 from datetime import date
 import random
+import datetime
 
 User = get_user_model()
 
@@ -187,8 +188,11 @@ class UserBusSearch(models.Model):
     one_way = models.BooleanField(default=True)
     from_lat = models.FloatField()
     from_lon = models.FloatField()
-    to_lat = models.FloatField()
-    to_lon = models.FloatField()
-    seat = models.IntegerField()
+    to_lat = models.FloatField(null=True, blank=True)
+    to_lon = models.FloatField(null=True, blank=True)
+    seat = models.IntegerField(null=True, blank=True)
     ac = models.BooleanField(default=False)
+    pick_up_date = models.DateField(default=date.today)
+    return_date = models.DateField(null=True, blank=True)
+    search = models.CharField(max_length=255, null=True, blank=True)
     pushback = models.BooleanField(default=False)
