@@ -1421,6 +1421,9 @@ class PackageSerializer(serializers.ModelSerializer):
     
 
 class UserBusSearchSerializer(serializers.ModelSerializer):
+    pick_up_date = serializers.DateField(format='%d,%m,%Y')
+    return_date = serializers.DateField(format='%d,%m,%Y', allow_null=True)
+    
     class Meta:
         model = UserBusSearch
         fields = '__all__'

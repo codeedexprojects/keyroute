@@ -173,4 +173,9 @@ urlpatterns = [
     path('api/admin/recent-reviews/', RecentReviewsAPIView.as_view(), name='recent-reviews'),
 
 
+    path('api/admin/bus/<int:bus_id>/toggle-popular/', TogglePopularStatusAPIView.as_view(), name='toggle-popular')
+
+
+
+
 ] 
