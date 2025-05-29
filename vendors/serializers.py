@@ -451,6 +451,7 @@ class PackageSubCategorySerializer(serializers.ModelSerializer):
 #         raise ValidationError("Places field cannot be empty.")
 
 
+
 class PackageImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = PackageImage
@@ -806,14 +807,18 @@ class BusSerializer2(serializers.ModelSerializer):
 class PackageReadSerializer(serializers.ModelSerializer):
     day_plans = DayPlanSerializer(many=True, read_only=True)
     buses = BusSerializer2(many=True, read_only=True)
+    nights = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
         fields = [
-            'id', 'sub_category', 'header_image', 'places', 'days', 
+            'id', 'sub_category', 'header_image', 'places', 'days', 'nights',
             'ac_available', 'guide_included', 'buses', 'day_plans',
             'created_at', 'updated_at','bus_location', 'price_per_person', 'extra_charge_per_km'
         ]
+    
+    def get_nights(self, obj):
+        return obj.day_plans.filter(night=True).count()
 
 
 
