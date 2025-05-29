@@ -32,6 +32,7 @@ from admin_panel.models import FooterSection,Advertisement
 from admin_panel.utils import get_admin_commission_from_db,get_advance_amount_from_db
 from .models import PackageDriverDetail
 from .serializers import PackageDriverDetailSerializer
+from django.db.models import Avg
 
 
 
