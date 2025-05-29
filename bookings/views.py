@@ -24,7 +24,8 @@ from vendors.serializers import PackageCategorySerializer,PackageSubCategorySeri
 from .serializers import (PackageFilterSerializer,PackageBookingUpdateSerializer,BusFilterSerializer,
                           ListPackageSerializer,ListingUserPackageSerializer,
                           UserBusSearchSerializer,SinglePackageBookingSerilizer,
-                          SingleBusBookingSerializer,PackageSerializer,PopularBusSerializer,BusListingSerializer,FooterSectionSerializer,AdvertisementSerializer)
+                          SingleBusBookingSerializer,PackageSerializer,PopularBusSerializer,BusListingSerializer,
+                          FooterSectionSerializer,AdvertisementSerializer,BusListResponseSerializer)
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from .utils import *
@@ -204,10 +205,16 @@ class BusListAPIView(APIView):
             bus_prices.sort(key=lambda x: x[2], reverse=True)
             nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
 
-        # Extract just the buses for serialization
         buses_only = [bus for bus, dist in nearby_buses]
 
-        serializer = BusListingSerializer(buses_only, many=True, context={'request': request, 'user_search': user_search})
+        response_data = {
+            'buses': buses_only
+        }
+
+        serializer = BusListResponseSerializer(
+            response_data, 
+            context={'request': request, 'user_search': user_search}
+        )
         return Response(serializer.data)
 
     def calculate_distance_google_api(self, from_lat, from_lon, to_lat, to_lon):
@@ -443,7 +450,7 @@ class BusBookingListCreateAPIView(APIView):
 
     def get(self, request):
         bookings = BusBooking.objects.filter(user=request.user)
-        serializer = BusBookingSerializer(bookings, many=True)
+        serializer = BusBookingSerializer(bookings, many=True, context={'request': request})
         return Response(serializer.data)
 
     def post(self, request):
