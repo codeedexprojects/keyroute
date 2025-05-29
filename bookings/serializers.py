@@ -1276,7 +1276,8 @@ class BusListingSerializer(serializers.ModelSerializer):
     images = BusImageSerializer(many=True, read_only=True)
     bus_review_summary = serializers.SerializerMethodField()
     reviews = serializers.SerializerMethodField()
-    price = serializers.SerializerMethodField()  # New price field
+    price = serializers.SerializerMethodField()
+    price_per_km = serializers.SerializerMethodField()
 
     class Meta:
         model = Bus
@@ -1289,6 +1290,9 @@ class BusListingSerializer(serializers.ModelSerializer):
     def get_average_rating(self, obj):
         avg = obj.bus_reviews.aggregate(avg=Avg('rating'))['avg']
         return round(avg, 1) if avg else 0.0
+    
+    def get_price_per_km(self, obj):
+        return f"{round(obj.price_per_km, 1):.1f}"
 
     def get_total_reviews(self, obj):
         return obj.bus_reviews.count()
@@ -1325,14 +1329,13 @@ class BusListingSerializer(serializers.ModelSerializer):
     def get_price(self, obj):
         """Calculate and return the trip price"""
         user = self.context['request'].user
-        user_search = UserBusSearch.objects.get(user=user)
-
-        user_search = self.context.get('user_search')
-        
-        if not user_search or not user_search.to_lat or not user_search.to_lon:
-            return "Select destination"
         
         try:
+            user_search = UserBusSearch.objects.get(user=user)
+            
+            if not user_search or not user_search.to_lat or not user_search.to_lon:
+                return "Select destination"
+            
             from decimal import Decimal
             from .views import BusListAPIView
             
@@ -1367,7 +1370,10 @@ class BusListingSerializer(serializers.ModelSerializer):
             
             return float(total_amount)
             
+        except UserBusSearch.DoesNotExist:
+            return "Search data not found"
         except Exception as e:
+            logging.error(f"Error in get_price: {str(e)}")
             return "Price calculation error"
 
     def to_representation(self, instance):
@@ -1375,6 +1381,84 @@ class BusListingSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data['base_price'] = int(float(data['base_price'])) if data['base_price'] is not None else 0
         return data
+
+
+# Response serializer for the bus list API view
+class BusListResponseSerializer(serializers.Serializer):
+    """
+    Serializer for the complete bus list response including distance
+    """
+    distance_km = serializers.SerializerMethodField()
+    buses = BusListingSerializer(many=True)
+    
+    def get_distance_km(self, obj):
+        """Calculate distance from user's current location to destination in km"""
+        try:
+            user = self.context['request'].user
+            user_search = UserBusSearch.objects.get(user=user)
+            
+            if not user_search.from_lat or not user_search.from_lon:
+                return "User location not available"
+            
+            if not user_search.to_lat or not user_search.to_lon:
+                return "Destination not selected"
+            
+            # Calculate distance using Google Distance Matrix API
+            distance_km = self.calculate_distance_google_api(
+                user_search.from_lat, user_search.from_lon,
+                user_search.to_lat, user_search.to_lon
+            )
+            
+            return f"{float(distance_km)} km"
+            
+        except UserBusSearch.DoesNotExist:
+            return "Search data not found"
+        except Exception as e:
+            logging.error(f"Error calculating distance: {str(e)}")
+            return "Distance calculation error"
+    
+    def calculate_distance_google_api(self, from_lat, from_lon, to_lat, to_lon):
+        """
+        Calculate distance using Google Distance Matrix API
+        Returns distance in kilometers
+        """
+        try:
+            import requests
+            from django.conf import settings
+            from decimal import Decimal
+            import logging
+            
+            # Google Distance Matrix API endpoint
+            url = "https://maps.googleapis.com/maps/api/distancematrix/json"
+            
+            # API parameters
+            params = {
+                'origins': f"{from_lat},{from_lon}",
+                'destinations': f"{to_lat},{to_lon}",
+                'units': 'metric',
+                'mode': 'driving',
+                'key': settings.GOOGLE_DISTANCE_MATRIX_API_KEY
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            if data['status'] == 'OK':
+                element = data['rows'][0]['elements'][0]
+                if element['status'] == 'OK':
+                    # Distance in meters, convert to kilometers
+                    distance_km = element['distance']['value'] / 1000
+                    return Decimal(str(round(distance_km, 2)))
+                else:
+                    raise Exception(f"Google API element error: {element['status']}")
+            else:
+                raise Exception(f"Google API error: {data['status']}")
+                
+        except Exception as e:
+            logging.error(f"Error calculating distance with Google API: {str(e)}")
+            return Decimal('0.00')
     
 
 
