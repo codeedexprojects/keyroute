@@ -173,5 +173,4 @@ urlpatterns = [
     path('api/admin/recent-reviews/', RecentReviewsAPIView.as_view(), name='recent-reviews'),
 
 
-
 ] 
