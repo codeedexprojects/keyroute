@@ -481,9 +481,11 @@ class PackageAPIView(APIView):
 
   
     def get(self, request, package_id=None):
+        print('lates workng2')
         vendor = Vendor.objects.filter(user=request.user).first()
         if not vendor:
             return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
 
         if package_id:
             package = get_object_or_404(Package, pk=package_id, vendor=vendor)
@@ -499,6 +501,8 @@ class PackageAPIView(APIView):
         )
         serializer = PackageReadSerializer(packages, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    
 
     def patch(self, request, package_id):
         vendor = Vendor.objects.filter(user=request.user).first()
@@ -1811,7 +1815,7 @@ class VendorProfileAPIView(APIView):
     def patch(self, request):
         try:
             vendor = Vendor.objects.get(user=request.user)
-            serializer = VendorSerializer(vendor, data=request.data, partial=True)
+            serializer = VendorUpdateSerializer(vendor, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
                 return Response({"message": "Vendor profile updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
