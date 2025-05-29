@@ -128,10 +128,15 @@ class BusListAPIView(APIView):
         except UserBusSearch.DoesNotExist:
             return Response({"error": "No bus search data found for this user."}, status=404)
 
+        # Check if destination coordinates are provided
+        if not user_search.to_lat or not user_search.to_lon:
+            return Response({"message": "Please select destination location"}, status=200)
+
         user_coords = (user_search.from_lat, user_search.from_lon)
 
         # Optional debug log for location
         try:
+            from geopy.geocoders import Nominatim
             geolocator = Nominatim(user_agent="bus-locator")
             location = geolocator.reverse(user_coords, exactly_one=True, timeout=10)
             print("User Location:", location.address if location else "Unknown")
@@ -141,14 +146,19 @@ class BusListAPIView(APIView):
         # Initial queryset
         buses = Bus.objects.filter(latitude__isnull=False, longitude__isnull=False)
 
-        # Filter by seat
-        buses = buses.filter(capacity__gte=user_search.seat)
+        # Filter by seat if provided
+        if user_search.seat:
+            buses = buses.filter(capacity__gte=user_search.seat)
 
         # Filter by features
         if user_search.ac:
             buses = buses.filter(features__name__iexact='ac')
         if user_search.pushback:
             buses = buses.filter(features__name__iexact='pushback')
+
+        # Filter by search term (bus name)
+        if user_search.search:
+            buses = buses.filter(bus_name__icontains=user_search.search)
 
         # Distance filter: within 30 km
         nearby_buses = []
@@ -157,13 +167,154 @@ class BusListAPIView(APIView):
                 bus_coords = (bus.latitude, bus.longitude)
                 distance_km = geodesic(user_coords, bus_coords).kilometers
                 if distance_km <= 30:
-                    nearby_buses.append(bus)
+                    nearby_buses.append((bus, distance_km))
 
         if not nearby_buses:
             return Response({"message": "No buses found near your location within 30 km."}, status=200)
 
-        serializer = BusListingSerializer(nearby_buses, many=True, context={'request': request})
+        # Get sorting parameter
+        sort_by = request.query_params.get('sort_by', 'nearest')
+
+        # Apply sorting
+        if sort_by == 'nearest':
+            nearby_buses.sort(key=lambda x: x[1])  # Sort by distance
+        elif sort_by == 'popular':
+            nearby_buses = [(bus, dist) for bus, dist in nearby_buses if getattr(bus, 'is_popular', False)]
+            nearby_buses.sort(key=lambda x: x[1])  # Then by distance
+        elif sort_by == 'top_rated':
+            # Sort by average rating (descending)
+            nearby_buses.sort(key=lambda x: x[0].bus_reviews.aggregate(avg=Avg('rating'))['avg'] or 0, reverse=True)
+        elif sort_by == 'price_low_to_high':
+            # Calculate price for each bus and sort
+            bus_prices = []
+            for bus, dist in nearby_buses:
+                price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
+                                                user_search.to_lat, user_search.to_lon, user_search.seat or 1)
+                bus_prices.append((bus, dist, price))
+            bus_prices.sort(key=lambda x: x[2])
+            nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
+        elif sort_by == 'price_high_to_low':
+            # Calculate price for each bus and sort (descending)
+            bus_prices = []
+            for bus, dist in nearby_buses:
+                price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
+                                                user_search.to_lat, user_search.to_lon, user_search.seat or 1)
+                bus_prices.append((bus, dist, price))
+            bus_prices.sort(key=lambda x: x[2], reverse=True)
+            nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
+
+        # Extract just the buses for serialization
+        buses_only = [bus for bus, dist in nearby_buses]
+
+        serializer = BusListingSerializer(buses_only, many=True, context={'request': request, 'user_search': user_search})
         return Response(serializer.data)
+
+    def calculate_distance_google_api(self, from_lat, from_lon, to_lat, to_lon):
+        """
+        Calculate distance using Google Distance Matrix API
+        Returns distance in kilometers
+        """
+        try:
+            import requests
+            from django.conf import settings
+            from decimal import Decimal
+            import logging
+            
+            # Google Distance Matrix API endpoint
+            url = "https://maps.googleapis.com/maps/api/distancematrix/json"
+            
+            # API parameters
+            params = {
+                'origins': f"{from_lat},{from_lon}",
+                'destinations': f"{to_lat},{to_lon}",
+                'units': 'metric',
+                'mode': 'driving',
+                'key': settings.GOOGLE_DISTANCE_MATRIX_API_KEY
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            if data['status'] == 'OK':
+                element = data['rows'][0]['elements'][0]
+                if element['status'] == 'OK':
+                    # Distance in meters, convert to kilometers
+                    distance_km = element['distance']['value'] / 1000
+                    return Decimal(str(round(distance_km, 2)))
+                else:
+                    raise Exception(f"Google API element error: {element['status']}")
+            else:
+                raise Exception(f"Google API error: {data['status']}")
+                
+        except Exception as e:
+            logging.error(f"Error calculating distance with Google API: {str(e)}")
+            # Fallback to simple calculation if API fails
+            return self.calculate_distance_fallback(from_lat, from_lon, to_lat, to_lon)
+
+    def calculate_distance_fallback(self, from_lat, from_lon, to_lat, to_lon):
+        """
+        Fallback distance calculation using Haversine formula
+        Returns distance in kilometers
+        """
+        try:
+            from math import radians, cos, sin, asin, sqrt
+            from decimal import Decimal
+            import logging
+            
+            # Convert decimal degrees to radians
+            from_lat, from_lon, to_lat, to_lon = map(radians, [from_lat, from_lon, to_lat, to_lon])
+            
+            # Haversine formula
+            dlat = to_lat - from_lat
+            dlon = to_lon - from_lon
+            a = sin(dlat/2)**2 + cos(from_lat) * cos(to_lat) * sin(dlon/2)**2
+            c = 2 * asin(sqrt(a))
+            r = 6371  # Radius of earth in kilometers
+            
+            distance_km = c * r
+            return Decimal(str(round(distance_km, 2)))
+        except Exception as e:
+            logging.error(f"Error in fallback distance calculation: {str(e)}")
+            return Decimal('10.0')  # Default fallback distance
+
+    def calculate_trip_price(self, bus, from_lat, from_lon, to_lat, to_lon, seat_count):
+        """
+        Calculate trip price based on distance and bus pricing
+        """
+        try:
+            from decimal import Decimal
+            
+            # Calculate distance
+            distance_km = self.calculate_distance_google_api(from_lat, from_lon, to_lat, to_lon)
+            
+            base_price = bus.base_price or Decimal('0.00')
+            base_price_km = bus.base_price_km or 0
+            price_per_km = bus.price_per_km or Decimal('0.00')
+            minimum_fare = bus.minimum_fare or Decimal('0.00')
+            
+            # Calculate amount based on distance
+            if distance_km <= base_price_km:
+                # Within base price range
+                total_amount = base_price
+            else:
+                # Base price + additional km charges
+                additional_km = distance_km - base_price_km
+                additional_charges = additional_km * price_per_km
+                total_amount = base_price + additional_charges
+            
+            # Apply seat multiplier
+            total_amount = total_amount * seat_count
+            
+            # Ensure minimum fare is met
+            if total_amount < minimum_fare:
+                total_amount = minimum_fare
+            
+            return total_amount
+            
+        except Exception as e:
+            return Decimal('0.00')
     
 class SingleBusListAPIView(APIView):
     permission_classes = [AllowAny]
