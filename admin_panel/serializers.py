@@ -399,7 +399,8 @@ class FooterImageSerializer(serializers.ModelSerializer):
 
 class FooterSectionSerializer(serializers.ModelSerializer):
     extra_images = FooterImageSerializer(many=True, read_only=True) 
-    package = PackageSerializer() 
+    # package = PackageSerializer() 
+    package = serializers.PrimaryKeyRelatedField(queryset=Package.objects.all())
     class Meta:
         model = FooterSection
 
