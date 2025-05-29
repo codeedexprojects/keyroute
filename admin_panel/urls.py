@@ -175,9 +175,13 @@ urlpatterns = [
 
 
     # bus popular
-    path('api/admin/bus/<int:bus_id>/toggle-popular/', TogglePopularStatusAPIView.as_view(), name='toggle-popular')
+    path('api/admin/bus/<int:bus_id>/toggle-popular/', TogglePopularStatusAPIView.as_view(), name='toggle-popular'),
 
+    # BUS DELETING
+    path('api/admin/bus/delete/<int:pk>/', AdminBusDeleteView.as_view(), name='admin-bus-delete'),
 
+    # PACKAGE DELETE
+    path('api/admin/package/delete/<int:pk>/', AdminPackageDeleteView.as_view(), name='admin-package-delete'),
 
 
 ] 
