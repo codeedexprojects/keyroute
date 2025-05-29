@@ -240,6 +240,7 @@ class BusAPIView(APIView):
                     except (TypeError, ValueError):
                         return [int(x) for x in raw.strip("[]").replace("'", "").split(',') if x]
                 return []
+            
 
             amenities_ids = parse_list_field('amenities')
             features_ids = parse_list_field('features')
@@ -2138,7 +2139,9 @@ class LatestSingleBookingView(APIView):
         )
 
         if not latest:
-            return Response({"message": "No bookings found for the current user."}, status=status.HTTP_204_NO_CONTENT)
+            # return Response({"message": "No bookings found for the current user."}, status=status.HTTP_204_NO_CONTENT)
+            return Response({"message": "No bookings found for the current user."}, status=status.HTTP_200_OK)
+
 
         serializer = CombinedBookingSerializer(latest)
         return Response(serializer.data, status=status.HTTP_200_OK)
