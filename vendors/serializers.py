@@ -1346,10 +1346,18 @@ class CombinedBookingSerializer(serializers.Serializer):
 
 
 
+
 class VendorBusyDateSerializer(serializers.ModelSerializer):
+    bus_ids = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Bus.objects.all(),
+        write_only=True   
+    )
+    buses = BusSerializer(many=True, read_only=True)
+
     class Meta:
         model = VendorBusyDate
-        fields = ['id','date', 'from_time', 'to_time', 'reason']
+        fields = ['id', 'date', 'from_time', 'to_time', 'reason', 'bus_ids', 'buses']
 
     def validate(self, data):
         from_time = data.get('from_time')
@@ -1358,7 +1366,22 @@ class VendorBusyDateSerializer(serializers.ModelSerializer):
         if from_time and to_time and from_time >= to_time:
             raise serializers.ValidationError("From time must be earlier than to time.")
         return data
-    
+
+    def update(self, instance, validated_data):
+        bus_ids = validated_data.pop('bus_ids', None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+
+        if bus_ids is not None:
+            instance.buses.set(bus_ids)
+
+        return instance
+
+
+
 
 
 class PackageBookingBasicSerializer(serializers.ModelSerializer):
