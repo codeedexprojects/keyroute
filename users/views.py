@@ -514,3 +514,19 @@ class LimitedDealListAPIView(APIView):
         deals = LimitedDeal.objects.all().order_by('-created_at')
         serializer = LimitedDealSerializer(deals, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+class GetLocationAPIView(APIView):
+    def get(self, request):
+        searches = UserBusSearch.objects.all()
+        data = []
+
+        for search in searches:
+            data.append({
+                'user_id': search.user.id,
+                'from_lat': search.from_lat,
+                'from_lon': search.from_lon,
+                'to_lat': search.to_lat,
+                'to_lon': search.to_lon,
+            })
+
+        return Response({'locations': data})
