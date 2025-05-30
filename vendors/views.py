@@ -3897,12 +3897,15 @@ class BookingDetailByIdView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    def get(self, request, booking_id):
+    def get(self, request, booking_id1):
         try:
+            print('is working',booking_id1)
             vendor = request.user.vendor
 
+            
+
             # Try to find a matching BusBooking
-            bus_booking = BusBooking.objects.filter(id=booking_id, bus__vendor=vendor).first()
+            bus_booking = BusBooking.objects.filter(booking_id=booking_id1, bus__vendor=vendor).first()
             if bus_booking:
                 traveler = bus_booking.travelers.first() if bus_booking.travelers.exists() else None
                 traveler_data = {
@@ -3934,7 +3937,7 @@ class BookingDetailByIdView(APIView):
                 return Response(data, status=status.HTTP_200_OK)
 
             # Try to find a matching PackageBooking
-            package_booking = PackageBooking.objects.filter(id=booking_id, package__vendor=vendor).first()
+            package_booking = PackageBooking.objects.filter(booking_id=booking_id1, package__vendor=vendor).first()
             if package_booking:
                 traveler = package_booking.travelers.first() if package_booking.travelers.exists() else None
                 traveler_data = {

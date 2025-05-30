@@ -1311,7 +1311,8 @@ class PackageBookingDetailSerializer222(serializers.ModelSerializer):
 
 
 class CombinedBookingSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
+    booking_id = serializers.IntegerField()
+
     type = serializers.SerializerMethodField()
     name = serializers.SerializerMethodField()   
     from_location = serializers.CharField()
