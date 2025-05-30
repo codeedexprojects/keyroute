@@ -199,3 +199,5 @@ class UserBusSearch(models.Model):
     return_date = models.DateField(null=True, blank=True)
     search = models.CharField(max_length=255, null=True, blank=True)
     pushback = models.BooleanField(default=False)
+    from_location = models.CharField(max_length=255, null=True, blank=True)
+    to_location = models.CharField(max_length=255, null=True, blank=True)
