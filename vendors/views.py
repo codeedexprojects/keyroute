@@ -430,38 +430,6 @@ class PackageSubCategoryAPIView(APIView):
 
 
 
-
-
-
-    # def put(self, request, pk):
-    #     subcategory = self.get_object(pk)
-    #     if not subcategory:
-    #         return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
-
-    #     serializer = PackageSubCategorySerializer(subcategory, data=request.data, partial=True)
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response({"message": "SubCategory updated successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
-
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    # def delete(self, request, pk):
-    #     subcategory = self.get_object(pk)
-    #     if not subcategory:
-    #         return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
-
-    #     subcategory.delete()
-    #     return Response({"message": "SubCategory deleted successfully!"}, status=status.HTTP_200_OK)
-
-
-
-
-
-
-
-
-
-
 # PACKAGE CRUD
 class PackageAPIView(APIView):
     parser_classes = [MultiPartParser, JSONParser]  
@@ -608,89 +576,6 @@ class BasicPackageAPIView(APIView):
 
 
 
-# class DayPlanCreateAPIView(APIView):
-#     parser_classes = [MultiPartParser, JSONParser]
-#     authentication_classes = [JWTAuthentication]
-#     permission_classes = [IsAuthenticated]
-
-  
-    
-#     def post(self, request, package_id):
-#         try:
-#             data = request.data.dict()
-#             files = request.FILES
-
-#             try:
-#                 day_plans = json.loads(data.get("day_plans", "[]"))
-#             except json.JSONDecodeError:
-#                 return Response({"error": "Invalid day_plans JSON format"}, status=400)
-
-#             grouped_images = defaultdict(list)
-#             for key in files:
-#                 parts = key.split('_')
-#                 if parts[0] in ['places', 'meals', 'activities'] and len(parts) == 3:
-#                     section, day_idx, item_idx = parts[0], int(parts[1][3:]), int(parts[2])
-#                     grouped_images[(day_idx, section, item_idx)].extend(request.FILES.getlist(key))
-#                 elif parts[0] == 'stay' and len(parts) == 2:
-#                     day_idx = int(parts[1][3:])
-#                     grouped_images[(day_idx, 'stay', 0)].extend(request.FILES.getlist(key))
-
-#             print("\n--- DEBUG: Grouped Day Plans with Images ---")
-#             for i, day in enumerate(day_plans):
-#                 print(f"Day {i + 1}:")
-#                 for section in ['places', 'meals', 'activities']:
-#                     for idx, item in enumerate(day.get(section, [])):
-#                         imgs = grouped_images.get((i, section, idx), [])
-#                         item['images'] = [{"image": img} for img in imgs]
-#                         print(f"  {section.capitalize()}[{idx}]: {item.get('name', '') or item.get('type', '')}")
-#                         print(f"    Images: {[img.name for img in imgs]}")
-#                 if 'stay' in day:
-#                     imgs = grouped_images.get((i, 'stay', 0), [])
-#                     day['stay']['images'] = [{"image": img} for img in imgs]
-#                     print(f"  Stay:\n    Images: {[img.name for img in imgs]}")
-#             print("--- End Debug ---\n")
-
-#             package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
-#             if not package:
-#                 return Response({"error": "Package not found"}, status=404)
-
-#             with transaction.atomic():
-#                 for day in day_plans:
-#                     places = day.pop("places", [])
-#                     meals = day.pop("meals", [])
-#                     activities = day.pop("activities", [])
-#                     stay = day.pop("stay", None)
-
-#                     day_instance = DayPlan.objects.create(package=package, **day)
-
-#                     for place in places:
-#                         images = place.pop("images", [])
-#                         p = Place.objects.create(day_plan=day_instance, **place)
-#                         for img in images:
-#                             PlaceImage.objects.create(place=p, image=img["image"])
-
-#                     if stay:
-#                         images = stay.pop("images", [])
-#                         s = Stay.objects.create(day_plan=day_instance, **stay)
-#                         for img in images:
-#                             StayImage.objects.create(stay=s, image=img["image"])
-
-#                     for meal in meals:
-#                         images = meal.pop("images", [])
-#                         m = Meal.objects.create(day_plan=day_instance, **meal)
-#                         for img in images:
-#                             MealImage.objects.create(meal=m, image=img["image"])
-
-#                     for activity in activities:
-#                         images = activity.pop("images", [])
-#                         a = Activity.objects.create(day_plan=day_instance, **activity)
-#                         for img in images:
-#                             ActivityImage.objects.create(activity=a, image=img["image"])
-
-#             return Response({"message": "Day plans added successfully."}, status=201)
-
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=500)
 
 
 class DayPlanCreateAPIView(APIView):
@@ -698,89 +583,7 @@ class DayPlanCreateAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    # def post(self, request, package_id):
-    #     try:
-    #         data = request.data.dict()
-    #         files = request.FILES
-
-    #         try:
-    #             day_plans = json.loads(data.get("day_plans", "[]"))
-    #         except json.JSONDecodeError:
-    #             return Response({"error": "Invalid day_plans JSON format"}, status=400)
-
-    #         grouped_images = defaultdict(list)
-    #         for key in files:
-    #             parts = key.split('_')
-    #             if parts[0] in ['places', 'meals', 'activities'] and len(parts) == 3:
-    #                 section, day_idx, item_idx = parts[0], int(parts[1][3:]), int(parts[2])
-    #                 grouped_images[(day_idx, section, item_idx)].extend(request.FILES.getlist(key))
-    #             elif parts[0] == 'stay' and len(parts) == 2:
-    #                 day_idx = int(parts[1][3:])  # stay_day1
-    #                 grouped_images[(day_idx, 'stay', 0)].extend(request.FILES.getlist(key))
-
-    #         package = Package.objects.filter(id=package_id, vendor__user=request.user).first()
-    #         if not package:
-    #             return Response({"error": "Package not found"}, status=404)
-
-    #         with transaction.atomic():
-    #             for idx, day in enumerate(day_plans):
-    #                 places = day.pop("places", [])
-    #                 meals = day.pop("meals", [])
-    #                 activities = day.pop("activities", [])
-    #                 stay = day.pop("stay", None)
-
-    #                 day_instance = DayPlan.objects.create(package=package, **day)
-
-    #                 for p_idx, place in enumerate(places):
-    #                     images = place.pop("images", [])
-    #                     p = Place.objects.create(day_plan=day_instance, **place)
-    #                     for img in grouped_images.get((idx, 'places', p_idx), []):
-    #                         PlaceImage.objects.create(place=p, image=img)
-
-    #                 if stay:
-    #                     images = stay.pop("images", [])
-    #                     stay_fields = {
-    #                         "hotel_name": stay.get("hotel_name"),
-    #                         "description": stay.get("description"),
-    #                         "location": stay.get("location"),
-    #                         "is_ac": stay.get("ac", False),
-    #                         "has_breakfast": stay.get("breakfast", False),
-    #                     }
-    #                     s = Stay.objects.create(day_plan=day_instance, **stay_fields)
-    #                     for img in grouped_images.get((idx, 'stay', 0), []):
-    #                         StayImage.objects.create(stay=s, image=img)
-
-    #                 for m_idx, meal in enumerate(meals):
-    #                     images = meal.pop("images", [])
-    #                     meal_fields = {
-    #                         "type": meal.get("type"),
-    #                         "description": meal.get("description"),
-    #                         "restaurant_name": meal.get("restaurant_name"),
-    #                         "location": meal.get("location"),
-    #                         "time": meal.get("time"),
-    #                     }
-    #                     m = Meal.objects.create(day_plan=day_instance, **meal_fields)
-    #                     for img in grouped_images.get((idx, 'meals', m_idx), []):
-    #                         MealImage.objects.create(meal=m, image=img)
-
-    #                 for a_idx, activity in enumerate(activities):
-    #                     images = activity.pop("images", [])
-    #                     activity_fields = {
-    #                         "name": activity.get("name"),
-    #                         "description": activity.get("description"),
-    #                         "location": activity.get("location"),
-    #                         "time": activity.get("time"),
-    #                     }
-    #                     a = Activity.objects.create(day_plan=day_instance, **activity_fields)
-    #                     for img in grouped_images.get((idx, 'activities', a_idx), []):
-    #                         ActivityImage.objects.create(activity=a, image=img)
-
-    #         return Response({"message": "Day plans added successfully."}, status=201)
-
-    #     except Exception as e:
-    #         return Response({"error": str(e)}, status=500)
-
-
+  
 
     # def post(self, request, package_id):
     #     try:
@@ -2023,7 +1826,7 @@ class VendorTotalRevenueView(APIView):
         package_revenue = PackageBooking.objects.filter(
             package__vendor=vendor,
             payment_status__in=["paid", "partial"]
-        ).aggregate(total=Sum('total_a mount'), count=Count('id'))
+        ).aggregate(total=Sum('total_amount'), count=Count('id'))
 
         # Calculate totals
         total_revenue = float(bus_revenue['total'] or 0) + float(package_revenue['total'] or 0)
@@ -2965,64 +2768,6 @@ class BusBookingEarningsHistoryFilterView(APIView):
 
 
 
-
-   
-
-    
-    # def get(self, request):
-    #     vendor = request.user.vendor
-    #     vendor_buses = Bus.objects.filter(vendor=vendor)
-    #     # vendor_buses = Bus.objects.filter(bus__vendor=vendor) 
-    #     bookings = BusBooking.objects.filter(bus__in=vendor_buses).order_by('-created_at')
-
-    #     filter_type = request.query_params.get('filter')   
-    #     start_date = request.query_params.get('start_date')   
-    #     end_date = request.query_params.get('end_date')       
-
-    #     today = timezone.now().date()
-
-    #     if filter_type == 'today':
-    #         bookings = bookings.filter(created_at__date=today)
-
-    #     elif filter_type == 'last_week':
-    #         last_week_start = today - timedelta(days=7)
-    #         bookings = bookings.filter(
-    #             created_at__date__gte=last_week_start, created_at__date__lte=today)
-
-    #     elif filter_type == 'last_month':
-    #         last_month = today - timedelta(days=30)
-    #         bookings = bookings.filter(
-    #             created_at__date__gte=last_month, created_at__date__lte=today)
-
-    #     elif filter_type == 'custom':
-    #         if start_date and end_date:
-    #             try:
-    #                 start_date = timezone.datetime.strptime(start_date, '%Y-%m-%d').date()
-    #                 end_date = timezone.datetime.strptime(end_date, '%Y-%m-%d').date()
-    #                 bookings = bookings.filter(
-    #                     created_at__date__gte=start_date, created_at__date__lte=end_date)
-    #             except ValueError:
-    #                 return Response({"error": "Invalid date format. Please use YYYY-MM-DD."}, status=400)
-    #         else:
-    #             return Response({"error": "Please provide start_date and end_date for custom filter."}, status=400)
-
-    #     total_revenue = BusBooking.objects.filter(bus__in=vendor_buses).aggregate(total=Sum('total_amount'))['total'] or 0
-
-    #     first_day_of_month = today.replace(day=1)
-    #     monthly_revenue = BusBooking.objects.filter(
-    #         bus__in=vendor_buses, created_at__date__gte=first_day_of_month
-    #     ).aggregate(total=Sum('total_amount'))['total'] or 0
-
-    #     serializer = BusBookingBasicSerializer(bookings, many=True)
-
-    #     return Response({
-    #         "earnings": serializer.data,
-    #         "total_revenue": total_revenue,
-    #         "monthly_revenue": monthly_revenue,
-    #         "sample":"hello"
-    #     })
-
-
     def get(self, request):
         vendor = request.user.vendor
         vendor_buses = Bus.objects.filter(vendor=vendor)
@@ -3083,36 +2828,6 @@ class BusBookingEarningsHistoryFilterView(APIView):
 
 
 
-# class LatestCanceledBookingView(APIView):
-#     permission_classes = [IsAuthenticated]
-#     authentication_classes = [JWTAuthentication]
-
-    
-#     def get(self, request):
-#         vendor = Vendor.objects.filter(user=request.user).first()
-#         if not vendor:
-#             return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
-
-#         latest_cancelled_bus = BusBooking.objects.filter(
-#             bus__vendor=vendor, trip_status='cancelled'
-#         ).order_by('-created_at').first()
-
-#         latest_cancelled_package = PackageBooking.objects.filter(
-#             package__vendor=vendor, trip_status='cancelled'
-#         ).order_by('-created_at').first()
-
-#         latest = max(
-#             filter(None, [latest_cancelled_bus, latest_cancelled_package]),
-#             key=lambda x: x.created_at,
-#             default=None
-#         )
-
-#         if not latest:
-#             return Response({"message": "No cancelled bookings found."}, status=status.HTTP_204_NO_CONTENT)
-
-#         serializer = CombinedBookingSerializer(latest)
-#         return Response(serializer.data, status=status.HTTP_200_OK)
-
 
 class LatestCanceledBookingView(APIView):
     permission_classes = [IsAuthenticated]
@@ -3168,93 +2883,6 @@ class CanceledBusBookingView(APIView):
    
 
 
-    # def get(self, request, booking_id=None):
-    #     vendor = request.user.vendor
-
-    #     now = timezone.now()
-    #     current_year = now.year
-    #     current_month = now.month
-
-    #     all_vendor_bookings = BusBooking.objects.filter(bus__vendor=vendor)
-
-       
-    #     monthly_revenue = float(
-    #         all_vendor_bookings.filter(
-    #             created_at__year=current_year,
-    #             created_at__month=current_month
-    #         ).aggregate(total=Sum('total_amount'))['total'] or 0
-    #     )
-
-
-    #     if booking_id:
-    #         try:
-    #             canceled_booking = BusBooking.objects.get(
-    #                 id=booking_id, 
-    #                 payment_status='cancelled',
-    #                 bus__vendor=vendor
-    #             )
-    #             serializer = BusBookingDetailSerializer(canceled_booking)
-    #             return Response({
-    #                 "canceled_bus_booking": serializer.data,
-    #                 "monthly_revenue": monthly_revenue
-    #             }, status=status.HTTP_200_OK)
-    #         except BusBooking.DoesNotExist:
-    #             return Response({
-    #                 "error": "Canceled bus booking not found",
-    #                 "monthly_revenue": monthly_revenue
-    #             }, status=status.HTTP_404_NOT_FOUND)
-    #     else:
-    #         canceled_bookings = BusBooking.objects.filter(
-    #             payment_status='cancelled',
-    #             bus__vendor=vendor
-    #         ).order_by('-created_at')
-
-    #         if canceled_bookings.exists():
-    #             serializer = BusBookingBasicSerializer(canceled_bookings, many=True)
-    #             return Response({
-    #                 "canceled_bus_bookings": serializer.data,
-    #                 "monthly_revenue": monthly_revenue
-    #             }, status=status.HTTP_200_OK)
-    #         else:
-    #             return Response({
-    #                 "message": "No canceled bus bookings found for this vendor.",
-    #                 "monthly_revenue": monthly_revenue
-    #             }, status=status.HTTP_404_NOT_FOUND)
-
-
-    
-
-    # def get(self, request):
-    #     vendor = request.user.vendor
-    #     print(vendor.full_name)
-
-    #     now = timezone.now()
-    #     current_year = now.year
-    #     current_month = now.month
-
-    #     all_vendor_bookings = BusBooking.objects.filter(bus__vendor=vendor)
-
-    #     monthly_revenue = float(
-    #         all_vendor_bookings.filter(
-    #             created_at__year=current_year,
-    #             created_at__month=current_month
-    #         ).aggregate(total=Sum('total_amount'))['total'] or 0
-    #     )
-
-    #     canceled_bookings = BusBooking.objects.filter(
-    #         bus__vendor=vendor
-    #     ).filter(
-    #         Q(payment_status='cancelled') | Q(trip_status='cancelled')
-    #     ).order_by('-created_at')
-
-
-    #     serializer = BusBookingDetailSerializer222(canceled_bookings, many=True)
-
-    #     return Response({
-    #         "canceled_bus_bookings": serializer.data,
-    #         "monthly_revenue": monthly_revenue
-    #     }, status=status.HTTP_200_OK)
-
 
     
     def get(self, request):
@@ -3265,10 +2893,8 @@ class CanceledBusBookingView(APIView):
         current_year = now.year
         current_month = now.month
 
-        # Get all bookings for the vendor
         all_vendor_bookings = BusBooking.objects.filter(bus__vendor=vendor)
 
-        # Calculate the monthly revenue
         monthly_revenue = float(
             all_vendor_bookings.filter(
                 created_at__year=current_year,
@@ -3276,23 +2902,19 @@ class CanceledBusBookingView(APIView):
             ).aggregate(total=Sum('total_amount'))['total'] or 0
         )
 
-        # Get canceled bookings
         canceled_bookings = BusBooking.objects.filter(
             bus__vendor=vendor
         ).filter(
             Q(payment_status='cancelled') | Q(trip_status='cancelled')
         ).order_by('-created_at')
 
-        # Get monthly bus booking count
         monthly_booking_count = all_vendor_bookings.filter(
             created_at__year=current_year,
             created_at__month=current_month
         ).count()
 
-        # Serialize canceled bookings
         serializer = BusBookingDetailSerializer222(canceled_bookings, many=True)
 
-        # Return the response
         return Response({
             "canceled_bus_bookings": serializer.data,
             "monthly_revenue": monthly_revenue,

@@ -1516,7 +1516,7 @@ class BusBookingRequestSerializer(serializers.ModelSerializer):
 
 
 class PackageBookingREQUESTSerializer(serializers.ModelSerializer):
-    package_name = serializers.CharField(source='package.places')  # Using the 'places' field of Package
+    package_name = serializers.CharField(source='package.places')   
     commission_amount = serializers.SerializerMethodField()
     trip_type = serializers.SerializerMethodField()
     total_members = serializers.SerializerMethodField()
