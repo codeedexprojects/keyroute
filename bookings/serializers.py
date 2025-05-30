@@ -231,11 +231,6 @@ class BusBookingSerializer(BaseBookingSerializer):
         user = self.context['request'].user
         bus = validated_data.get('bus')
 
-        def reverse_geocode(lat, lon):
-            geolocator = Nominatim(user_agent="coord-debug")
-            location = geolocator.reverse((lat, lon), language='en')
-            return location.address if location else None
-
         # Get location data from UserBusSearch
         try:
             bus_search = UserBusSearch.objects.get(user=user)
@@ -255,12 +250,10 @@ class BusBookingSerializer(BaseBookingSerializer):
                 validated_data['one_way'] = bus_search.one_way
             else:
                 validated_data['one_way'] = bus_search.one_way
-            if bus_search.from_lat and bus_search.from_lon and bus_search.to_lat and bus_search.to_lon:
-                from_location = reverse_geocode(bus_search.from_lat, bus_search.from_lon)
-                to_location = reverse_geocode(bus_search.to_lat, bus_search.to_lon)
-
-                validated_data['from_location'] = from_location
-                validated_data['to_location'] = to_location
+            if bus_search.from_location:
+                validated_data['from_location'] = bus_search.from_location
+            if bus_search.to_location:
+                validated_data['to_location'] = bus_search.to_location
                 
         except UserBusSearch.DoesNotExist:
             logger.error(f"No bus search data found for user {user.id}")
