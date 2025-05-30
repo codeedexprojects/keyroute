@@ -87,7 +87,8 @@ urlpatterns = [
     # LATEST BOOKING 
     path('api/vendor/latest/', LatestSingleBookingView.as_view(), name='latest-bus-bookings'),
     # LATEST BOOKING DETAILS VIEW
-    path('api/booking-detail/<int:booking_id>/', BookingDetailByIdView.as_view()),
+    path('api/booking-detail/<int:booking_id1>/', BookingDetailByIdView.as_view()),
+    
  
     # LASTEST BOOKING COMPLETED HISTORY SINGLE
     path('api/vendor/latest/booking-history/', VendorLatestSingleBookingHistoryView.as_view(), name='latest-bookings-history'),
