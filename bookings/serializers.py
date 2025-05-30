@@ -45,7 +45,7 @@ class BaseBookingSerializer(serializers.ModelSerializer):
     
     class Meta:
         abstract = True
-        fields = ['booking_id', 'user', 'start_date', 'total_amount', 'advance_amount', 
+        fields = ['booking_id', 'user', 'start_date','total_amount', 'advance_amount', 
                  'payment_status', 'booking_status', 'trip_status', 'created_at', 
                  'balance_amount', 'cancelation_reason', 'total_travelers', 
                  'male', 'female', 'children', 'from_location', 'to_location']
@@ -53,6 +53,7 @@ class BaseBookingSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
             'advance_amount': {'write_only': False, 'required': False},
+            'start_date': {'required': False},
         }
 
 import requests
@@ -1563,5 +1564,4 @@ class UserBusSearchSerializer(serializers.ModelSerializer):
             'pick_up_time': {'required': False, 'allow_null': True},
             'pick_up_date': {'required': False, 'allow_null': True},
             'return_date': {'required': False, 'allow_null': True},
-            'search': {'required': False, 'allow_null': True},
         }
