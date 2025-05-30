@@ -3448,10 +3448,10 @@ class DeclineBusBookingView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, booking_id):
+    def post(self, request, booking_id1):
         try:
             vendor = request.user.vendor
-            bus_booking = BusBooking.objects.get(id=booking_id, bus__vendor=vendor)
+            bus_booking = BusBooking.objects.get(booking_id=booking_id1, bus__vendor=vendor)
 
             if bus_booking.booking_status != 'pending':
                 return Response({"error": "Booking is already accepted or declined."}, status=status.HTTP_400_BAD_REQUEST)
@@ -3487,10 +3487,10 @@ class DeclinePackageBookingView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    def post(self, request, booking_id):
+    def post(self, request, booking_id1):
         try:
             vendor = request.user.vendor
-            package_booking = PackageBooking.objects.get(id=booking_id, package__vendor=vendor)
+            package_booking = PackageBooking.objects.get(booking_id=booking_id1, package__vendor=vendor)
 
             if package_booking.booking_status != 'pending':
                 return Response({"error": "Booking is already accepted or declined."}, status=status.HTTP_400_BAD_REQUEST)
@@ -3835,13 +3835,13 @@ class PreAcceptPackageBookingDetailView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    def get(self, request, booking_id):
+    def get(self, request, booking_id1):
         try:
             vendor = request.user.vendor
 
             # Try BusBooking first
             bus_booking = BusBooking.objects.filter(
-                id=booking_id,
+                booking_id=1,
                 bus__vendor=vendor,
                 booking_status='pending'   
             ).first()
@@ -3864,7 +3864,7 @@ class PreAcceptPackageBookingDetailView(APIView):
 
             # Then try PackageBooking
             package_booking = PackageBooking.objects.filter(
-                id=booking_id,
+                booking_id=booking_id1,
                 package__vendor=vendor,
                 booking_status='pending'
             ).first()
