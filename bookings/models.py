@@ -27,7 +27,7 @@ class BaseBooking(models.Model):
     )
     
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    start_date = models.DateField()
+    start_date = models.DateField(null=True,blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     advance_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     
@@ -41,8 +41,8 @@ class BaseBooking(models.Model):
     male  = models.PositiveIntegerField(default=1)
     female  = models.PositiveIntegerField(default=1)
     children  = models.PositiveIntegerField(default=1)
-    from_location = models.CharField(max_length=150)
-    to_location = models.CharField(max_length=150)
+    from_location = models.CharField(max_length=255, null=True, blank=True)
+    to_location = models.CharField(max_length=255, null=True, blank=True)
     
     class Meta:
         abstract = True
