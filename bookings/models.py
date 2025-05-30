@@ -41,8 +41,8 @@ class BaseBooking(models.Model):
     male  = models.PositiveIntegerField(default=1)
     female  = models.PositiveIntegerField(default=1)
     children  = models.PositiveIntegerField(default=1)
-    from_location = models.CharField(max_length=150)
-    to_location = models.CharField(max_length=150)
+    from_location = models.CharField(max_length=255, null=True, blank=True)
+    to_location = models.CharField(max_length=255, null=True, blank=True)
     
     class Meta:
         abstract = True
