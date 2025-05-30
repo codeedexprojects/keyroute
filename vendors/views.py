@@ -20,7 +20,7 @@ import re
 from django.shortcuts import get_object_or_404
 from django.db.models.functions import TruncMonth
 from django.db.models import Sum
-from datetime import datetime, timedelta
+# from datetime import datetime, timedelta
 from bookings.models import *
 from django.db.models import Sum, Count, F
 from django.utils.timezone import now
@@ -28,6 +28,8 @@ from .serializers import PackageBasicSerializer
 from admin_panel.models import *
 from calendar import monthrange
 from django.core.exceptions import ObjectDoesNotExist
+from datetime import datetime, timedelta
+
 
 # Create your views here.
 
