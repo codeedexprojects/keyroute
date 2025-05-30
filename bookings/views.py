@@ -158,9 +158,10 @@ class BusListAPIView(APIView):
         if user_search.pushback:
             buses = buses.filter(features__name__iexact='pushback')
 
-        # Filter by search term (bus name)
-        if user_search.search:
-            buses = buses.filter(bus_name__icontains=user_search.search)
+        # Get search parameter and apply filter BEFORE distance calculation
+        search = request.query_params.get('search')
+        if search:
+            buses = buses.filter(bus_name__icontains=search)
 
         # Distance filter: within 30 km
         nearby_buses = []
@@ -458,7 +459,9 @@ class BusBookingListCreateAPIView(APIView):
         if serializer.is_valid():
             bus = serializer.validated_data['bus']
             vendor = bus.vendor
-            booking_date = serializer.validated_data['start_date']
+            user = request.user
+            user_search = UserBusSearch(user=user)
+            booking_date = user_search.pick_up_date
 
             if is_vendor_busy(vendor, booking_date):
                 return Response({"error": "Vendor is busy on the selected date."}, status=status.HTTP_400_BAD_REQUEST)

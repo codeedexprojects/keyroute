@@ -21,6 +21,8 @@ from django.db import transaction
 import math
 logger = logging.getLogger(__name__)
 from reviews.serializers import *
+from geopy.geocoders import Nominatim
+from geopy.distance import geodesic
 
 
 User = get_user_model()
@@ -45,7 +47,7 @@ class BaseBookingSerializer(serializers.ModelSerializer):
     
     class Meta:
         abstract = True
-        fields = ['booking_id', 'user', 'start_date', 'total_amount', 'advance_amount', 
+        fields = ['booking_id', 'user', 'start_date','total_amount', 'advance_amount', 
                  'payment_status', 'booking_status', 'trip_status', 'created_at', 
                  'balance_amount', 'cancelation_reason', 'total_travelers', 
                  'male', 'female', 'children', 'from_location', 'to_location']
@@ -53,6 +55,7 @@ class BaseBookingSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
             'advance_amount': {'write_only': False, 'required': False},
+            'start_date': {'required': False},
         }
 
 import requests
@@ -228,6 +231,11 @@ class BusBookingSerializer(BaseBookingSerializer):
         user = self.context['request'].user
         bus = validated_data.get('bus')
 
+        def reverse_geocode(lat, lon):
+            geolocator = Nominatim(user_agent="coord-debug")
+            location = geolocator.reverse((lat, lon), language='en')
+            return location.address if location else None
+
         # Get location data from UserBusSearch
         try:
             bus_search = UserBusSearch.objects.get(user=user)
@@ -247,6 +255,12 @@ class BusBookingSerializer(BaseBookingSerializer):
                 validated_data['one_way'] = bus_search.one_way
             else:
                 validated_data['one_way'] = bus_search.one_way
+            if bus_search.from_lat and bus_search.from_lon and bus_search.to_lat and bus_search.to_lon:
+                from_location = reverse_geocode(bus_search.from_lat, bus_search.from_lon)
+                to_location = reverse_geocode(bus_search.to_lat, bus_search.to_lon)
+
+                validated_data['from_location'] = from_location
+                validated_data['to_location'] = to_location
                 
         except UserBusSearch.DoesNotExist:
             logger.error(f"No bus search data found for user {user.id}")
@@ -1562,5 +1576,4 @@ class UserBusSearchSerializer(serializers.ModelSerializer):
             'pick_up_time': {'required': False, 'allow_null': True},
             'pick_up_date': {'required': False, 'allow_null': True},
             'return_date': {'required': False, 'allow_null': True},
-            'search': {'required': False, 'allow_null': True},
         }
