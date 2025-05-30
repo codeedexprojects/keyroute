@@ -1925,11 +1925,14 @@ class LatestSingleBookingView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    # def get(self, request):
-    #     print('latest booking')
 
-    #     latest_bus = BusBooking.objects.order_by('-created_at').first()
-    #     latest_package = PackageBooking.objects.order_by('-created_at').first()
+
+    # def get(self, request):
+    #     user = request.user   
+    #     print(user)
+
+    #     latest_bus = BusBooking.objects.filter(user=user).order_by('-created_at').first()
+    #     latest_package = PackageBooking.objects.filter(user=user).order_by('-created_at').first()
 
     #     latest = max(
     #         filter(None, [latest_bus, latest_package]),
@@ -1938,17 +1941,26 @@ class LatestSingleBookingView(APIView):
     #     )
 
     #     if not latest:
-    #         return Response({"message": "No bookings found."}, status=status.HTTP_204_NO_CONTENT)
+    #         # return Response({"message": "No bookings found for the current user."}, status=status.HTTP_204_NO_CONTENT)
+    #         return Response({"message": "No bookings found for the current user."}, status=status.HTTP_200_OK)
+
 
     #     serializer = CombinedBookingSerializer(latest)
     #     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-    def get(self, request):
-        user = request.user   
 
-        latest_bus = BusBooking.objects.filter(user=user).order_by('-created_at').first()
-        latest_package = PackageBooking.objects.filter(user=user).order_by('-created_at').first()
+
+    def get(self, request):
+        user = request.user
+
+        try:
+            vendor = Vendor.objects.get(user=user)
+        except Vendor.DoesNotExist:
+            return Response({"message": "Vendor profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        latest_bus = BusBooking.objects.filter(bus__vendor=vendor).order_by('-created_at').first()
+        latest_package = PackageBooking.objects.filter(package__vendor=vendor).order_by('-created_at').first()
 
         latest = max(
             filter(None, [latest_bus, latest_package]),
@@ -1957,12 +1969,24 @@ class LatestSingleBookingView(APIView):
         )
 
         if not latest:
-            # return Response({"message": "No bookings found for the current user."}, status=status.HTTP_204_NO_CONTENT)
-            return Response({"message": "No bookings found for the current user."}, status=status.HTTP_200_OK)
-
+            return Response({"message": "No bookings found for the current vendor."}, status=status.HTTP_200_OK)
 
         serializer = CombinedBookingSerializer(latest)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3448,10 +3472,10 @@ class DeclineBusBookingView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, booking_id):
+    def post(self, request, booking_id1):
         try:
             vendor = request.user.vendor
-            bus_booking = BusBooking.objects.get(id=booking_id, bus__vendor=vendor)
+            bus_booking = BusBooking.objects.get(booking_id=booking_id1, bus__vendor=vendor)
 
             if bus_booking.booking_status != 'pending':
                 return Response({"error": "Booking is already accepted or declined."}, status=status.HTTP_400_BAD_REQUEST)
@@ -3487,10 +3511,10 @@ class DeclinePackageBookingView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    def post(self, request, booking_id):
+    def post(self, request, booking_id1):
         try:
             vendor = request.user.vendor
-            package_booking = PackageBooking.objects.get(id=booking_id, package__vendor=vendor)
+            package_booking = PackageBooking.objects.get(booking_id=booking_id1, package__vendor=vendor)
 
             if package_booking.booking_status != 'pending':
                 return Response({"error": "Booking is already accepted or declined."}, status=status.HTTP_400_BAD_REQUEST)
@@ -3835,13 +3859,13 @@ class PreAcceptPackageBookingDetailView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    def get(self, request, booking_id):
+    def get(self, request, booking_id1):
         try:
             vendor = request.user.vendor
 
             # Try BusBooking first
             bus_booking = BusBooking.objects.filter(
-                id=booking_id,
+                booking_id=1,
                 bus__vendor=vendor,
                 booking_status='pending'   
             ).first()
@@ -3864,7 +3888,7 @@ class PreAcceptPackageBookingDetailView(APIView):
 
             # Then try PackageBooking
             package_booking = PackageBooking.objects.filter(
-                id=booking_id,
+                booking_id=booking_id1,
                 package__vendor=vendor,
                 booking_status='pending'
             ).first()
