@@ -176,13 +176,20 @@ class AllUsersAPIView(APIView):
     def get(self, request, user_id=None):
         if user_id:
             try:
-                user = User.objects.get(id=user_id, role=User.USER)
+                
+
+
+
+                # user = User.objects.get(id=user_id, role=User.USER)
+                user = User.objects.filter(role=User.USER).order_by('-created_at')  # or '-created_at'
+
                 serializer = UserSerializer(user)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             except User.DoesNotExist:
                 return Response({"error": "User not found or not a normal user."}, status=status.HTTP_404_NOT_FOUND)
         else:
-            users = User.objects.filter(role=User.USER)
+            # users = User.objects.filter(role=User.USER)
+            users = User.objects.filter(role=User.USER).order_by('-created_at')
 
             booked_users_bus = BusBooking.objects.values('user_id')
             booked_users_package = PackageBooking.objects.values('user_id')
@@ -710,20 +717,7 @@ class FooterSectionCreateView(APIView):
     authentication_classes = [JWTAuthentication]
     parser_classes = [MultiPartParser, FormParser]
 
-    # def post(self, request):
-    #     try:
-    #         footer = {
-    #             'image': request.FILES.get('image'),
-    #             'package': request.data.get('package')   
-    #         }
-    #         serializer = FooterSectionSerializer(data=footer)
-    #         if serializer.is_valid():
-    #             serializer.save()
-    #             return Response({'message': 'Footer section saved successfully!'}, status=201)
-    #         return Response({'error': serializer.errors}, status=400)
-    #     except Exception as e:
-    #         return Response({'error': str(e)}, status=400)
-
+   
     def post(self, request):
         try:
             main_image = request.FILES.get('main_image')
@@ -735,7 +729,6 @@ class FooterSectionCreateView(APIView):
                 if key.startswith('image') and key != 'main_image':
                     extra_images.append(request.FILES[key])
 
-            # Create FooterSection with main image
             footer_data = {
                 'main_image': main_image,
                 'package': request.data.get('package')
@@ -745,7 +738,6 @@ class FooterSectionCreateView(APIView):
             if footer_serializer.is_valid():
                 footer = footer_serializer.save()
 
-                # Save additional FooterImage entries
                 for img in extra_images:
                     FooterImage.objects.create(footer_section=footer, image=img)
 
@@ -1504,7 +1496,9 @@ class AdminVendorOverview(APIView):
    
 
     def get(self, request):
-        vendors = Vendor.objects.all()
+        # vendors = Vendor.objects.all()
+        vendors = Vendor.objects.all().order_by('-created_at')
+
         today = timezone.now().date()
 
         data = []
@@ -2202,3 +2196,105 @@ class AllReviewsListView(APIView):
             "app_reviews": app_serializer.data,
         }, status=status.HTTP_200_OK)
     
+
+
+
+
+
+class RecentReviewsAPIView(APIView):
+    def get(self, request):
+        bus_reviews = BusReview.objects.select_related('user', 'bus').all()
+        package_reviews = PackageReview.objects.select_related('user', 'package').all()
+        app_reviews = AppReview.objects.select_related('user').all()
+
+        # Annotate each review with a type and related name (for frontend display)
+        def annotate_reviews(queryset, type_label, get_related_name):
+            for review in queryset:
+                review.type = type_label
+                review.related_name = get_related_name(review)
+                yield review
+
+        combined_reviews = list(chain(
+            annotate_reviews(bus_reviews, "bus", lambda r: r.bus.bus_name),
+            annotate_reviews(package_reviews, "package", lambda r: str(r.package)),
+            annotate_reviews(app_reviews, "app", lambda r: "App Feedback")
+        ))
+
+        # Sort by created_at descending
+        sorted_reviews = sorted(combined_reviews, key=attrgetter('created_at'), reverse=True)
+
+        # Serialize manually using UnifiedReviewSerializer
+        serialized = UnifiedReviewSerializer([
+            {
+                "user": review.user.name,
+                "rating": review.rating,
+                "comment": review.comment,
+                "created_at": review.created_at,
+                "type": review.type,
+                "related_name": review.related_name
+            }
+            for review in sorted_reviews
+        ], many=True)
+
+        return Response(serialized.data, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+class TogglePopularStatusAPIView(APIView):
+    def post(self, request, bus_id):
+        try:
+            bus = Bus.objects.get(id=bus_id)
+            bus.is_popular = not bus.is_popular  # Toggle status
+            bus.save()
+            return Response({
+                "message": "Popular status updated successfully.",
+                "bus_id": bus.id,
+                "is_popular": bus.is_popular
+            }, status=status.HTTP_200_OK)
+        except Bus.DoesNotExist:
+            return Response({"error": "Bus not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+class AdminBusDeleteView(APIView):
+    permission_classes = [IsAdminUser]
+    authentication_classes = [JWTAuthentication]
+
+    def delete(self, request, pk):
+        try:
+            bus = Bus.objects.get(pk=pk)
+            bus.delete()
+            return Response({'message': 'Bus deleted successfully'}, status=status.HTTP_200_OK)
+        except Bus.DoesNotExist:
+            return Response({'error': 'Bus not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+class AdminPackageDeleteView(APIView):
+    permission_classes = [IsAdminUser]
+    authentication_classes = [JWTAuthentication]
+
+    def delete(self, request, pk):
+        try:
+            package = Package.objects.get(pk=pk)
+            package.delete()
+            return Response({'message': 'Package deleted successfully'}, status=status.HTTP_200_OK)
+        except Package.DoesNotExist:
+            return Response({'error': 'Package not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
