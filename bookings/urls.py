@@ -7,7 +7,7 @@ from .views import (
     TravelerDetailAPIView, UserBookingsByStatus,CancelBookingView,PackageCategoryListAPIView,PackageSubCategoryListAPIView,
     SingleBusListAPIView,SinglePackageListAPIView,
     PopularBusApi,PackageBookingUpdateAPIView,PackageDriverDetailListAPIView,UserBusSearchCreateAPIView,
-    FooterSectionListAPIView,AdvertisementListAPIView,PilgrimagePackagesAPIView
+    FooterSectionListAPIView,AdvertisementListAPIView,PilgrimagePackagesAPIView,BusBookingUpdateAPIView
 
 )
 
@@ -29,6 +29,7 @@ urlpatterns = [
     path('bookings/bus/', BusBookingListCreateAPIView.as_view(), name='bus-booking-list-create'),
     path('bookings/bus/<int:pk>/', BusBookingDetailAPIView.as_view(), name='bus-booking-detail'),
     path('bookings/bus/<int:booking_id>/travelers/', BusBookingTravelersAPIView.as_view(), name='bus-booking-travelers'),
+    path('bookings/bus/<int:booking_id>/edit/', BusBookingUpdateAPIView.as_view(), name='bus-booking-update'),
 
     path('bookings/cancel/',CancelBookingView.as_view(),name="booking_cancel"),
     
