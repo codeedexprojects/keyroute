@@ -399,7 +399,8 @@ class FooterImageSerializer(serializers.ModelSerializer):
 
 class FooterSectionSerializer(serializers.ModelSerializer):
     extra_images = FooterImageSerializer(many=True, read_only=True) 
-    package = PackageSerializer() 
+    # package = PackageSerializer() 
+    package = serializers.PrimaryKeyRelatedField(queryset=Package.objects.all())
     class Meta:
         model = FooterSection
 
@@ -813,6 +814,29 @@ class AppReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = AppReview
         fields = ['id', 'user', 'rating', 'comment', 'created_at']
+
+
+
+
+
+class UnifiedReviewSerializer(serializers.Serializer):
+    user = serializers.CharField()
+    rating = serializers.FloatField()
+    comment = serializers.CharField(allow_blank=True, allow_null=True)
+    created_at = serializers.DateTimeField()
+    type = serializers.CharField()
+    related_name = serializers.CharField()
+
+
+
+
+
+
+
+
+
+
+
 
 
 

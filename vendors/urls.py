@@ -26,14 +26,16 @@ urlpatterns = [
     # path('api/vendor/package-category/<int:pk>/', PackageCategoryAPIView.as_view(), name='package-category-update-delete'),
 
     # SUBCATEGORY LISTING
-    path('api/vendor/package-subcategory/', PackageSubCategoryAPIView.as_view(), name='package-subcategory-list-create'),
+    path('api/vendor/package-subcategory/<int:pk>/', PackageSubCategoryAPIView.as_view(), name='package-subcategory-list-create'),
     # path('api/vendor/package-subcategory/<int:pk>/', PackageSubCategoryAPIView.as_view(), name='package-subcategory-detail'),
 
     # PACKAGE 
     path('api/vendor/package/', PackageAPIView.as_view(), name='package-create-list'),
     # DAYS DELETING
     path('api/vendor/day-plan/delete/<int:day_id>/', DayPlanDeleteAPIView.as_view(), name='delete_day_plan'),
-    # single package
+
+
+    # single package LISTING
     path('api/vendor/package/<int:package_id>/', PackageAPIView.as_view(), name='package-detail'), 
 
     # NEW PACKAGE CREATING OLD
@@ -84,9 +86,13 @@ urlpatterns = [
 
     # LATEST BOOKING 
     path('api/vendor/latest/', LatestSingleBookingView.as_view(), name='latest-bus-bookings'),
+    
     # LATEST BOOKING DETAILS VIEW
-    path('api/booking-detail/<int:booking_id>/', BookingDetailByIdView.as_view()),
+    path('api/booking-detail/<int:booking_id1>/', BookingDetailByIdView.as_view()),
 
+    # Latest BOOKING VIEW
+    path('api/vendor/booking/detail/<int:booking_id>/', UnifiedBookingDetailView.as_view(), name='unified_booking_detail'),
+ 
     # LASTEST BOOKING COMPLETED HISTORY SINGLE
     path('api/vendor/latest/booking-history/', VendorLatestSingleBookingHistoryView.as_view(), name='latest-bookings-history'),
 
@@ -156,8 +162,8 @@ urlpatterns = [
 
 
     # ACCEPTED SINGLE DATAS BUS AND PACKAGE
-    path('api/vendor/accepted-bus-booking-detail/<int:booking_id>/', AcceptedBusBookingDetailView.as_view(),name='accepted_bus_booking_detail'),
-    path('api/vendor/accepted-package-booking/<int:booking_id>/', AcceptedPackageBookingDetailView.as_view(), name='accepted_package_booking_detail'),
+    path('api/vendor/accepted-bus-booking-detail/<int:booking_id1>/', AcceptedBusBookingDetailView.as_view(),name='accepted_bus_booking_detail'),
+    path('api/vendor/accepted-package-booking/<int:booking_id1>/', AcceptedPackageBookingDetailView.as_view(), name='accepted_package_booking_detail'),
 
 
     #PACKAGE ACCEPTED DECLIED LIST
@@ -171,8 +177,8 @@ urlpatterns = [
     
     
     # DECLAINED BUS AND PACKAGE
-    path('api/vendor/declined-bus-bookings/<int:booking_id>/', DeclineBusBookingView.as_view(), name='Decline-bus-bookings'),
-    path('api/vendor/declined-package-bookings/<int:booking_id>/', DeclinePackageBookingView.as_view(), name='Decline-pckage-bookings'),
+    path('api/vendor/declined-bus-bookings/<int:booking_id1>/', DeclineBusBookingView.as_view(), name='Decline-bus-bookings'),
+    path('api/vendor/declined-package-bookings/<int:booking_id1>/', DeclinePackageBookingView.as_view(), name='Decline-pckage-bookings'),
 
 
 
@@ -181,12 +187,11 @@ urlpatterns = [
     path('api/vendor/request-list-package-bookings/', PackageBookingRequestView.as_view(), name='reqst-list-package-bookings'),
 
     # PRE ACCEPTING BOOKING VIEW
-    path('api/vendor/prerequest-view/<int:booking_id>/', PreAcceptPackageBookingDetailView.as_view(), name='pre-requst'),
+    path('api/vendor/prerequest-view/<int:booking_id1>/', PreAcceptPackageBookingDetailView.as_view(), name='pre-requst'),
 
 
 
-    # Latest BOOKING VIEW
-    path('api/vendor/booking/detail/<int:booking_id>/', UnifiedBookingDetailView.as_view(), name='unified_booking_detail'),
+    
 
     # REVIEWS
     path('api/vendor/reviews/', VendorAllReviewsView.as_view(), name='vendor_all_reviews'),
@@ -194,7 +199,8 @@ urlpatterns = [
 
     
 
-
+    # 
+   
 
 ]
 

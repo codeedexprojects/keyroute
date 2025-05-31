@@ -182,8 +182,12 @@ class FooterSection(models.Model):
     package = models.ForeignKey('vendors.Package', on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # def __str__(self):
+    #     return f"Footer Section - {self.package.id}"
+
     def __str__(self):
-        return f"Footer Section - {self.package.id}"
+        return f"Footer Section - Package {self.package.id}" if self.package else "Footer Section - No Package"
+
 
 
 class FooterImage(models.Model):
