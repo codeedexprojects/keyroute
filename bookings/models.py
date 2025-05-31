@@ -21,6 +21,7 @@ class BaseBooking(models.Model):
         ('declined', 'Declined'),
     )
     TRIP_STATUS_CHOICES = (
+        ('not_started','Not Started'),
         ('ongoing', 'Ongoing'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
@@ -33,7 +34,7 @@ class BaseBooking(models.Model):
     
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
     booking_status = models.CharField(max_length=20, choices=BOOKING_STATUS_CHOICES, default='pending') 
-    trip_status = models.CharField(max_length=20, choices=TRIP_STATUS_CHOICES, default='ongoing')
+    trip_status = models.CharField(max_length=20, choices=TRIP_STATUS_CHOICES, default='not_started')
 
     created_at = models.DateTimeField(auto_now_add=True)
     cancelation_reason = models.CharField(max_length=250,null=True,blank=True)
