@@ -381,14 +381,18 @@ class SingleBusBookingSerializer(serializers.ModelSerializer):
     paid_amount = serializers.SerializerMethodField()
     bus_name = serializers.SerializerMethodField()
     end_date = serializers.SerializerMethodField()
+    price_per_km = serializers.SerializerMethodField()
 
     class Meta:
         model = BusBooking
         fields = [
-            'booking_id', 'from_location', 'pick_up_time','to_location', 'start_date', 
-            'end_date', 'total_travelers', 'total_amount', 
+            'booking_id', 'from_location', 'advance_amount','pick_up_time','to_location', 'start_date', 
+            'end_date', 'total_travelers', 'total_amount', 'price_per_km',
             'paid_amount', 'bus_name', 'booking_type','one_way'
         ]
+
+    def get_price_per_km(self, obj):
+        return obj.bus.price_per_km
 
     def get_booking_type(self, obj):
         return "bus"
@@ -449,7 +453,7 @@ class SinglePackageBookingSerilizer(serializers.ModelSerializer):
     class Meta:
         model = PackageBooking
         fields = [
-            'booking_id','rooms','from_location', 'to_location',
+            'booking_id','rooms','from_location','advance_amount' ,'to_location',
             'start_date', 'end_date', 'total_travelers',
             'total_amount', 'paid_amount', 'bus_name',
             'booking_type', 'male', 'female', 'children',
