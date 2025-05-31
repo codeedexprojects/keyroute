@@ -3883,7 +3883,7 @@ class PreAcceptPackageBookingDetailView(APIView):
 
             # Try BusBooking first
             bus_booking = BusBooking.objects.filter(
-                booking_id=1,
+                booking_id=booking_id1,
                 bus__vendor=vendor,
                 booking_status='pending'   
             ).first()
