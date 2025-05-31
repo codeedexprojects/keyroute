@@ -1981,17 +1981,6 @@ class LatestSingleBookingView(APIView):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 class VendorBusBookingListView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -3582,10 +3571,38 @@ class PackageBookingRequestView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
+    # def get(self, request):
+    #     try:
+    #         print('hello')
+    #         vendor = request.user.vendor
+    #         print(vendor)
+
+    #         pending_bookings = PackageBooking.objects.filter(
+    #             package__vendor=vendor,
+    #             booking_status='pending'
+    #         ).order_by('-created_at')
+
+    #         accepted_bookings = PackageBooking.objects.filter(
+    #             package__vendor=vendor,
+    #             booking_status='accepted'
+    #         ).order_by('-created_at')
+
+    #         pending_serializer = PackageBookingREQUESTSerializer(pending_bookings, many=True)
+    #         accepted_serializer = PackageBookingREQUESTSerializer(accepted_bookings, many=True)
+
+    #         return Response({
+    #             "pending_requests": pending_serializer.data,
+    #             "confirmed_bookings": accepted_serializer.data
+    #         }, status=status.HTTP_200_OK)
+
+    #     except Exception as e:
+    #         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
     def get(self, request):
         try:
             print('hello')
             vendor = request.user.vendor
+            print(vendor)
 
             pending_bookings = PackageBooking.objects.filter(
                 package__vendor=vendor,
@@ -3714,6 +3731,7 @@ class VendorLatestCancelledBookingView(APIView):
 
         serializer = CombinedBookingSerializer(latest)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 
 
