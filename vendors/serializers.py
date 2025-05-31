@@ -103,13 +103,17 @@ class VendorSerializer(serializers.ModelSerializer):
 
 class VendorUpdateSerializer(serializers.ModelSerializer):
     mobile = serializers.CharField(source='user.mobile', required=False)
+    profile_image = serializers.ImageField(source='user.profile_image', required=False)
+
 
     class Meta:
         model = Vendor
         fields = [
             "full_name", "email_address", "travels_name", "location", "landmark",
-            "address", "city", "state", "pincode", "district", "mobile"
+            "address", "city", "state", "pincode", "district", "mobile","profile_image"
         ]
+
+
 
     def update(self, instance, validated_data):
         # Extract nested user data if present
@@ -120,7 +124,7 @@ class VendorUpdateSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
 
-        # Update related User fields
+        # Update related User fields including profile_image
         if user_data:
             user = instance.user
             for attr, value in user_data.items():
@@ -128,6 +132,7 @@ class VendorUpdateSerializer(serializers.ModelSerializer):
             user.save()
 
         return instance
+
 
 
 class PackageSerializer(serializers.ModelSerializer):
