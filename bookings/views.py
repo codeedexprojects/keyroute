@@ -25,7 +25,7 @@ from .serializers import (PackageFilterSerializer,PackageBookingUpdateSerializer
                           ListPackageSerializer,ListingUserPackageSerializer,
                           UserBusSearchSerializer,SinglePackageBookingSerilizer,
                           SingleBusBookingSerializer,PackageSerializer,PopularBusSerializer,BusListingSerializer,
-                          FooterSectionSerializer,AdvertisementSerializer,BusListResponseSerializer)
+                          FooterSectionSerializer,AdvertisementSerializer,BusListResponseSerializer,BusBookingUpdateSerializer)
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from .utils import *
@@ -1015,3 +1015,35 @@ class PilgrimagePackagesAPIView(APIView):
         serializer = PackageSerializer(packages, many=True, context={'request': request})
 
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+
+
+
+class BusBookingUpdateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, booking_id):
+        booking = get_object_or_404(BusBooking, booking_id=booking_id, user=request.user)
+        
+        # Use the dedicated update serializer
+        serializer = BusBookingUpdateSerializer(
+            booking,
+            data=request.data,
+            partial=True,
+            context={'request': request}
+        )
+        
+        if serializer.is_valid():
+            booking = serializer.save()
+            
+            bus_name = booking.bus.name if hasattr(booking.bus, 'name') else "Bus"
+            route_info = f"from {booking.from_location} to {booking.to_location}" if booking.from_location and booking.to_location else ""
+            
+            send_notification(
+                user=request.user,
+                message=f"Your bus booking {bus_name} {route_info} has been successfully updated! Booking ID: {booking.booking_id}"
+            )
+            
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
