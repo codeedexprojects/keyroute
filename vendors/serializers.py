@@ -116,24 +116,22 @@ class VendorUpdateSerializer(serializers.ModelSerializer):
 
 
     def update(self, instance, validated_data):
-        # Extract nested user data if present
         user_data = validated_data.pop('user', {})
 
-        # Update Vendor fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
-        # Update related User fields including profile_image
         if user_data:
             user = instance.user
             for attr, value in user_data.items():
                 setattr(user, attr, value)
             user.save()
 
-        return instance
+        return instance     
 
 
+ 
 
 class PackageSerializer(serializers.ModelSerializer):
     class Meta:
