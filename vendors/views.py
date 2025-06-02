@@ -1813,24 +1813,53 @@ class VendorTotalRevenueView(APIView):
 
     
 
+    # def get(self, request):
+    #     vendor = Vendor.objects.filter(user=request.user).first()
+    #     if not vendor:
+    #         return Response({"error": "Vendor not found."}, status=404)
+    #     print(vendor)
+
+    #     # Fetch total bus revenue
+    #     bus_revenue = BusBooking.objects.filter(
+    #         bus__vendor=vendor,
+    #         payment_status__in=["paid", "partial"]
+    #     ).aggregate(total=Sum('total_amount'), count=Count('id'))
+
+    #     # Fetch total package revenue
+    #     package_revenue = PackageBooking.objects.filter(
+    #         package__vendor=vendor,
+    #         payment_status__in=["paid", "partial"]
+    #     ).aggregate(total=Sum('total_amount'), count=Count('id'))
+
+    #     print(bus_revenue,'bus')
+    #     print(package_revenue,'package')
+
+
+    #     # Calculate totals
+    #     total_revenue = float(bus_revenue['total'] or 0) + float(package_revenue['total'] or 0)
+    #     total_bookings = (bus_revenue['count'] or 0) + (package_revenue['count'] or 0)
+
+    #     return Response({
+    #         "total_revenue": total_revenue,
+    #         "total_bookings": total_bookings
+    #     }, status=200)
+
+
+
     def get(self, request):
         vendor = Vendor.objects.filter(user=request.user).first()
         if not vendor:
             return Response({"error": "Vendor not found."}, status=404)
 
-        # Fetch total bus revenue
+        # Include ALL bookings regardless of payment_status
         bus_revenue = BusBooking.objects.filter(
-            bus__vendor=vendor,
-            payment_status__in=["paid", "partial"]
+            bus__vendor=vendor
         ).aggregate(total=Sum('total_amount'), count=Count('id'))
 
-        # Fetch total package revenue
         package_revenue = PackageBooking.objects.filter(
-            package__vendor=vendor,
-            payment_status__in=["paid", "partial"]
+            package__vendor=vendor
         ).aggregate(total=Sum('total_amount'), count=Count('id'))
 
-        # Calculate totals
         total_revenue = float(bus_revenue['total'] or 0) + float(package_revenue['total'] or 0)
         total_bookings = (bus_revenue['count'] or 0) + (package_revenue['count'] or 0)
 
@@ -1838,6 +1867,11 @@ class VendorTotalRevenueView(APIView):
             "total_revenue": total_revenue,
             "total_bookings": total_bookings
         }, status=200)
+
+        
+
+
+
 
 
 
@@ -3883,7 +3917,7 @@ class PreAcceptPackageBookingDetailView(APIView):
 
             # Try BusBooking first
             bus_booking = BusBooking.objects.filter(
-                booking_id=1,
+                booking_id=booking_id1,
                 bus__vendor=vendor,
                 booking_status='pending'   
             ).first()
