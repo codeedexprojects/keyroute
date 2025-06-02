@@ -1352,12 +1352,12 @@ class CombinedBookingSerializer(serializers.Serializer):
 
 
 
-
 class VendorBusyDateSerializer(serializers.ModelSerializer):
     bus_ids = serializers.PrimaryKeyRelatedField(
         many=True,
         queryset=Bus.objects.all(),
-        write_only=True   
+        write_only=True,
+        required=False
     )
     buses = BusSerializer(many=True, read_only=True)
 
