@@ -1374,13 +1374,20 @@ class VendorBusyDateSerializer(serializers.ModelSerializer):
         return data
 
     def update(self, instance, validated_data):
-        bus_ids = validated_data.pop('bus_ids', None)
+        # Safely extract bus_ids using .get() instead of .pop()
+        bus_ids = validated_data.get('bus_ids', None)
 
+        # Remove bus_ids so it's not treated as a regular model field
+        if 'bus_ids' in validated_data:
+            del validated_data['bus_ids']
+
+        # Update other fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
         instance.save()
 
+        # Only set buses if bus_ids is a list (not None)
         if bus_ids is not None:
             instance.buses.set(bus_ids)
 
