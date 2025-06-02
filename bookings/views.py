@@ -146,6 +146,11 @@ class BusListAPIView(APIView):
         except Exception as e:
             print(f"Geolocation error: {e}")
 
+        search = request.query_params.get('search')
+
+        if search == "all":
+            all_buses = Bus.objects.all()
+
         # Initial queryset
         buses = Bus.objects.filter(latitude__isnull=False, longitude__isnull=False)
 
@@ -160,8 +165,7 @@ class BusListAPIView(APIView):
             buses = buses.filter(features__name__iexact='pushback')
 
         # Get search parameter and apply filter BEFORE distance calculation
-        search = request.query_params.get('search')
-        if search:
+        if search != 'all':
             buses = buses.filter(bus_name__icontains=search)
 
         # Distance filter: within 30 km
@@ -209,9 +213,14 @@ class BusListAPIView(APIView):
 
         buses_only = [bus for bus, dist in nearby_buses]
 
-        response_data = {
-            'buses': buses_only
-        }
+        if all_buses:
+            response_data = {
+                'buses': all_buses
+            }
+        else:
+            response_data = {
+                'buses': buses_only
+            }
 
         serializer = BusListResponseSerializer(
             response_data, 
