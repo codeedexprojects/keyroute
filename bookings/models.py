@@ -4,6 +4,7 @@ from django.core.validators import FileExtensionValidator, MinValueValidator
 from django.contrib.auth import get_user_model
 from datetime import date
 import random
+import datetime
 
 User = get_user_model()
 
@@ -20,19 +21,20 @@ class BaseBooking(models.Model):
         ('declined', 'Declined'),
     )
     TRIP_STATUS_CHOICES = (
+        ('not_started','Not Started'),
         ('ongoing', 'Ongoing'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
     )
     
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    start_date = models.DateField()
+    start_date = models.DateField(null=True,blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     advance_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
     booking_status = models.CharField(max_length=20, choices=BOOKING_STATUS_CHOICES, default='pending') 
-    trip_status = models.CharField(max_length=20, choices=TRIP_STATUS_CHOICES, default='ongoing')
+    trip_status = models.CharField(max_length=20, choices=TRIP_STATUS_CHOICES, default='not_started')
 
     created_at = models.DateTimeField(auto_now_add=True)
     cancelation_reason = models.CharField(max_length=250,null=True,blank=True)
@@ -40,8 +42,8 @@ class BaseBooking(models.Model):
     male  = models.PositiveIntegerField(default=1)
     female  = models.PositiveIntegerField(default=1)
     children  = models.PositiveIntegerField(default=1)
-    from_location = models.CharField(max_length=150)
-    to_location = models.CharField(max_length=150)
+    from_location = models.CharField(max_length=255, null=True, blank=True)
+    to_location = models.CharField(max_length=255, null=True, blank=True)
     
     class Meta:
         abstract = True
@@ -70,6 +72,8 @@ class BusBooking(BaseBooking):
     from_lon = models.FloatField()
     to_lat = models.FloatField(null=True, blank=True)
     to_lon = models.FloatField(null=True, blank=True)
+    return_date = models.DateField(null=True,blank=True)
+    pick_up_time = models.TimeField(null=True,blank=True)
     
     def __str__(self):
         return f"Bus Booking #{self.booking_id} - {self.from_location} to {self.to_location} ({self.start_date})"
@@ -101,7 +105,7 @@ class Travelers(models.Model):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100, blank=True, null=True)
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True, null=True)
-    age = models.PositiveBigIntegerField(default=1)
+    age = models.PositiveBigIntegerField(null=True,blank=True)
     dob = models.DateField(null=True, blank=True)
     
     # Contact information
@@ -185,10 +189,16 @@ class PackageDriverDetail(models.Model):
 class UserBusSearch(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="bus_search")
     one_way = models.BooleanField(default=True)
-    from_lat = models.FloatField()
-    from_lon = models.FloatField()
-    to_lat = models.FloatField()
-    to_lon = models.FloatField()
-    seat = models.IntegerField()
+    from_lat = models.FloatField(null=False, blank=False)
+    from_lon = models.FloatField(null=False, blank=False)
+    to_lat = models.FloatField(null=True, blank=True)
+    to_lon = models.FloatField(null=True, blank=True)
+    seat = models.IntegerField(null=True, blank=True)
     ac = models.BooleanField(default=False)
+    pick_up_date = models.DateField(null=True, blank=True)
+    pick_up_time = models.TimeField(null=True, blank=True)
+    return_date = models.DateField(null=True, blank=True)
+    search = models.CharField(max_length=255, null=True, blank=True)
     pushback = models.BooleanField(default=False)
+    from_location = models.CharField(max_length=255, null=True, blank=True)
+    to_location = models.CharField(max_length=255, null=True, blank=True)
