@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from datetime import date
 import random
 import datetime
+from admin_panel.models import *
 
 User = get_user_model()
 
@@ -31,7 +32,9 @@ class BaseBooking(models.Model):
     start_date = models.DateField(null=True,blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     advance_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
-    
+    # Add this to BaseBooking
+    payout_status = models.BooleanField(default=False)
+    payout = models.ForeignKey('PayoutHistory', on_delete=models.SET_NULL, null=True, blank=True)
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
     booking_status = models.CharField(max_length=20, choices=BOOKING_STATUS_CHOICES, default='pending') 
     trip_status = models.CharField(max_length=20, choices=TRIP_STATUS_CHOICES, default='not_started')
@@ -202,3 +205,36 @@ class UserBusSearch(models.Model):
     pushback = models.BooleanField(default=False)
     from_location = models.CharField(max_length=255, null=True, blank=True)
     to_location = models.CharField(max_length=255, null=True, blank=True)
+
+
+
+
+class PayoutHistory(models.Model):
+    PAYOUT_MODES = (
+        ('bank_transfer', 'Bank Transfer'),
+        ('upi', 'UPI'),
+        ('other', 'Other'),
+    )
+
+    admin = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE)
+    payout_date = models.DateTimeField(auto_now_add=True)
+    payout_mode = models.CharField(max_length=20, choices=PAYOUT_MODES)
+    payout_reference = models.CharField(max_length=100, blank=True, null=True)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    admin_commission = models.DecimalField(max_digits=12, decimal_places=2)
+    net_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    note = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Payout #{self.id} to {self.vendor.full_name}"
+
+class PayoutBooking(models.Model):
+    payout = models.ForeignKey(PayoutHistory, on_delete=models.CASCADE, related_name='bookings')
+    booking_type = models.CharField(max_length=10, choices=[('bus', 'Bus'), ('package', 'Package')])
+    booking_id = models.PositiveIntegerField()
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    commission = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.booking_type} booking #{self.booking_id}"
