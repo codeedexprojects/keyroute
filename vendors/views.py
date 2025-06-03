@@ -2689,6 +2689,45 @@ class VendorBusyDateCreateView(APIView):
     
   
 
+    # def post(self, request):
+    #     try:
+    #         vendor = Vendor.objects.filter(user=request.user).first()
+    #         if not vendor:
+    #             return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    #         serializer = VendorBusyDateSerializer(data=request.data)
+    #         if serializer.is_valid():
+    #             busy_date = serializer.validated_data.get('date')
+    #             from_time = serializer.validated_data.get('from_time')
+    #             to_time = serializer.validated_data.get('to_time')
+
+    #             if VendorBusyDate.objects.filter(
+    #                 vendor=vendor, date=busy_date, from_time=from_time, to_time=to_time
+    #             ).exists():
+    #                 return Response({
+    #                     "message": "Busy date already exists for this date and time.",
+    #                     "data": {}
+    #                 }, status=status.HTTP_200_OK)
+
+    #             busy_date_instance = VendorBusyDate.objects.create(
+    #                 vendor=vendor,
+    #                 date=busy_date,
+    #                 from_time=from_time,
+    #                 to_time=to_time,
+    #                 reason=serializer.validated_data.get('reason')
+    #             )
+
+    #             buses = serializer.validated_data.get('buses')
+    #             busy_date_instance.buses.set(buses)
+
+    #             return Response({"message": "Busy date created successfully!"}, status=status.HTTP_201_CREATED)
+
+    #         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    #     except Exception as e:
+    #         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
     def post(self, request):
         try:
             vendor = Vendor.objects.filter(user=request.user).first()
@@ -2717,8 +2756,9 @@ class VendorBusyDateCreateView(APIView):
                     reason=serializer.validated_data.get('reason')
                 )
 
-                buses = serializer.validated_data.get('buses')
-                busy_date_instance.buses.set(buses)
+                # ✅ Use 'bus_ids' instead of 'buses'
+                bus_ids = serializer.validated_data.get('bus_ids', [])
+                busy_date_instance.buses.set(bus_ids)
 
                 return Response({"message": "Busy date created successfully!"}, status=status.HTTP_201_CREATED)
 
@@ -2726,6 +2766,20 @@ class VendorBusyDateCreateView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
