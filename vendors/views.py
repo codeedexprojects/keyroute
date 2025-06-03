@@ -1333,21 +1333,7 @@ class AddDayPlanAPIView(APIView):
 
 
 
-    # def _upload_images(self, files, prefix, related_obj):
-    #     for i in range(1, 5):
-    #         key = f"{prefix}_{i}"
-    #         img = files.get(key)
-    #         if img:
-    #             if isinstance(related_obj, Place):
-    #                 PlaceImage.objects.create(place=related_obj, image=img)
-    #             elif isinstance(related_obj, Stay):
-    #                 StayImage.objects.create(stay=related_obj, image=img)
-    #             elif isinstance(related_obj, Meal):
-    #                 MealImage.objects.create(meal=related_obj, image=img)
-    #             elif isinstance(related_obj, Activity):
-    #                 ActivityImage.objects.create(activity=related_obj, image=img)
-
-
+   
 
     def _upload_images(self, files, prefix, related_obj_index, related_obj):
         # images keys look like: place_image_0_0, place_image_0_1, etc.
@@ -1813,37 +1799,7 @@ class VendorTotalRevenueView(APIView):
 
     
 
-    # def get(self, request):
-    #     vendor = Vendor.objects.filter(user=request.user).first()
-    #     if not vendor:
-    #         return Response({"error": "Vendor not found."}, status=404)
-    #     print(vendor)
-
-    #     # Fetch total bus revenue
-    #     bus_revenue = BusBooking.objects.filter(
-    #         bus__vendor=vendor,
-    #         payment_status__in=["paid", "partial"]
-    #     ).aggregate(total=Sum('total_amount'), count=Count('id'))
-
-    #     # Fetch total package revenue
-    #     package_revenue = PackageBooking.objects.filter(
-    #         package__vendor=vendor,
-    #         payment_status__in=["paid", "partial"]
-    #     ).aggregate(total=Sum('total_amount'), count=Count('id'))
-
-    #     print(bus_revenue,'bus')
-    #     print(package_revenue,'package')
-
-
-    #     # Calculate totals
-    #     total_revenue = float(bus_revenue['total'] or 0) + float(package_revenue['total'] or 0)
-    #     total_bookings = (bus_revenue['count'] or 0) + (package_revenue['count'] or 0)
-
-    #     return Response({
-    #         "total_revenue": total_revenue,
-    #         "total_bookings": total_bookings
-    #     }, status=200)
-
+    
 
 
     def get(self, request):
@@ -1961,27 +1917,7 @@ class LatestSingleBookingView(APIView):
 
 
 
-    # def get(self, request):
-    #     user = request.user   
-    #     print(user)
-
-    #     latest_bus = BusBooking.objects.filter(user=user).order_by('-created_at').first()
-    #     latest_package = PackageBooking.objects.filter(user=user).order_by('-created_at').first()
-
-    #     latest = max(
-    #         filter(None, [latest_bus, latest_package]),
-    #         key=lambda x: x.created_at,
-    #         default=None
-    #     )
-
-    #     if not latest:
-    #         # return Response({"message": "No bookings found for the current user."}, status=status.HTTP_204_NO_CONTENT)
-    #         return Response({"message": "No bookings found for the current user."}, status=status.HTTP_200_OK)
-
-
-    #     serializer = CombinedBookingSerializer(latest)
-    #     return Response(serializer.data, status=status.HTTP_200_OK)
-
+    
 
 
 
@@ -2087,48 +2023,7 @@ class BusHistoryFilterView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    # def get(self, request):
-    #     try:
-    #if date_filter == 'last_week':
-    #         start_date = (datetime.now() - timedelta(weeks=1)).date()
-    #         end_date = datetime.now().date()
-
-    #     elif date_filter == 'last_month':
-    #         start_date = (datetime.now() - timedelta(days=30)).date()
-    #         end_date = datetime.now().date()
-
-    #     elif date_filter == 'custom' and 'start_date' in request.query_params and 'end_date' in request.query_params:
-    #         start_date = request.query_params.get('start_date')
-    #         end_date = request.query_params.get('end_date')
-    #         try:
-    #             start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-    #             end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-    #         except ValueError:
-    #             return Response({"error": "Invalid date format. Use 'YYYY-MM-DD'."}, status=400)
-
-    #     if start_date and end_date:
-    #         bookings = BusBooking.objects.filter(
-    #             start_date__range=[start_date, end_date],
-    #             bus__vendor=vendor   
-    #         )
-    #     else:
-    #         return Response({"error": "Invalid filter."}, status=400)
-
-    #     serializer = BusBookingDetailSerializer(bookings, many=True)
-    #     return Response({"bus_bookings": serializer.data})         vendor = Vendor.objects.get(user=request.user)
-    #     except Vendor.DoesNotExist:
-    #         return Response({"error": "Vendor not found."}, status=404)
-
-    #     date_filter = request.query_params.get('filter', 'today')
-
-    #     start_date = None
-    #     end_date = None
-
-    #     if date_filter == 'today':
-    #         start_date = datetime.now().date()
-    #         end_date = start_date
-
-    #     el
+  
 
     def get(self, request):
         try:
@@ -2170,10 +2065,7 @@ class BusHistoryFilterView(APIView):
 
         all_vendor_bookings = BusBooking.objects.filter(bus__vendor=vendor)
 
-        # monthly_revenue = all_vendor_bookings.filter(
-        #     created_at__year=current_year,
-        #     created_at__month=current_month
-        # ).aggregate(total=Sum('total_amount'))['total'] or 0
+         
 
 
         monthly_revenue = float(
@@ -2225,30 +2117,7 @@ class LatestPackageBookingDetailView(APIView):
 class BusBookingEarningsHistoryView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
-
-    # def get(self, request):
-    #     vendor = request.user.vendor    
-
-    #     vendor_buses = Bus.objects.filter(vendor=vendor)
-
-    #     bookings = BusBooking.objects.filter(bus__in=vendor_buses).order_by('-start_date')
-
-    #     serializer = BusBookingBasicSerializer(bookings, many=True)
-
-    #     total_revenue = bookings.aggregate(total=Sum('total_amount'))['total'] or 0
-
-    #     now = timezone.now()
-    #     monthly_bookings = bookings.filter(created_at__year=now.year, created_at__month=now.month)
-    #     monthly_revenue = monthly_bookings.aggregate(total=Sum('total_amount'))['total'] or 0
-    #     monthly_revenue = float(monthly_revenue)
-
-
-
-
-    #     return Response({"earnings": serializer.data,"total_revenue": total_revenue,
-    #         "monthly_revenue": monthly_revenue,})
-
-
+ 
 
     def get(self, request):
         try:
@@ -2316,29 +2185,7 @@ class PackageBookingEarningsView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    # def get(self, request):
-    #     try:
-    #         vendor = Vendor.objects.filter(user=request.user).first()
-    #         if not vendor:
-    #             return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
-
-    #         package_bookings = PackageBooking.objects.filter(package__vendor=vendor).order_by('-start_date')
-            
-    #         total_revenue = package_bookings.aggregate(total_revenue=Sum('total_amount'))['total_revenue'] or 0.00
-
-    #         current_month = datetime.now().month
-    #         monthly_revenue = package_bookings.filter(start_date__month=current_month).aggregate(monthly_revenue=Sum('total_amount'))['monthly_revenue'] or 0.00
-            
-    #         serializer = PackageBookingEarnigsSerializer(package_bookings, many=True)
-            
-    #         return Response({
-    #             "earnings": serializer.data,
-    #             "total_revenue": total_revenue,
-    #             "monthly_revenue": monthly_revenue
-    #         })
-
-    #     except Exception as e:
-    #         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+  
 
 
     def get(self, request):
@@ -2379,64 +2226,8 @@ class PackageBookingListView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    # def get(self, request, format=None):
-    #     try:
-    #         print('hello')
-    #         vendor = Vendor.objects.get(user=request.user)
-    #     except Vendor.DoesNotExist:
-    #         return Response({"error": "Vendor not found."}, status=404)
+   
 
-    #     current_date = datetime.now()
-    #     current_year = current_date.year
-    #     current_month = current_date.month
-
-    #     bookings = PackageBooking.objects.filter(package__vendor=vendor)
-
-    #     monthly_bookings = bookings.filter(
-    #         created_at__year=current_year,
-    #         created_at__month=current_month
-    #     )
-    #     print(monthly_bookings,'bh')
-
-    #     total = monthly_bookings.aggregate(total=Sum('total_amount'))['total']
-    #     monthly_revenue = float(total) if total else 0.0
-
-    #     serializer = PackageBookingDetailSerializer(bookings, many=True)
-
-    #     return Response({
-    #         "bookings": serializer.data,
-    #         "monthly_revenue": monthly_revenue
-    #     }, status=200)
-
-
-    # def get(self, request, format=None):
-    #     try:
-    #         vendor = Vendor.objects.get(user=request.user)
-    #     except Vendor.DoesNotExist:
-    #         return Response({"error": "Vendor not found."}, status=404)
-
-    #     current_date = datetime.now()
-    #     current_year = current_date.year
-    #     current_month = current_date.month
-
-    #     bookings = PackageBooking.objects.filter(package__vendor=vendor)
-
-    #     monthly_bookings = bookings.filter(
-    #         created_at__year=current_year,
-    #         created_at__month=current_month
-    #     )
-
-    #     total = monthly_bookings.aggregate(total=Sum('total_amount'))['total']
-    #     monthly_revenue = float(total) if total else 0.0
-    #     monthly_count = monthly_bookings.count()
-
-    #     serializer = PackageBookingDetailSerializer(bookings, many=True)
-
-    #     return Response({
-    #         "bookings": serializer.data,
-    #         "monthly_revenue": monthly_revenue,
-    #         "monthly_booking_count": monthly_count
-    #     }, status=200)
 
 
     def get(self, request, format=None):
@@ -2593,10 +2384,7 @@ class PackageBookingHistoryFilterView(APIView):
 
         all_user_bookings = PackageBooking.objects.filter(user=user)
 
-        # monthly_revenue = all_user_bookings.filter(
-        #     created_at__year=current_year,
-        #     created_at__month=current_month
-        # ).aggregate(total=Sum('total_amount'))['total'] or 0
+         
 
         monthly_revenue = float(
             all_user_bookings.filter(
@@ -2756,7 +2544,6 @@ class VendorBusyDateCreateView(APIView):
                     reason=serializer.validated_data.get('reason')
                 )
 
-                # ✅ Use 'bus_ids' instead of 'buses'
                 bus_ids = serializer.validated_data.get('bus_ids', [])
                 busy_date_instance.buses.set(bus_ids)
 

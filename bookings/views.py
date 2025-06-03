@@ -228,6 +228,12 @@ class BusListAPIView(APIView):
     #     )
     #     return Response(serializer.data)
 
+
+
+
+
+
+
     def get(self, request):
         try:
             user_search = UserBusSearch.objects.get(user=request.user)
@@ -285,6 +291,7 @@ class BusListAPIView(APIView):
             return Response({"message": "No buses found near your location within 30 km."}, status=200)
 
         sort_by = request.query_params.get('sort_by', 'nearest')
+        
 
         # Sorting logic
         if sort_by == 'nearest':
@@ -321,7 +328,7 @@ class BusListAPIView(APIView):
         )
         return Response(serializer.data)
     
-    
+
 
 
 
