@@ -377,34 +377,14 @@ class PackageBookingListCreateAPIView(APIView):
 
             booking = serializer.save(user=request.user)
 
-            traveler_data = {
-                "first_name": request.user.name,
-                "last_name": '',
-                "gender": request.data.get('gender', ''),
-                "place": request.data.get('place', ''),
-                "dob": request.data.get('dob', None),
-                "id_proof": request.data.get('id_proof', None),
-                "email": request.user.email,
-                "mobile": str(request.user),
-                "city": request.data.get('city', ''),
-                "booking_type": "package",
-                "booking_id": booking.booking_id
-            }
 
-            travelerSerializer = TravelerCreateSerializer(data=traveler_data)
-            if travelerSerializer.is_valid():
-                travelerSerializer.save()
+            package_name = booking.package.name if hasattr(booking.package, 'name') else "Tour package"
+            send_notification(
+                user=request.user,
+                message=f"Your booking for {package_name} has been successfully created! Booking ID: {booking.booking_id}"
+            )
 
-                package_name = booking.package.name if hasattr(booking.package, 'name') else "Tour package"
-                send_notification(
-                    user=request.user,
-                    message=f"Your booking for {package_name} has been successfully created! Booking ID: {booking.booking_id}"
-                )
-
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            else:
-                booking.delete()
-                return Response(travelerSerializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class PackageBookingUpdateAPIView(APIView):
@@ -482,36 +462,16 @@ class BusBookingListCreateAPIView(APIView):
 
             booking = serializer.save(user=request.user)
 
-            traveler_data = {
-                "first_name": request.user.name,
-                "last_name": '',
-                "gender": request.data.get('gender', ''),
-                "place": request.data.get('place', ''),
-                "dob": request.data.get('dob', None),
-                "id_proof": request.data.get('id_proof', None),
-                "email": request.user.email,
-                "mobile": request.data.get('mobile', ''),
-                "city": request.data.get('city', ''),
-                "booking_type": "bus",
-                "booking_id": booking.booking_id
-            }
 
-            travelerSerializer = TravelerCreateSerializer(data=traveler_data)
-            if travelerSerializer.is_valid():
-                travelerSerializer.save()
+            bus_name = booking.bus.name if hasattr(booking.bus, 'name') else "Bus"
+            route_info = f"from {booking.bus.from_location} to {booking.bus.to_location}" if hasattr(booking.bus, 'from_location') and hasattr(booking.bus, 'to_location') else ""
 
-                bus_name = booking.bus.name if hasattr(booking.bus, 'name') else "Bus"
-                route_info = f"from {booking.bus.from_location} to {booking.bus.to_location}" if hasattr(booking.bus, 'from_location') and hasattr(booking.bus, 'to_location') else ""
+            send_notification(
+                user=request.user,
+                message=f"Your bus booking for {bus_name} {route_info} has been confirmed! Booking ID: {booking.booking_id}"
+            )
 
-                send_notification(
-                    user=request.user,
-                    message=f"Your bus booking for {bus_name} {route_info} has been confirmed! Booking ID: {booking.booking_id}"
-                )
-
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            else:
-                booking.delete()
-                return Response(travelerSerializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class BusBookingDetailAPIView(APIView):
@@ -1019,12 +979,14 @@ class UserBusSearchCreateAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class PilgrimagePackagesAPIView(APIView):
-
     def get(self, request, format=None):
-        packages = Package.objects.filter(sub_category__category__name__iexact='pilgrimage')
+        try:
+            pilgrimage_category = PackageCategory.objects.get(name__iexact='pilgrimage')
+        except PackageCategory.DoesNotExist:
+            return Response({"detail": "Pilgrimage category not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = PackageSerializer(packages, many=True, context={'request': request})
-
+        subcategories = PackageSubCategory.objects.filter(category=pilgrimage_category)
+        serializer = PackageSubCategorySerializer(subcategories, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 
