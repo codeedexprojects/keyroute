@@ -1039,3 +1039,281 @@ class BusBookingUpdateAPIView(APIView):
             
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.db.models import Sum, Q
+from .models import BusBooking, PackageBooking, Vendor, AdminCommissionSlab, PayoutHistory, PayoutBooking
+from vendors.models import VendorBankDetail
+from .serializers import PayoutHistorySerializer
+from datetime import datetime
+from operator import itemgetter
+
+class UnpaidBookingsAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        vendor_id = request.query_params.get('vendor_id')
+        
+        # Filter bus bookings
+        bus_bookings = BusBooking.objects.filter(
+            Q(payment_status__in=['partial', 'paid']) & Q(payout_status=False)
+        )
+        # Filter package bookings
+        package_bookings = PackageBooking.objects.filter(
+            Q(payment_status__in=['partial', 'paid']) & Q(payout_status=False)
+        )
+
+        # Filter by vendor_id if provided
+        if vendor_id:
+            bus_bookings = bus_bookings.filter(bus__vendor_id=vendor_id)
+            package_bookings = package_bookings.filter(package__vendor_id=vendor_id)
+
+        # Helper function to calculate admin commission
+        def calculate_admin_commission(booking_amount):
+            slab = AdminCommissionSlab.objects.filter(
+                min_amount__lte=booking_amount,
+                max_amount__gte=booking_amount
+            ).first()
+            
+            if slab:
+                return (booking_amount * slab.commission_percentage) / 100
+            return 0
+
+        # Helper function to get vendor bank details
+        def get_vendor_ifsc(vendor):
+            try:
+                bank_detail = VendorBankDetail.objects.get(vendor=vendor)
+                return bank_detail.ifsc_code
+            except VendorBankDetail.DoesNotExist:
+                return ''
+
+        # Serialize bus bookings
+        bus_data = []
+        for b in bus_bookings:
+            admin_commission = calculate_admin_commission(b.total_amount)
+            bus_data.append({
+                'booking_id': b.booking_id,
+                'vendor_id': b.bus.vendor.user.id,
+                'vendor_email': b.bus.vendor.email_address,
+                'vendor_phone': b.bus.vendor.phone_no,
+                'vendor_name': b.bus.vendor.full_name,
+                'vendor_ifsc_code': get_vendor_ifsc(b.bus.vendor),
+                'date': b.start_date,
+                'amount': b.total_amount,
+                'admin_commission': admin_commission,
+                'net_amount': b.total_amount - admin_commission,
+                'created_at': b.created_at,
+                'type': 'bus'
+            })
+
+        # Serialize package bookings
+        package_data = []
+        for p in package_bookings:
+            admin_commission = calculate_admin_commission(p.total_amount)
+            package_data.append({
+                'booking_id': p.booking_id,
+                'vendor_id': p.package.vendor.user.id,
+                'vendor_email': p.package.vendor.email_address,
+                'vendor_phone': p.package.vendor.phone_no,
+                'vendor_name': p.package.vendor.full_name,
+                'vendor_ifsc_code': get_vendor_ifsc(p.package.vendor),
+                'date': p.start_date,
+                'amount': p.total_amount,
+                'admin_commission': admin_commission,
+                'net_amount': p.total_amount - admin_commission,
+                'created_at': p.created_at,
+                'type': 'package'
+            })
+
+        # Combine and sort by created_at (newest first)
+        combined_data = sorted(bus_data + package_data, key=itemgetter('created_at'), reverse=True)
+
+        return Response(combined_data)
+
+class CreatePayoutAPI(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request):
+        vendor_id = request.data.get('vendor_id')
+        booking_ids = request.data.get('booking_ids', [])  # List of {'type': 'bus/package', 'id': x}
+        payout_mode = request.data.get('payout_mode')
+        payout_reference = request.data.get('payout_reference', '')
+        note = request.data.get('note', '')
+        
+        try:
+            vendor = Vendor.objects.get(user_id=vendor_id)
+        except Vendor.DoesNotExist:
+            return Response({'error': 'Vendor not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Validate bookings
+        bus_bookings = []
+        package_bookings = []
+        total_amount = 0
+        total_commission = 0
+        
+        for booking in booking_ids:
+            try:
+                if booking['type'] == 'bus':
+                    b = BusBooking.objects.get(
+                        booking_id=booking['id'],
+                        payment_status__in=['partial', 'paid'],
+                        payout_status=False,
+                        bus__vendor=vendor
+                    )
+                    bus_bookings.append(b)
+                elif booking['type'] == 'package':
+                    p = PackageBooking.objects.get(
+                        booking_id=booking['id'],
+                        payment_status__in=['partial', 'paid'],
+                        payout_status=False,
+                        package__vendor=vendor
+                    )
+                    package_bookings.append(p)
+            except (BusBooking.DoesNotExist, PackageBooking.DoesNotExist):
+                return Response({'error': f"Booking {booking['id']} not found or already paid"}, 
+                              status=status.HTTP_400_BAD_REQUEST)
+        
+        # Calculate commissions and totals
+        payout_bookings = []
+        
+        for booking in bus_bookings:
+            # Find commission slab
+            slab = AdminCommissionSlab.objects.filter(
+                min_amount__lte=booking.total_amount,
+                max_amount__gte=booking.total_amount
+            ).first()
+            
+            if not slab:
+                return Response({'error': f'No commission slab found for booking {booking.booking_id}'},
+                              status=status.HTTP_400_BAD_REQUEST)
+            
+            commission = (booking.total_amount * slab.commission_percentage) / 100
+            total_amount += booking.total_amount
+            total_commission += commission
+            
+            payout_bookings.append({
+                'type': 'bus',
+                'booking': booking,
+                'amount': booking.total_amount,
+                'commission': commission
+            })
+        
+        for booking in package_bookings:
+            # Find commission slab
+            slab = AdminCommissionSlab.objects.filter(
+                min_amount__lte=booking.total_amount,
+                max_amount__gte=booking.total_amount
+            ).first()
+            
+            if not slab:
+                return Response({'error': f'No commission slab found for booking {booking.booking_id}'},
+                              status=status.HTTP_400_BAD_REQUEST)
+            
+            commission = (booking.total_amount * slab.commission_percentage) / 100
+            total_amount += booking.total_amount
+            total_commission += commission
+            
+            payout_bookings.append({
+                'type': 'package',
+                'booking': booking,
+                'amount': booking.total_amount,
+                'commission': commission
+            })
+        
+        # Create payout record
+        payout = PayoutHistory.objects.create(
+            admin=request.user,
+            vendor=vendor,
+            payout_mode=payout_mode,
+            payout_reference=payout_reference,
+            total_amount=total_amount,
+            admin_commission=total_commission,
+            net_amount=total_amount - total_commission,
+            note=note
+        )
+        
+        # Create payout booking records and update bookings
+        for pb in payout_bookings:
+            PayoutBooking.objects.create(
+                payout=payout,
+                booking_type=pb['type'],
+                booking_id=pb['booking'].booking_id,
+                amount=pb['amount'],
+                commission=pb['commission']
+            )
+            
+            # Update booking
+            pb['booking'].payout_status = True
+            pb['booking'].payout = payout
+            pb['booking'].save()
+        
+        # Get bank details
+        bank_details = None
+        try:
+            bank_details = VendorBankDetail.objects.get(vendor=vendor)
+        except VendorBankDetail.DoesNotExist:
+            pass
+        
+        response_data = {
+            'payout_id': payout.id,
+            'vendor': vendor.full_name,
+            'payout_date': payout.payout_date,
+            'total_amount': total_amount,
+            'admin_commission': total_commission,
+            'net_amount': total_amount - total_commission,
+            'bank_details': {
+                'account_number': bank_details.account_number if bank_details else '',
+                'ifsc_code': bank_details.ifsc_code if bank_details else '',
+                'holder_name': bank_details.holder_name if bank_details else ''
+            } if bank_details else None
+        }
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+class PayoutHistoryAPI(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        vendor_id = request.query_params.get('vendor_id')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        payouts = PayoutHistory.objects.all().order_by('-payout_date')
+        
+        if vendor_id:
+            payouts = payouts.filter(vendor_id=vendor_id)
+        
+        if start_date and end_date:
+            try:
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+                payouts = payouts.filter(payout_date__date__range=[start_date, end_date])
+            except ValueError:
+                pass
+        
+        serializer = PayoutHistorySerializer(payouts, many=True)
+        return Response(serializer.data)
+
+class PayoutDetailAPI(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, payout_id):
+        try:
+            payout = PayoutHistory.objects.get(id=payout_id)
+            serializer = PayoutHistorySerializer(payout)
+            return Response(serializer.data)
+        except PayoutHistory.DoesNotExist:
+            return Response({'error': 'Payout not found'}, status=status.HTTP_404_NOT_FOUND)
