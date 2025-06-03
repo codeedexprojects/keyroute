@@ -165,6 +165,8 @@ class Package(models.Model):
     price_per_person = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     extra_charge_per_km = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
+    to_latitude = models.FloatField()
+    to_longitude = models.FloatField()
 
 
     @property
