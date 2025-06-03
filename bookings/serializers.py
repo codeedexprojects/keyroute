@@ -1974,3 +1974,10 @@ class BusBookingUpdateSerializer(BaseBookingSerializer):
             raise serializers.ValidationError({"error": f"Unexpected error during referral processing: {str(e)}"})
 
         return booking
+    
+
+
+class PackageSubCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageSubCategory
+        fields = ['id', 'name', 'image']
