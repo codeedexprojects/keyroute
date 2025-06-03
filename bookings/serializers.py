@@ -949,8 +949,10 @@ class PopularBusSerializer(serializers.ModelSerializer):
     def get_is_favorite(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            return Favourite.objects.filter(user=request.user, bus=obj).exists()
+            exists = Favourite.objects.filter(user=request.user, bus=obj).exists()
+            return exists
         return False
+
 
     def get_bus_image(self, obj):
         request = self.context.get('request')
@@ -1399,53 +1401,56 @@ class BusListingSerializer(serializers.ModelSerializer):
 
     def get_price(self, obj):
         """Calculate and return the trip price"""
-        user = self.context['request'].user
-        
-        try:
-            user_search = UserBusSearch.objects.get(user=user)
-            
-            if not user_search or not user_search.to_lat or not user_search.to_lon:
-                return "Select destination"
-            
-            from decimal import Decimal
-            from .views import BusListAPIView
-            
-            view = BusListAPIView()
-            distance_km = view.calculate_distance_google_api(
-                user_search.from_lat, user_search.from_lon, 
-                user_search.to_lat, user_search.to_lon
-            )
-            
-            seat_count = user_search.seat or 1
-            base_price = obj.base_price or Decimal('0.00')
-            base_price_km = obj.base_price_km or 0
-            price_per_km = obj.price_per_km or Decimal('0.00')
-            minimum_fare = obj.minimum_fare or Decimal('0.00')
-            
-            # Calculate amount based on distance
-            if distance_km <= base_price_km:
-                # Within base price range
-                total_amount = base_price
-            else:
-                # Base price + additional km charges
-                additional_km = distance_km - base_price_km
-                additional_charges = additional_km * price_per_km
-                total_amount = base_price + additional_charges
-            
-            # Apply seat multiplier
-            total_amount = total_amount * seat_count
-            
-            # Ensure minimum fare is met
-            if total_amount < minimum_fare:
-                total_amount = minimum_fare
-            
-            return float(total_amount)
-            
-        except UserBusSearch.DoesNotExist:
-            return "Search data not found"
-        except Exception as e:
-            logging.error(f"Error in get_price: {str(e)}")
-            return "Price calculation error"
+        request = self.context.get('request', None)
+        if request and hasattr(request, 'user'):
+            user = request.user
+            try:
+                user_search = UserBusSearch.objects.get(user=user)
+                
+                if not user_search or not user_search.to_lat or not user_search.to_lon:
+                    return "Select destination"
+                
+                from decimal import Decimal
+                from .views import BusListAPIView
+                
+                view = BusListAPIView()
+                distance_km = view.calculate_distance_google_api(
+                    user_search.from_lat, user_search.from_lon, 
+                    user_search.to_lat, user_search.to_lon
+                )
+                
+                seat_count = user_search.seat or 1
+                base_price = obj.base_price or Decimal('0.00')
+                base_price_km = obj.base_price_km or 0
+                price_per_km = obj.price_per_km or Decimal('0.00')
+                minimum_fare = obj.minimum_fare or Decimal('0.00')
+                
+                # Calculate amount based on distance
+                if distance_km <= base_price_km:
+                    # Within base price range
+                    total_amount = base_price
+                else:
+                    # Base price + additional km charges
+                    additional_km = distance_km - base_price_km
+                    additional_charges = additional_km * price_per_km
+                    total_amount = base_price + additional_charges
+                
+                # Apply seat multiplier
+                total_amount = total_amount * seat_count
+                
+                # Ensure minimum fare is met
+                if total_amount < minimum_fare:
+                    total_amount = minimum_fare
+                
+                return float(total_amount)
+                
+            except UserBusSearch.DoesNotExist:
+                return "Search data not found"
+            except Exception as e:
+                logging.error(f"Error in get_price: {str(e)}")
+                return "Price calculation error"
+        else:
+            user = None
 
     def to_representation(self, instance):
         """Make base_price an integer in the output."""
@@ -1969,3 +1974,10 @@ class BusBookingUpdateSerializer(BaseBookingSerializer):
             raise serializers.ValidationError({"error": f"Unexpected error during referral processing: {str(e)}"})
 
         return booking
+    
+
+
+class PackageSubCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageSubCategory
+        fields = ['id', 'name', 'image']
