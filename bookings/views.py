@@ -125,115 +125,6 @@ class SinglePackageListAPIView(APIView):
 class BusListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    # def get(self, request):
-    #     try:
-    #         user_search = UserBusSearch.objects.get(user=request.user)
-    #     except UserBusSearch.DoesNotExist:
-    #         return Response({"error": "No bus search data found for this user."}, status=404)
-
-    #     # Check if destination coordinates are provided
-    #     if not user_search.to_lat or not user_search.to_lon:
-    #         return Response({"message": "Please select destination location"}, status=200)
-
-    #     user_coords = (user_search.from_lat, user_search.from_lon)
-
-    #     # Optional debug log for location
-    #     try:
-    #         from geopy.geocoders import Nominatim
-    #         geolocator = Nominatim(user_agent="bus-locator")
-    #         location = geolocator.reverse(user_coords, exactly_one=True, timeout=10)
-    #         print("User Location:", location.address if location else "Unknown")
-    #     except Exception as e:
-    #         print(f"Geolocation error: {e}")
-
-    #     search = request.query_params.get('search')
-
-    #     if search == "all":
-    #         all_buses = Bus.objects.all()
-
-    #     # Initial queryset
-    #     buses = Bus.objects.filter(latitude__isnull=False, longitude__isnull=False)
-
-    #     # Filter by seat if provided
-    #     if user_search.seat:
-    #         buses = buses.filter(capacity__gte=user_search.seat)
-
-    #     # Filter by features
-    #     if user_search.ac:
-    #         buses = buses.filter(features__name__iexact='ac')
-    #     if user_search.pushback:
-    #         buses = buses.filter(features__name__iexact='pushback')
-
-    #     # Get search parameter and apply filter BEFORE distance calculation
-    #     if search != 'all':
-    #         buses = buses.filter(bus_name__icontains=search)
-
-    #     # Distance filter: within 30 km
-    #     nearby_buses = []
-    #     for bus in buses.distinct():
-    #         if bus.latitude is not None and bus.longitude is not None:
-    #             bus_coords = (bus.latitude, bus.longitude)
-    #             distance_km = geodesic(user_coords, bus_coords).kilometers
-    #             if distance_km <= 30:
-    #                 nearby_buses.append((bus, distance_km))
-
-    #     if not nearby_buses:
-    #         return Response({"message": "No buses found near your location within 30 km."}, status=200)
-
-    #     # Get sorting parameter
-    #     sort_by = request.query_params.get('sort_by', 'nearest')
-
-    #     # Apply sorting
-    #     if sort_by == 'nearest':
-    #         nearby_buses.sort(key=lambda x: x[1])  # Sort by distance
-    #     elif sort_by == 'popular':
-    #         nearby_buses = [(bus, dist) for bus, dist in nearby_buses if getattr(bus, 'is_popular', False)]
-    #         nearby_buses.sort(key=lambda x: x[1])  # Then by distance
-    #     elif sort_by == 'top_rated':
-    #         # Sort by average rating (descending)
-    #         nearby_buses.sort(key=lambda x: x[0].bus_reviews.aggregate(avg=Avg('rating'))['avg'] or 0, reverse=True)
-    #     elif sort_by == 'price_low_to_high':
-    #         # Calculate price for each bus and sort
-    #         bus_prices = []
-    #         for bus, dist in nearby_buses:
-    #             price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
-    #                                             user_search.to_lat, user_search.to_lon, user_search.seat or 1)
-    #             bus_prices.append((bus, dist, price))
-    #         bus_prices.sort(key=lambda x: x[2])
-    #         nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
-    #     elif sort_by == 'price_high_to_low':
-    #         # Calculate price for each bus and sort (descending)
-    #         bus_prices = []
-    #         for bus, dist in nearby_buses:
-    #             price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
-    #                                             user_search.to_lat, user_search.to_lon, user_search.seat or 1)
-    #             bus_prices.append((bus, dist, price))
-    #         bus_prices.sort(key=lambda x: x[2], reverse=True)
-    #         nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
-
-    #     buses_only = [bus for bus, dist in nearby_buses]
-
-    #     if all_buses:
-    #         response_data = {
-    #             'buses': all_buses
-    #         }
-    #     else:
-    #         response_data = {
-    #             'buses': buses_only
-    #         }
-
-    #     serializer = BusListResponseSerializer(
-    #         response_data, 
-    #         context={'request': request, 'user_search': user_search}
-    #     )
-    #     return Response(serializer.data)
-
-
-
-
-
-
-
     def get(self, request):
         try:
             user_search = UserBusSearch.objects.get(user=request.user)
@@ -257,9 +148,6 @@ class BusListAPIView(APIView):
 
         search = request.query_params.get('search')
 
-        if search == "all":
-            all_buses = Bus.objects.all()
-
         # Initial queryset
         buses = Bus.objects.filter(latitude__isnull=False, longitude__isnull=False)
 
@@ -273,64 +161,85 @@ class BusListAPIView(APIView):
         if user_search.pushback:
             buses = buses.filter(features__name__iexact='pushback')
 
-        # Get search parameter and apply filter BEFORE distance calculation
-        if search != 'all':
+        # If search has value, filter by name only (no location filtering)
+        if search:
             buses = buses.filter(bus_name__icontains=search)
+            buses_only = list(buses.distinct())
+        else:
+            # No search - apply location-based filtering (within 30 km)
+            nearby_buses = []
+            for bus in buses.distinct():
+                if bus.latitude is not None and bus.longitude is not None:
+                    bus_coords = (bus.latitude, bus.longitude)
+                    distance_km = geodesic(user_coords, bus_coords).kilometers
+                    if distance_km <= 30:
+                        nearby_buses.append((bus, distance_km))
 
-        # Distance filter: within 30 km
-        nearby_buses = []
-        for bus in buses.distinct():
-            if bus.latitude is not None and bus.longitude is not None:
-                bus_coords = (bus.latitude, bus.longitude)
-                distance_km = geodesic(user_coords, bus_coords).kilometers
-                if distance_km <= 30:
-                    nearby_buses.append((bus, distance_km))
+            if not nearby_buses:
+                return Response({"message": "No buses found near your location within 30 km."}, status=200)
 
-        if not nearby_buses:
-            return Response({"message": "No buses found near your location within 30 km."}, status=200)
+            buses_only = [bus for bus, dist in nearby_buses]
+
+        if not buses_only:
+            return Response({"message": "No buses found matching your criteria."}, status=200)
 
         # Get sorting parameter
         sort_by = request.query_params.get('sort_by', 'nearest')
-        
 
         # Apply sorting
-        if sort_by == 'nearest':
-            nearby_buses.sort(key=lambda x: x[1])  # Sort by distance
-        elif sort_by == 'popular':
-            nearby_buses = [(bus, dist) for bus, dist in nearby_buses if getattr(bus, 'is_popular', False)]
-            nearby_buses.sort(key=lambda x: x[1])  # Then by distance
-        elif sort_by == 'top_rated':
-            # Sort by average rating (descending)
-            nearby_buses.sort(key=lambda x: x[0].bus_reviews.aggregate(avg=Avg('rating'))['avg'] or 0, reverse=True)
-        elif sort_by == 'price_low_to_high':
-            # Calculate price for each bus and sort
-            bus_prices = []
-            for bus, dist in nearby_buses:
-                price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
-                                                user_search.to_lat, user_search.to_lon, user_search.seat or 1)
-                bus_prices.append((bus, dist, price))
-            bus_prices.sort(key=lambda x: x[2])
-            nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
-        elif sort_by == 'price_high_to_low':
-            # Calculate price for each bus and sort (descending)
-            bus_prices = []
-            for bus, dist in nearby_buses:
-                price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
-                                                user_search.to_lat, user_search.to_lon, user_search.seat or 1)
-                bus_prices.append((bus, dist, price))
-            bus_prices.sort(key=lambda x: x[2], reverse=True)
-            nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
-
-        buses_only = [bus for bus, dist in nearby_buses]
-
-        if all_buses:
-            response_data = {
-                'buses': all_buses
-            }
+        if search:
+            # For name-based search, no distance sorting
+            if sort_by == 'popular':
+                buses_only = [bus for bus in buses_only if getattr(bus, 'is_popular', False)]
+            elif sort_by == 'top_rated':
+                buses_only.sort(key=lambda x: x.bus_reviews.aggregate(avg=Avg('rating'))['avg'] or 0, reverse=True)
+            elif sort_by == 'price_low_to_high':
+                bus_prices = []
+                for bus in buses_only:
+                    price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
+                                                    user_search.to_lat, user_search.to_lon, user_search.seat or 1)
+                    bus_prices.append((bus, price))
+                bus_prices.sort(key=lambda x: x[1])
+                buses_only = [bus for bus, price in bus_prices]
+            elif sort_by == 'price_high_to_low':
+                bus_prices = []
+                for bus in buses_only:
+                    price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
+                                                    user_search.to_lat, user_search.to_lon, user_search.seat or 1)
+                    bus_prices.append((bus, price))
+                bus_prices.sort(key=lambda x: x[1], reverse=True)
+                buses_only = [bus for bus, price in bus_prices]
         else:
-            response_data = {
-                'buses': buses_only
-            }
+            # For location-based search, keep original sorting logic
+            if sort_by == 'nearest':
+                nearby_buses.sort(key=lambda x: x[1])  # Sort by distance
+            elif sort_by == 'popular':
+                nearby_buses = [(bus, dist) for bus, dist in nearby_buses if getattr(bus, 'is_popular', False)]
+                nearby_buses.sort(key=lambda x: x[1])  # Then by distance
+            elif sort_by == 'top_rated':
+                nearby_buses.sort(key=lambda x: x[0].bus_reviews.aggregate(avg=Avg('rating'))['avg'] or 0, reverse=True)
+            elif sort_by == 'price_low_to_high':
+                bus_prices = []
+                for bus, dist in nearby_buses:
+                    price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
+                                                    user_search.to_lat, user_search.to_lon, user_search.seat or 1)
+                    bus_prices.append((bus, dist, price))
+                bus_prices.sort(key=lambda x: x[2])
+                nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
+            elif sort_by == 'price_high_to_low':
+                bus_prices = []
+                for bus, dist in nearby_buses:
+                    price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
+                                                    user_search.to_lat, user_search.to_lon, user_search.seat or 1)
+                    bus_prices.append((bus, dist, price))
+                bus_prices.sort(key=lambda x: x[2], reverse=True)
+                nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
+            
+            buses_only = [bus for bus, dist in nearby_buses]
+
+        response_data = {
+            'buses': buses_only
+        }
 
         serializer = BusListResponseSerializer(
             response_data, 
