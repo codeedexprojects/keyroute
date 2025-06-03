@@ -1,6 +1,6 @@
 
 from rest_framework import serializers
-from .models import BusBooking, PackageBooking, Travelers, UserBusSearch, PackageDriverDetail
+from .models import BusBooking, PackageBooking, Travelers, UserBusSearch, PackageDriverDetail,PayoutHistory
 from vendors.models import Package, Bus
 from admin_panel.utils import get_admin_commission_from_db, get_advance_amount_from_db
 from admin_panel.models import AdminCommission
@@ -1033,7 +1033,7 @@ class ListPackageSerializer(serializers.ModelSerializer):
 class BusSerializer(serializers.ModelSerializer):
     average_rating = serializers.FloatField(read_only=True)
     total_reviews = serializers.IntegerField(read_only=True)
-    vendor_name = serializers.CharField(source='vendor.name', read_only=True)
+    vendor_name = serializers.SerializerMethodField()
     amenities_list = serializers.SerializerMethodField()
     features_list = serializers.SerializerMethodField()
     
@@ -1046,6 +1046,9 @@ class BusSerializer(serializers.ModelSerializer):
             'location', 'latitude', 'longitude', 'travels_logo',
             'amenities_list', 'features_list', 'is_popular'
         ]
+
+    def get_vendor_name(self, obj):
+        return obj.vendor
     
     def get_amenities_list(self, obj):
         return [
@@ -1981,3 +1984,62 @@ class PackageSubCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = PackageSubCategory
         fields = ['id', 'name', 'image']
+
+
+
+
+
+
+
+
+
+
+
+
+class PayoutHistorySerializer(serializers.ModelSerializer):
+    vendor_name = serializers.CharField(source='vendor.full_name')
+    vendor_email = serializers.CharField(source='vendor.user.email')
+    vendor_phone = serializers.CharField(source='vendor.phone_no')
+    bookings = serializers.SerializerMethodField()
+    bank_details = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PayoutHistory
+        fields = [
+            'id',
+            'payout_date',
+            'vendor_name',
+            'vendor_email',
+            'vendor_phone',
+            'payout_mode',
+            'payout_reference',
+            'total_amount',
+            'admin_commission',
+            'net_amount',
+            'note',
+            'bookings',
+            'bank_details'
+        ]
+
+    def get_bookings(self, obj):
+        bookings = []
+        for pb in obj.bookings.all():
+            bookings.append({
+                'type': pb.booking_type,
+                'booking_id': pb.booking_id,
+                'amount': pb.amount,
+                'commission': pb.commission
+            })
+        return bookings
+
+    def get_bank_details(self, obj):
+        try:
+            bank = obj.vendor.bank_detail
+            return {
+                'account_number': bank.account_number,
+                'ifsc_code': bank.ifsc_code,
+                'holder_name': bank.holder_name,
+                'payout_mode': bank.payout_mode
+            }
+        except VendorBankDetail.DoesNotExist:
+            return None
