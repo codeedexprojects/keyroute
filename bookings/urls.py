@@ -53,5 +53,5 @@ urlpatterns = [
 
     path('bus-search/',UserBusSearchCreateAPIView.as_view(),name="bus-search"),
 
-    path('packages/pilgrimage/', PilgrimagePackagesAPIView.as_view(), name='pilgrimage-packages'),
+    path('pilgrimage/', PilgrimagePackagesAPIView.as_view(), name='pilgrimage-packages'),
 ]

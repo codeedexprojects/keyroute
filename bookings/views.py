@@ -246,7 +246,7 @@ class BusListAPIView(APIView):
 
         user_coords = (user_search.from_lat, user_search.from_lon)
 
-        # Debug: Optional user location logging
+        # Optional debug log for location
         try:
             from geopy.geocoders import Nominatim
             geolocator = Nominatim(user_agent="bus-locator")
@@ -257,7 +257,6 @@ class BusListAPIView(APIView):
 
         search = request.query_params.get('search')
 
-        all_buses = None
         if search == "all":
             all_buses = Bus.objects.all()
 
@@ -274,8 +273,8 @@ class BusListAPIView(APIView):
         if user_search.pushback:
             buses = buses.filter(features__name__iexact='pushback')
 
-        # Safe filter by search (only apply if not None and not "all")
-        if search and search != "all":
+        # Get search parameter and apply filter BEFORE distance calculation
+        if search != 'all':
             buses = buses.filter(bus_name__icontains=search)
 
         # Distance filter: within 30 km
@@ -290,47 +289,54 @@ class BusListAPIView(APIView):
         if not nearby_buses:
             return Response({"message": "No buses found near your location within 30 km."}, status=200)
 
+        # Get sorting parameter
         sort_by = request.query_params.get('sort_by', 'nearest')
         
 
-        # Sorting logic
+        # Apply sorting
         if sort_by == 'nearest':
-            nearby_buses.sort(key=lambda x: x[1])
+            nearby_buses.sort(key=lambda x: x[1])  # Sort by distance
         elif sort_by == 'popular':
             nearby_buses = [(bus, dist) for bus, dist in nearby_buses if getattr(bus, 'is_popular', False)]
-            nearby_buses.sort(key=lambda x: x[1])
+            nearby_buses.sort(key=lambda x: x[1])  # Then by distance
         elif sort_by == 'top_rated':
+            # Sort by average rating (descending)
             nearby_buses.sort(key=lambda x: x[0].bus_reviews.aggregate(avg=Avg('rating'))['avg'] or 0, reverse=True)
         elif sort_by == 'price_low_to_high':
+            # Calculate price for each bus and sort
             bus_prices = []
             for bus, dist in nearby_buses:
-                price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon,
-                                                  user_search.to_lat, user_search.to_lon, user_search.seat or 1)
+                price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
+                                                user_search.to_lat, user_search.to_lon, user_search.seat or 1)
                 bus_prices.append((bus, dist, price))
             bus_prices.sort(key=lambda x: x[2])
             nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
         elif sort_by == 'price_high_to_low':
+            # Calculate price for each bus and sort (descending)
             bus_prices = []
             for bus, dist in nearby_buses:
-                price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon,
-                                                  user_search.to_lat, user_search.to_lon, user_search.seat or 1)
+                price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
+                                                user_search.to_lat, user_search.to_lon, user_search.seat or 1)
                 bus_prices.append((bus, dist, price))
             bus_prices.sort(key=lambda x: x[2], reverse=True)
             nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
 
-        # Choose response based on 'search'
         buses_only = [bus for bus, dist in nearby_buses]
-        response_data = {'buses': all_buses} if all_buses is not None else {'buses': buses_only}
+
+        if all_buses:
+            response_data = {
+                'buses': all_buses
+            }
+        else:
+            response_data = {
+                'buses': buses_only
+            }
 
         serializer = BusListResponseSerializer(
-            response_data,
+            response_data, 
             context={'request': request, 'user_search': user_search}
         )
         return Response(serializer.data)
-    
-
-
-
 
 
     def calculate_distance_google_api(self, from_lat, from_lon, to_lat, to_lon):
@@ -481,34 +487,14 @@ class PackageBookingListCreateAPIView(APIView):
 
             booking = serializer.save(user=request.user)
 
-            traveler_data = {
-                "first_name": request.user.name,
-                "last_name": '',
-                "gender": request.data.get('gender', ''),
-                "place": request.data.get('place', ''),
-                "dob": request.data.get('dob', None),
-                "id_proof": request.data.get('id_proof', None),
-                "email": request.user.email,
-                "mobile": str(request.user),
-                "city": request.data.get('city', ''),
-                "booking_type": "package",
-                "booking_id": booking.booking_id
-            }
 
-            travelerSerializer = TravelerCreateSerializer(data=traveler_data)
-            if travelerSerializer.is_valid():
-                travelerSerializer.save()
+            package_name = booking.package.name if hasattr(booking.package, 'name') else "Tour package"
+            send_notification(
+                user=request.user,
+                message=f"Your booking for {package_name} has been successfully created! Booking ID: {booking.booking_id}"
+            )
 
-                package_name = booking.package.name if hasattr(booking.package, 'name') else "Tour package"
-                send_notification(
-                    user=request.user,
-                    message=f"Your booking for {package_name} has been successfully created! Booking ID: {booking.booking_id}"
-                )
-
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            else:
-                booking.delete()
-                return Response(travelerSerializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class PackageBookingUpdateAPIView(APIView):
@@ -586,36 +572,16 @@ class BusBookingListCreateAPIView(APIView):
 
             booking = serializer.save(user=request.user)
 
-            traveler_data = {
-                "first_name": request.user.name,
-                "last_name": '',
-                "gender": request.data.get('gender', ''),
-                "place": request.data.get('place', ''),
-                "dob": request.data.get('dob', None),
-                "id_proof": request.data.get('id_proof', None),
-                "email": request.user.email,
-                "mobile": request.data.get('mobile', ''),
-                "city": request.data.get('city', ''),
-                "booking_type": "bus",
-                "booking_id": booking.booking_id
-            }
 
-            travelerSerializer = TravelerCreateSerializer(data=traveler_data)
-            if travelerSerializer.is_valid():
-                travelerSerializer.save()
+            bus_name = booking.bus.name if hasattr(booking.bus, 'name') else "Bus"
+            route_info = f"from {booking.bus.from_location} to {booking.bus.to_location}" if hasattr(booking.bus, 'from_location') and hasattr(booking.bus, 'to_location') else ""
 
-                bus_name = booking.bus.name if hasattr(booking.bus, 'name') else "Bus"
-                route_info = f"from {booking.bus.from_location} to {booking.bus.to_location}" if hasattr(booking.bus, 'from_location') and hasattr(booking.bus, 'to_location') else ""
+            send_notification(
+                user=request.user,
+                message=f"Your bus booking for {bus_name} {route_info} has been confirmed! Booking ID: {booking.booking_id}"
+            )
 
-                send_notification(
-                    user=request.user,
-                    message=f"Your bus booking for {bus_name} {route_info} has been confirmed! Booking ID: {booking.booking_id}"
-                )
-
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            else:
-                booking.delete()
-                return Response(travelerSerializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class BusBookingDetailAPIView(APIView):
@@ -1053,7 +1019,7 @@ class PackageSubCategoryListAPIView(APIView):
 class PopularBusApi(APIView):
     def get(self,request):
         buses = Bus.objects.filter(is_popular=True)
-        serializer = PopularBusSerializer(buses,many=True)
+        serializer = PopularBusSerializer(buses,many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 
@@ -1123,12 +1089,14 @@ class UserBusSearchCreateAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class PilgrimagePackagesAPIView(APIView):
-
     def get(self, request, format=None):
-        packages = Package.objects.filter(sub_category__category__name__iexact='pilgrimage')
+        try:
+            pilgrimage_category = PackageCategory.objects.get(name__iexact='pilgrimage')
+        except PackageCategory.DoesNotExist:
+            return Response({"detail": "Pilgrimage category not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = PackageSerializer(packages, many=True, context={'request': request})
-
+        subcategories = PackageSubCategory.objects.filter(category=pilgrimage_category)
+        serializer = PackageSubCategorySerializer(subcategories, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 
