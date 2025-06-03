@@ -29,6 +29,7 @@ from admin_panel.models import *
 from calendar import monthrange
 from django.core.exceptions import ObjectDoesNotExist
 from datetime import datetime, timedelta
+from admin_panel.utils import send_otp, verify_otp, is_valid_email
 
 
 # Create your views here.
@@ -122,54 +123,77 @@ class LogoutAPIView(APIView):
 # OTP CREATION
 class SendOtpAPIView(APIView):
     def post(self, request):
-        email = request.data.get('email')
-        print(email,'email')
+        identifier = request.data.get('email_phone')
+        if not identifier:
+            return Response({"error": "Email or phone number is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not email:
-            return Response({"error": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+        if is_valid_email(identifier):  # Handle Email OTP
+            try:
+                vendor = Vendor.objects.get(email_address=identifier)
+                otp_instance, _ = OTP.objects.get_or_create(user=vendor.user)
+                otp = otp_instance.generate_otp()
 
-        try:
-            vendor = Vendor.objects.get(email_address=email)
+                subject = "Your OTP for Password Reset"
+                message = f"Your OTP code is {otp}. It is valid for 5 minutes."
+                from_email = "praveen.codeedex@gmail.com"
+                send_mail(subject, message, from_email, [identifier])
 
-            otp_instance, _ = OTP.objects.get_or_create(user=vendor.user)
-            otp = otp_instance.generate_otp()
+                return Response({"message": "OTP sent to email!"}, status=status.HTTP_200_OK)
 
-            subject = "Your OTP for Password Reset"
-            message = f"Your OTP code is {otp}. It is valid for 5 minutes."
-            from_email = "praveen.codeedex@gmail.com"   
-            recipient_list = [email]
+            except Vendor.DoesNotExist:
+                return Response({"error": "No vendor found with this email."}, status=status.HTTP_404_NOT_FOUND)
 
-            send_mail(subject, message, from_email, recipient_list)
+        else:  # Handle Phone OTP
+            try:
+                vendor = Vendor.objects.get(phone_no=identifier)
+                otp_response = send_otp(identifier)
 
-            return Response({"message": "OTP sent successfully! Please check your email."}, status=status.HTTP_200_OK)
+                if otp_response.get("Status") == "Success":
+                    return Response({"message": "OTP sent to phone!"}, status=status.HTTP_200_OK)
+                else:
+                    return Response({"error": "Failed to send OTP via SMS."}, status=status.HTTP_400_BAD_REQUEST)
 
-        except Vendor.DoesNotExist:
-            return Response({"error": "Vendor with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+            except Vendor.DoesNotExist:
+                return Response({"error": "No vendor found with this phone number."}, status=status.HTTP_404_NOT_FOUND)
 
 
 # OTP VERIFCATION
 class VerifyOtpAPIView(APIView):
     def post(self, request):
-        email = request.data.get('email')
+        identifier = request.data.get('email_phone')
         otp = request.data.get('otp')
 
-        if not email or not otp:
-            return Response({"error": "Email and OTP are required."}, status=status.HTTP_400_BAD_REQUEST)
+        if not identifier or not otp:
+            return Response({"error": "Email/Phone and OTP are required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            vendor = Vendor.objects.get(email_address=email)
-            otp_instance = OTP.objects.get(user=vendor.user)
+        if is_valid_email(identifier):  # Verify Email OTP
+            try:
+                vendor = Vendor.objects.get(email_address=identifier)
+                otp_instance = OTP.objects.get(user=vendor.user)
 
-            if otp_instance.otp_code != otp:
-                return Response({"error": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
+                if otp_instance.otp_code != otp:
+                    return Response({"error": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
 
-            if not otp_instance.is_valid():
-                return Response({"error": "OTP has expired."}, status=status.HTTP_400_BAD_REQUEST)
+                if not otp_instance.is_valid():
+                    return Response({"error": "OTP has expired."}, status=status.HTTP_400_BAD_REQUEST)
 
-            return Response({"message": "OTP verified! You can now reset your password."}, status=status.HTTP_200_OK)
+                return Response({"message": "OTP verified successfully!"}, status=status.HTTP_200_OK)
 
-        except (Vendor.DoesNotExist, OTP.DoesNotExist):
-            return Response({"error": "Invalid email or OTP."}, status=status.HTTP_404_NOT_FOUND)
+            except (Vendor.DoesNotExist, OTP.DoesNotExist):
+                return Response({"error": "Invalid email or OTP."}, status=status.HTTP_404_NOT_FOUND)
+
+        else:  # Verify Phone OTP using 2Factor API
+            try:
+                vendor = Vendor.objects.get(phone_no=identifier)
+                verification_response = verify_otp(identifier, otp)
+
+                if verification_response.get("Status") == "Success":
+                    return Response({"message": "OTP verified successfully!"}, status=status.HTTP_200_OK)
+                else:
+                    return Response({"error": "Invalid or expired OTP."}, status=status.HTTP_400_BAD_REQUEST)
+
+            except Vendor.DoesNotExist:
+                return Response({"error": "Invalid phone number or OTP."}, status=status.HTTP_404_NOT_FOUND)
 
 
 # RESET PASSWORD
