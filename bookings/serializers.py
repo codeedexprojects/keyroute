@@ -1,6 +1,6 @@
 
 from rest_framework import serializers
-from .models import BusBooking, PackageBooking, Travelers, UserBusSearch, PackageDriverDetail
+from .models import BusBooking, PackageBooking, Travelers, UserBusSearch, PackageDriverDetail,PayoutHistory
 from vendors.models import Package, Bus
 from admin_panel.utils import get_admin_commission_from_db, get_advance_amount_from_db
 from admin_panel.models import AdminCommission
@@ -78,9 +78,6 @@ class BusBookingSerializer(BaseBookingSerializer):
         write_only=True,
         help_text="Amount user chooses to pay initially. Must be >= advance_amount."
     )
-
-    # Location fields are now read from UserBusSearch model
-    # No need to pass them in the serializer
 
     class Meta:
         model = BusBooking
@@ -276,23 +273,7 @@ class BusBookingSerializer(BaseBookingSerializer):
         # Get the total amount (this is now the same as the price)
         total_amount = validated_data.get('total_amount')
 
-        # Apply wallet balance if available
-        try:
-            wallet = Wallet.objects.get(user=user)
-            if wallet.balance >= MINIMUM_WALLET_AMOUNT:
-                wallet_amount_used = wallet.balance
-                total_amount -= wallet_amount_used
-                validated_data['total_amount'] = total_amount
-
-                # Update wallet balance
-                wallet.balance = Decimal('0.00')
-                wallet.save()
-
-                logger.info(f"Used wallet balance of {wallet_amount_used} for booking. New total: {total_amount}")
-        except Wallet.DoesNotExist:
-            logger.info(f"No wallet found for user {user.id}")
-        except Exception as e:
-            logger.error(f"Error processing wallet: {str(e)}")
+        # REMOVED: Auto wallet balance application logic
 
         # Calculate minimum advance amount required
         advance_percent, min_advance_amount = get_advance_amount_from_db(total_amount)
@@ -534,22 +515,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
         
         user = self.context['request'].user
 
-        # Apply wallet balance if available
-        try:
-            wallet = Wallet.objects.get(user=user)
-            if wallet.balance >= MINIMUM_WALLET_AMOUNT:
-                wallet_amount_used = wallet.balance
-                calculated_total_amount -= wallet_amount_used
-                validated_data['total_amount'] = calculated_total_amount
-
-                wallet.balance = Decimal('0.00')
-                wallet.save()
-
-                logger.info(f"Used wallet balance of {wallet_amount_used} for package booking. New total: {calculated_total_amount}")
-        except Wallet.DoesNotExist:
-            logger.info(f"No wallet found for user {user.id}")
-        except Exception as e:
-            logger.error(f"Error processing wallet: {str(e)}")
+        # REMOVED: Auto wallet balance application logic
 
         # Calculate advance amount
         advance_percent, min_advance_amount = get_advance_amount_from_db(calculated_total_amount)
@@ -949,8 +915,10 @@ class PopularBusSerializer(serializers.ModelSerializer):
     def get_is_favorite(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
-            return Favourite.objects.filter(user=request.user, bus=obj).exists()
+            exists = Favourite.objects.filter(user=request.user, bus=obj).exists()
+            return exists
         return False
+
 
     def get_bus_image(self, obj):
         request = self.context.get('request')
@@ -1031,7 +999,7 @@ class ListPackageSerializer(serializers.ModelSerializer):
 class BusSerializer(serializers.ModelSerializer):
     average_rating = serializers.FloatField(read_only=True)
     total_reviews = serializers.IntegerField(read_only=True)
-    vendor_name = serializers.CharField(source='vendor.name', read_only=True)
+    vendor_name = serializers.SerializerMethodField()
     amenities_list = serializers.SerializerMethodField()
     features_list = serializers.SerializerMethodField()
     
@@ -1044,6 +1012,9 @@ class BusSerializer(serializers.ModelSerializer):
             'location', 'latitude', 'longitude', 'travels_logo',
             'amenities_list', 'features_list', 'is_popular'
         ]
+
+    def get_vendor_name(self, obj):
+        return obj.vendor
     
     def get_amenities_list(self, obj):
         return [
@@ -1399,53 +1370,56 @@ class BusListingSerializer(serializers.ModelSerializer):
 
     def get_price(self, obj):
         """Calculate and return the trip price"""
-        user = self.context['request'].user
-        
-        try:
-            user_search = UserBusSearch.objects.get(user=user)
-            
-            if not user_search or not user_search.to_lat or not user_search.to_lon:
-                return "Select destination"
-            
-            from decimal import Decimal
-            from .views import BusListAPIView
-            
-            view = BusListAPIView()
-            distance_km = view.calculate_distance_google_api(
-                user_search.from_lat, user_search.from_lon, 
-                user_search.to_lat, user_search.to_lon
-            )
-            
-            seat_count = user_search.seat or 1
-            base_price = obj.base_price or Decimal('0.00')
-            base_price_km = obj.base_price_km or 0
-            price_per_km = obj.price_per_km or Decimal('0.00')
-            minimum_fare = obj.minimum_fare or Decimal('0.00')
-            
-            # Calculate amount based on distance
-            if distance_km <= base_price_km:
-                # Within base price range
-                total_amount = base_price
-            else:
-                # Base price + additional km charges
-                additional_km = distance_km - base_price_km
-                additional_charges = additional_km * price_per_km
-                total_amount = base_price + additional_charges
-            
-            # Apply seat multiplier
-            total_amount = total_amount * seat_count
-            
-            # Ensure minimum fare is met
-            if total_amount < minimum_fare:
-                total_amount = minimum_fare
-            
-            return float(total_amount)
-            
-        except UserBusSearch.DoesNotExist:
-            return "Search data not found"
-        except Exception as e:
-            logging.error(f"Error in get_price: {str(e)}")
-            return "Price calculation error"
+        request = self.context.get('request', None)
+        if request and hasattr(request, 'user'):
+            user = request.user
+            try:
+                user_search = UserBusSearch.objects.get(user=user)
+                
+                if not user_search or not user_search.to_lat or not user_search.to_lon:
+                    return "Select destination"
+                
+                from decimal import Decimal
+                from .views import BusListAPIView
+                
+                view = BusListAPIView()
+                distance_km = view.calculate_distance_google_api(
+                    user_search.from_lat, user_search.from_lon, 
+                    user_search.to_lat, user_search.to_lon
+                )
+                
+                seat_count = user_search.seat or 1
+                base_price = obj.base_price or Decimal('0.00')
+                base_price_km = obj.base_price_km or 0
+                price_per_km = obj.price_per_km or Decimal('0.00')
+                minimum_fare = obj.minimum_fare or Decimal('0.00')
+                
+                # Calculate amount based on distance
+                if distance_km <= base_price_km:
+                    # Within base price range
+                    total_amount = base_price
+                else:
+                    # Base price + additional km charges
+                    additional_km = distance_km - base_price_km
+                    additional_charges = additional_km * price_per_km
+                    total_amount = base_price + additional_charges
+                
+                # Apply seat multiplier
+                total_amount = total_amount * seat_count
+                
+                # Ensure minimum fare is met
+                if total_amount < minimum_fare:
+                    total_amount = minimum_fare
+                
+                return float(total_amount)
+                
+            except UserBusSearch.DoesNotExist:
+                return "Search data not found"
+            except Exception as e:
+                logging.error(f"Error in get_price: {str(e)}")
+                return "Price calculation error"
+        else:
+            user = None
 
     def to_representation(self, instance):
         """Make base_price an integer in the output."""
@@ -1969,3 +1943,69 @@ class BusBookingUpdateSerializer(BaseBookingSerializer):
             raise serializers.ValidationError({"error": f"Unexpected error during referral processing: {str(e)}"})
 
         return booking
+    
+
+
+class PackageSubCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageSubCategory
+        fields = ['id', 'name', 'image']
+
+
+
+
+
+
+
+
+
+
+
+
+class PayoutHistorySerializer(serializers.ModelSerializer):
+    vendor_name = serializers.CharField(source='vendor.full_name')
+    vendor_email = serializers.CharField(source='vendor.user.email')
+    vendor_phone = serializers.CharField(source='vendor.phone_no')
+    bookings = serializers.SerializerMethodField()
+    bank_details = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PayoutHistory
+        fields = [
+            'id',
+            'payout_date',
+            'vendor_name',
+            'vendor_email',
+            'vendor_phone',
+            'payout_mode',
+            'payout_reference',
+            'total_amount',
+            'admin_commission',
+            'net_amount',
+            'note',
+            'bookings',
+            'bank_details'
+        ]
+
+    def get_bookings(self, obj):
+        bookings = []
+        for pb in obj.bookings.all():
+            bookings.append({
+                'type': pb.booking_type,
+                'booking_id': pb.booking_id,
+                'amount': pb.amount,
+                'commission': pb.commission
+            })
+        return bookings
+
+    def get_bank_details(self, obj):
+        try:
+            bank = obj.vendor.bank_detail
+            return {
+                'account_number': bank.account_number,
+                'ifsc_code': bank.ifsc_code,
+                'holder_name': bank.holder_name,
+                'payout_mode': bank.payout_mode
+            }
+        except VendorBankDetail.DoesNotExist:
+            return None

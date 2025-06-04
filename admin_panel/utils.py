@@ -1,9 +1,13 @@
 import requests
 import string
 import random
+import re
 
 
 API_KEY = "15b274f8-8600-11ef-8b17-0200cd936042"
+
+def is_valid_email(value):
+    return re.match(r"[^@]+@[^@]+\.[^@]+", value)
 
 def send_otp(mobile):
     """

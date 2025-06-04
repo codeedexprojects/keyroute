@@ -3,6 +3,7 @@ from admin_panel.views import *
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
+from bookings.views import UnpaidBookingsAPI,CreatePayoutAPI,PayoutHistoryAPI,PayoutDetailAPI
 
 urlpatterns = [
     path('api/admin/login/', AdminLoginAPIView.as_view(), name='admin-login'),
@@ -184,4 +185,11 @@ urlpatterns = [
     path('api/admin/package/delete/<int:pk>/', AdminPackageDeleteView.as_view(), name='admin-package-delete'),
 
 
+
+
+
+    path('api/admin/payout/unpaid-bookings/', UnpaidBookingsAPI.as_view(), name='unpaid-bookings'),
+    path('api/admin/payout/create/', CreatePayoutAPI.as_view(), name='create-payout'),
+    path('api/admin/payout/history/', PayoutHistoryAPI.as_view(), name='payout-history'),
+    path('api/admin/payout/history/<int:payout_id>/', PayoutDetailAPI.as_view(), name='payout-detail')
 ] 

@@ -117,122 +117,16 @@ class SinglePackageListAPIView(APIView):
     permission_classes = [AllowAny]
     
     def get(self, request,package_id):
-        packages = Package.objects.get(id=package_id)
-        serializer = ListingUserPackageSerializer(packages, many=False, context={'request': request})
-        return Response(serializer.data)
+        try:
+            packages = Package.objects.get(id=package_id)
+            serializer = ListingUserPackageSerializer(packages, many=False, context={'request': request})
+            return Response(serializer.data)
+        except Package.DoesNotExist:
+            return Response({"error": "No Pckages Found."}, status=404)
 
 
 class BusListAPIView(APIView):
     permission_classes = [IsAuthenticated]
-
-    # def get(self, request):
-    #     try:
-    #         user_search = UserBusSearch.objects.get(user=request.user)
-    #     except UserBusSearch.DoesNotExist:
-    #         return Response({"error": "No bus search data found for this user."}, status=404)
-
-    #     # Check if destination coordinates are provided
-    #     if not user_search.to_lat or not user_search.to_lon:
-    #         return Response({"message": "Please select destination location"}, status=200)
-
-    #     user_coords = (user_search.from_lat, user_search.from_lon)
-
-    #     # Optional debug log for location
-    #     try:
-    #         from geopy.geocoders import Nominatim
-    #         geolocator = Nominatim(user_agent="bus-locator")
-    #         location = geolocator.reverse(user_coords, exactly_one=True, timeout=10)
-    #         print("User Location:", location.address if location else "Unknown")
-    #     except Exception as e:
-    #         print(f"Geolocation error: {e}")
-
-    #     search = request.query_params.get('search')
-
-    #     if search == "all":
-    #         all_buses = Bus.objects.all()
-
-    #     # Initial queryset
-    #     buses = Bus.objects.filter(latitude__isnull=False, longitude__isnull=False)
-
-    #     # Filter by seat if provided
-    #     if user_search.seat:
-    #         buses = buses.filter(capacity__gte=user_search.seat)
-
-    #     # Filter by features
-    #     if user_search.ac:
-    #         buses = buses.filter(features__name__iexact='ac')
-    #     if user_search.pushback:
-    #         buses = buses.filter(features__name__iexact='pushback')
-
-    #     # Get search parameter and apply filter BEFORE distance calculation
-    #     if search != 'all':
-    #         buses = buses.filter(bus_name__icontains=search)
-
-    #     # Distance filter: within 30 km
-    #     nearby_buses = []
-    #     for bus in buses.distinct():
-    #         if bus.latitude is not None and bus.longitude is not None:
-    #             bus_coords = (bus.latitude, bus.longitude)
-    #             distance_km = geodesic(user_coords, bus_coords).kilometers
-    #             if distance_km <= 30:
-    #                 nearby_buses.append((bus, distance_km))
-
-    #     if not nearby_buses:
-    #         return Response({"message": "No buses found near your location within 30 km."}, status=200)
-
-    #     # Get sorting parameter
-    #     sort_by = request.query_params.get('sort_by', 'nearest')
-
-    #     # Apply sorting
-    #     if sort_by == 'nearest':
-    #         nearby_buses.sort(key=lambda x: x[1])  # Sort by distance
-    #     elif sort_by == 'popular':
-    #         nearby_buses = [(bus, dist) for bus, dist in nearby_buses if getattr(bus, 'is_popular', False)]
-    #         nearby_buses.sort(key=lambda x: x[1])  # Then by distance
-    #     elif sort_by == 'top_rated':
-    #         # Sort by average rating (descending)
-    #         nearby_buses.sort(key=lambda x: x[0].bus_reviews.aggregate(avg=Avg('rating'))['avg'] or 0, reverse=True)
-    #     elif sort_by == 'price_low_to_high':
-    #         # Calculate price for each bus and sort
-    #         bus_prices = []
-    #         for bus, dist in nearby_buses:
-    #             price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
-    #                                             user_search.to_lat, user_search.to_lon, user_search.seat or 1)
-    #             bus_prices.append((bus, dist, price))
-    #         bus_prices.sort(key=lambda x: x[2])
-    #         nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
-    #     elif sort_by == 'price_high_to_low':
-    #         # Calculate price for each bus and sort (descending)
-    #         bus_prices = []
-    #         for bus, dist in nearby_buses:
-    #             price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
-    #                                             user_search.to_lat, user_search.to_lon, user_search.seat or 1)
-    #             bus_prices.append((bus, dist, price))
-    #         bus_prices.sort(key=lambda x: x[2], reverse=True)
-    #         nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
-
-    #     buses_only = [bus for bus, dist in nearby_buses]
-
-    #     if all_buses:
-    #         response_data = {
-    #             'buses': all_buses
-    #         }
-    #     else:
-    #         response_data = {
-    #             'buses': buses_only
-    #         }
-
-    #     serializer = BusListResponseSerializer(
-    #         response_data, 
-    #         context={'request': request, 'user_search': user_search}
-    #     )
-    #     return Response(serializer.data)
-
-
-
-
-
-
 
     def get(self, request):
         try:
@@ -246,7 +140,7 @@ class BusListAPIView(APIView):
 
         user_coords = (user_search.from_lat, user_search.from_lon)
 
-        # Debug: Optional user location logging
+        # Optional debug log for location
         try:
             from geopy.geocoders import Nominatim
             geolocator = Nominatim(user_agent="bus-locator")
@@ -256,10 +150,6 @@ class BusListAPIView(APIView):
             print(f"Geolocation error: {e}")
 
         search = request.query_params.get('search')
-
-        all_buses = None
-        if search == "all":
-            all_buses = Bus.objects.all()
 
         # Initial queryset
         buses = Bus.objects.filter(latitude__isnull=False, longitude__isnull=False)
@@ -274,63 +164,91 @@ class BusListAPIView(APIView):
         if user_search.pushback:
             buses = buses.filter(features__name__iexact='pushback')
 
-        # Safe filter by search (only apply if not None and not "all")
-        if search and search != "all":
+        # If search has value, filter by name only (no location filtering)
+        if search:
             buses = buses.filter(bus_name__icontains=search)
+            buses_only = list(buses.distinct())
+        else:
+            # No search - apply location-based filtering (within 30 km)
+            nearby_buses = []
+            for bus in buses.distinct():
+                if bus.latitude is not None and bus.longitude is not None:
+                    bus_coords = (bus.latitude, bus.longitude)
+                    distance_km = geodesic(user_coords, bus_coords).kilometers
+                    if distance_km <= 30:
+                        nearby_buses.append((bus, distance_km))
 
-        # Distance filter: within 30 km
-        nearby_buses = []
-        for bus in buses.distinct():
-            if bus.latitude is not None and bus.longitude is not None:
-                bus_coords = (bus.latitude, bus.longitude)
-                distance_km = geodesic(user_coords, bus_coords).kilometers
-                if distance_km <= 30:
-                    nearby_buses.append((bus, distance_km))
+            if not nearby_buses:
+                return Response({"message": "No buses found near your location within 30 km."}, status=200)
 
-        if not nearby_buses:
-            return Response({"message": "No buses found near your location within 30 km."}, status=200)
+            buses_only = [bus for bus, dist in nearby_buses]
 
+        if not buses_only:
+            return Response({"message": "No buses found matching your criteria."}, status=200)
+
+        # Get sorting parameter
         sort_by = request.query_params.get('sort_by', 'nearest')
-        
 
-        # Sorting logic
-        if sort_by == 'nearest':
-            nearby_buses.sort(key=lambda x: x[1])
-        elif sort_by == 'popular':
-            nearby_buses = [(bus, dist) for bus, dist in nearby_buses if getattr(bus, 'is_popular', False)]
-            nearby_buses.sort(key=lambda x: x[1])
-        elif sort_by == 'top_rated':
-            nearby_buses.sort(key=lambda x: x[0].bus_reviews.aggregate(avg=Avg('rating'))['avg'] or 0, reverse=True)
-        elif sort_by == 'price_low_to_high':
-            bus_prices = []
-            for bus, dist in nearby_buses:
-                price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon,
-                                                  user_search.to_lat, user_search.to_lon, user_search.seat or 1)
-                bus_prices.append((bus, dist, price))
-            bus_prices.sort(key=lambda x: x[2])
-            nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
-        elif sort_by == 'price_high_to_low':
-            bus_prices = []
-            for bus, dist in nearby_buses:
-                price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon,
-                                                  user_search.to_lat, user_search.to_lon, user_search.seat or 1)
-                bus_prices.append((bus, dist, price))
-            bus_prices.sort(key=lambda x: x[2], reverse=True)
-            nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
+        # Apply sorting
+        if search:
+            # For name-based search, no distance sorting
+            if sort_by == 'popular':
+                buses_only = [bus for bus in buses_only if getattr(bus, 'is_popular', False)]
+            elif sort_by == 'top_rated':
+                buses_only.sort(key=lambda x: x.bus_reviews.aggregate(avg=Avg('rating'))['avg'] or 0, reverse=True)
+            elif sort_by == 'price_low_to_high':
+                bus_prices = []
+                for bus in buses_only:
+                    price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
+                                                    user_search.to_lat, user_search.to_lon, user_search.seat or 1)
+                    bus_prices.append((bus, price))
+                bus_prices.sort(key=lambda x: x[1])
+                buses_only = [bus for bus, price in bus_prices]
+            elif sort_by == 'price_high_to_low':
+                bus_prices = []
+                for bus in buses_only:
+                    price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
+                                                    user_search.to_lat, user_search.to_lon, user_search.seat or 1)
+                    bus_prices.append((bus, price))
+                bus_prices.sort(key=lambda x: x[1], reverse=True)
+                buses_only = [bus for bus, price in bus_prices]
+        else:
+            # For location-based search, keep original sorting logic
+            if sort_by == 'nearest':
+                nearby_buses.sort(key=lambda x: x[1])  # Sort by distance
+            elif sort_by == 'popular':
+                nearby_buses = [(bus, dist) for bus, dist in nearby_buses if getattr(bus, 'is_popular', False)]
+                nearby_buses.sort(key=lambda x: x[1])  # Then by distance
+            elif sort_by == 'top_rated':
+                nearby_buses.sort(key=lambda x: x[0].bus_reviews.aggregate(avg=Avg('rating'))['avg'] or 0, reverse=True)
+            elif sort_by == 'price_low_to_high':
+                bus_prices = []
+                for bus, dist in nearby_buses:
+                    price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
+                                                    user_search.to_lat, user_search.to_lon, user_search.seat or 1)
+                    bus_prices.append((bus, dist, price))
+                bus_prices.sort(key=lambda x: x[2])
+                nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
+            elif sort_by == 'price_high_to_low':
+                bus_prices = []
+                for bus, dist in nearby_buses:
+                    price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
+                                                    user_search.to_lat, user_search.to_lon, user_search.seat or 1)
+                    bus_prices.append((bus, dist, price))
+                bus_prices.sort(key=lambda x: x[2], reverse=True)
+                nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
+            
+            buses_only = [bus for bus, dist in nearby_buses]
 
-        # Choose response based on 'search'
-        buses_only = [bus for bus, dist in nearby_buses]
-        response_data = {'buses': all_buses} if all_buses is not None else {'buses': buses_only}
+        response_data = {
+            'buses': buses_only
+        }
 
         serializer = BusListResponseSerializer(
-            response_data,
+            response_data, 
             context={'request': request, 'user_search': user_search}
         )
         return Response(serializer.data)
-    
-
-
-
 
 
     def calculate_distance_google_api(self, from_lat, from_lon, to_lat, to_lon):
@@ -481,34 +399,14 @@ class PackageBookingListCreateAPIView(APIView):
 
             booking = serializer.save(user=request.user)
 
-            traveler_data = {
-                "first_name": request.user.name,
-                "last_name": '',
-                "gender": request.data.get('gender', ''),
-                "place": request.data.get('place', ''),
-                "dob": request.data.get('dob', None),
-                "id_proof": request.data.get('id_proof', None),
-                "email": request.user.email,
-                "mobile": str(request.user),
-                "city": request.data.get('city', ''),
-                "booking_type": "package",
-                "booking_id": booking.booking_id
-            }
 
-            travelerSerializer = TravelerCreateSerializer(data=traveler_data)
-            if travelerSerializer.is_valid():
-                travelerSerializer.save()
+            package_name = booking.package.name if hasattr(booking.package, 'name') else "Tour package"
+            send_notification(
+                user=request.user,
+                message=f"Your booking for {package_name} has been successfully created! Booking ID: {booking.booking_id}"
+            )
 
-                package_name = booking.package.name if hasattr(booking.package, 'name') else "Tour package"
-                send_notification(
-                    user=request.user,
-                    message=f"Your booking for {package_name} has been successfully created! Booking ID: {booking.booking_id}"
-                )
-
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            else:
-                booking.delete()
-                return Response(travelerSerializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class PackageBookingUpdateAPIView(APIView):
@@ -586,36 +484,16 @@ class BusBookingListCreateAPIView(APIView):
 
             booking = serializer.save(user=request.user)
 
-            traveler_data = {
-                "first_name": request.user.name,
-                "last_name": '',
-                "gender": request.data.get('gender', ''),
-                "place": request.data.get('place', ''),
-                "dob": request.data.get('dob', None),
-                "id_proof": request.data.get('id_proof', None),
-                "email": request.user.email,
-                "mobile": request.data.get('mobile', ''),
-                "city": request.data.get('city', ''),
-                "booking_type": "bus",
-                "booking_id": booking.booking_id
-            }
 
-            travelerSerializer = TravelerCreateSerializer(data=traveler_data)
-            if travelerSerializer.is_valid():
-                travelerSerializer.save()
+            bus_name = booking.bus.name if hasattr(booking.bus, 'name') else "Bus"
+            route_info = f"from {booking.bus.from_location} to {booking.bus.to_location}" if hasattr(booking.bus, 'from_location') and hasattr(booking.bus, 'to_location') else ""
 
-                bus_name = booking.bus.name if hasattr(booking.bus, 'name') else "Bus"
-                route_info = f"from {booking.bus.from_location} to {booking.bus.to_location}" if hasattr(booking.bus, 'from_location') and hasattr(booking.bus, 'to_location') else ""
+            send_notification(
+                user=request.user,
+                message=f"Your bus booking for {bus_name} {route_info} has been confirmed! Booking ID: {booking.booking_id}"
+            )
 
-                send_notification(
-                    user=request.user,
-                    message=f"Your bus booking for {bus_name} {route_info} has been confirmed! Booking ID: {booking.booking_id}"
-                )
-
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            else:
-                booking.delete()
-                return Response(travelerSerializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class BusBookingDetailAPIView(APIView):
@@ -1053,7 +931,7 @@ class PackageSubCategoryListAPIView(APIView):
 class PopularBusApi(APIView):
     def get(self,request):
         buses = Bus.objects.filter(is_popular=True)
-        serializer = PopularBusSerializer(buses,many=True)
+        serializer = PopularBusSerializer(buses,many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 
@@ -1123,12 +1001,14 @@ class UserBusSearchCreateAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class PilgrimagePackagesAPIView(APIView):
-
     def get(self, request, format=None):
-        packages = Package.objects.filter(sub_category__category__name__iexact='pilgrimage')
+        try:
+            pilgrimage_category = PackageCategory.objects.get(name__iexact='pilgrimage')
+        except PackageCategory.DoesNotExist:
+            return Response({"detail": "Pilgrimage category not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = PackageSerializer(packages, many=True, context={'request': request})
-
+        subcategories = PackageSubCategory.objects.filter(category=pilgrimage_category)
+        serializer = PackageSubCategorySerializer(subcategories, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 
@@ -1162,3 +1042,678 @@ class BusBookingUpdateAPIView(APIView):
             
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.db.models import Sum, Q
+from .models import BusBooking, PackageBooking, Vendor, AdminCommissionSlab, PayoutHistory, PayoutBooking
+from vendors.models import VendorBankDetail
+from .serializers import PayoutHistorySerializer
+from datetime import datetime
+from operator import itemgetter
+
+class UnpaidBookingsAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        vendor_id = request.query_params.get('vendor_id')
+        
+        # Filter bus bookings
+        bus_bookings = BusBooking.objects.filter(
+            Q(payment_status__in=['partial', 'paid']) & Q(payout_status=False)
+        )
+        # Filter package bookings
+        package_bookings = PackageBooking.objects.filter(
+            Q(payment_status__in=['partial', 'paid']) & Q(payout_status=False)
+        )
+
+        # Filter by vendor_id if provided
+        if vendor_id:
+            bus_bookings = bus_bookings.filter(bus__vendor_id=vendor_id)
+            package_bookings = package_bookings.filter(package__vendor_id=vendor_id)
+
+        # Helper function to calculate admin commission
+        def calculate_admin_commission(booking_amount):
+            slab = AdminCommissionSlab.objects.filter(
+                min_amount__lte=booking_amount,
+                max_amount__gte=booking_amount
+            ).first()
+            
+            if slab:
+                return (booking_amount * slab.commission_percentage) / 100
+            return 0
+
+        # Helper function to get vendor bank details
+        def get_vendor_ifsc(vendor):
+            try:
+                bank_detail = VendorBankDetail.objects.get(vendor=vendor)
+                return bank_detail.ifsc_code
+            except VendorBankDetail.DoesNotExist:
+                return ''
+
+        # Serialize bus bookings
+        bus_data = []
+        for b in bus_bookings:
+            admin_commission = calculate_admin_commission(b.total_amount)
+            bus_data.append({
+                'booking_id': b.booking_id,
+                'vendor_id': b.bus.vendor.user.id,
+                'vendor_email': b.bus.vendor.email_address,
+                'vendor_phone': b.bus.vendor.phone_no,
+                'vendor_name': b.bus.vendor.full_name,
+                'vendor_ifsc_code': get_vendor_ifsc(b.bus.vendor),
+                'date': b.start_date,
+                'amount': b.total_amount,
+                'admin_commission': admin_commission,
+                'net_amount': b.total_amount - admin_commission,
+                'created_at': b.created_at,
+                'type': 'bus'
+            })
+
+        # Serialize package bookings
+        package_data = []
+        for p in package_bookings:
+            admin_commission = calculate_admin_commission(p.total_amount)
+            package_data.append({
+                'booking_id': p.booking_id,
+                'vendor_id': p.package.vendor.user.id,
+                'vendor_email': p.package.vendor.email_address,
+                'vendor_phone': p.package.vendor.phone_no,
+                'vendor_name': p.package.vendor.full_name,
+                'vendor_ifsc_code': get_vendor_ifsc(p.package.vendor),
+                'date': p.start_date,
+                'amount': p.total_amount,
+                'admin_commission': admin_commission,
+                'net_amount': p.total_amount - admin_commission,
+                'created_at': p.created_at,
+                'type': 'package'
+            })
+
+        # Combine and sort by created_at (newest first)
+        combined_data = sorted(bus_data + package_data, key=itemgetter('created_at'), reverse=True)
+
+        return Response(combined_data)
+
+class CreatePayoutAPI(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request):
+        vendor_id = request.data.get('vendor_id')
+        booking_ids = request.data.get('booking_ids', [])  # List of {'type': 'bus/package', 'id': x}
+        payout_mode = request.data.get('payout_mode')
+        payout_reference = request.data.get('payout_reference', '')
+        note = request.data.get('note', '')
+        
+        try:
+            vendor = Vendor.objects.get(user_id=vendor_id)
+        except Vendor.DoesNotExist:
+            return Response({'error': 'Vendor not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Validate bookings
+        bus_bookings = []
+        package_bookings = []
+        total_amount = 0
+        total_commission = 0
+        
+        for booking in booking_ids:
+            try:
+                if booking['type'] == 'bus':
+                    b = BusBooking.objects.get(
+                        booking_id=booking['id'],
+                        payment_status__in=['partial', 'paid'],
+                        payout_status=False,
+                        bus__vendor=vendor
+                    )
+                    bus_bookings.append(b)
+                elif booking['type'] == 'package':
+                    p = PackageBooking.objects.get(
+                        booking_id=booking['id'],
+                        payment_status__in=['partial', 'paid'],
+                        payout_status=False,
+                        package__vendor=vendor
+                    )
+                    package_bookings.append(p)
+            except (BusBooking.DoesNotExist, PackageBooking.DoesNotExist):
+                return Response({'error': f"Booking {booking['id']} not found or already paid"}, 
+                              status=status.HTTP_400_BAD_REQUEST)
+        
+        # Calculate commissions and totals
+        payout_bookings = []
+        
+        for booking in bus_bookings:
+            # Find commission slab
+            slab = AdminCommissionSlab.objects.filter(
+                min_amount__lte=booking.total_amount,
+                max_amount__gte=booking.total_amount
+            ).first()
+            
+            if not slab:
+                return Response({'error': f'No commission slab found for booking {booking.booking_id}'},
+                              status=status.HTTP_400_BAD_REQUEST)
+            
+            commission = (booking.total_amount * slab.commission_percentage) / 100
+            total_amount += booking.total_amount
+            total_commission += commission
+            
+            payout_bookings.append({
+                'type': 'bus',
+                'booking': booking,
+                'amount': booking.total_amount,
+                'commission': commission
+            })
+        
+        for booking in package_bookings:
+            # Find commission slab
+            slab = AdminCommissionSlab.objects.filter(
+                min_amount__lte=booking.total_amount,
+                max_amount__gte=booking.total_amount
+            ).first()
+            
+            if not slab:
+                return Response({'error': f'No commission slab found for booking {booking.booking_id}'},
+                              status=status.HTTP_400_BAD_REQUEST)
+            
+            commission = (booking.total_amount * slab.commission_percentage) / 100
+            total_amount += booking.total_amount
+            total_commission += commission
+            
+            payout_bookings.append({
+                'type': 'package',
+                'booking': booking,
+                'amount': booking.total_amount,
+                'commission': commission
+            })
+        
+        # Create payout record
+        payout = PayoutHistory.objects.create(
+            admin=request.user,
+            vendor=vendor,
+            payout_mode=payout_mode,
+            payout_reference=payout_reference,
+            total_amount=total_amount,
+            admin_commission=total_commission,
+            net_amount=total_amount - total_commission,
+            note=note
+        )
+        
+        # Create payout booking records and update bookings
+        for pb in payout_bookings:
+            PayoutBooking.objects.create(
+                payout=payout,
+                booking_type=pb['type'],
+                booking_id=pb['booking'].booking_id,
+                amount=pb['amount'],
+                commission=pb['commission']
+            )
+            
+            # Update booking
+            pb['booking'].payout_status = True
+            pb['booking'].payout = payout
+            pb['booking'].save()
+        
+        # Get bank details
+        bank_details = None
+        try:
+            bank_details = VendorBankDetail.objects.get(vendor=vendor)
+        except VendorBankDetail.DoesNotExist:
+            pass
+        
+        response_data = {
+            'payout_id': payout.id,
+            'vendor': vendor.full_name,
+            'payout_date': payout.payout_date,
+            'total_amount': total_amount,
+            'admin_commission': total_commission,
+            'net_amount': total_amount - total_commission,
+            'bank_details': {
+                'account_number': bank_details.account_number if bank_details else '',
+                'ifsc_code': bank_details.ifsc_code if bank_details else '',
+                'holder_name': bank_details.holder_name if bank_details else ''
+            } if bank_details else None
+        }
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+class PayoutHistoryAPI(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        vendor_id = request.query_params.get('vendor_id')
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        
+        payouts = PayoutHistory.objects.all().order_by('-payout_date')
+        
+        if vendor_id:
+            payouts = payouts.filter(vendor_id=vendor_id)
+        
+        if start_date and end_date:
+            try:
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+                payouts = payouts.filter(payout_date__date__range=[start_date, end_date])
+            except ValueError:
+                pass
+        
+        serializer = PayoutHistorySerializer(payouts, many=True)
+        return Response(serializer.data)
+
+class PayoutDetailAPI(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, payout_id):
+        try:
+            payout = PayoutHistory.objects.get(id=payout_id)
+            serializer = PayoutHistorySerializer(payout)
+            return Response(serializer.data)
+        except PayoutHistory.DoesNotExist:
+            return Response({'error': 'Payout not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
+from django.db import transaction
+from decimal import Decimal
+import logging
+from users.models import Wallet
+from admin_panel.models import AdminCommission, AdminCommissionSlab
+from .services import WalletTransactionService
+
+logger = logging.getLogger(__name__)
+
+class ApplyWalletToBusBookingAPIView(APIView):
+    """Apply wallet balance to bus booking"""
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, booking_id):
+        try:
+            # Get the booking
+            booking = get_object_or_404(BusBooking, booking_id=booking_id, user=request.user)
+            
+            # Check if wallet has already been applied
+            if WalletTransactionService.has_wallet_been_applied(booking_id, 'bus', request.user):
+                return Response({
+                    "error": "Wallet balance has already been applied to this booking"
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Get user's wallet
+            try:
+                wallet = Wallet.objects.get(user=request.user)
+            except Wallet.DoesNotExist:
+                return Response({
+                    "error": "Wallet not found for user"
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # Check if wallet balance is sufficient and not greater than total amount
+            if wallet.balance <= 0:
+                return Response({
+                    "error": "No wallet balance available"
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+            if wallet.balance > booking.total_amount:
+                return Response({
+                    "error": "Wallet balance cannot be greater than total amount"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            wallet_amount_to_use = wallet.balance
+            
+            # Apply wallet using service
+            wallet_transaction, updated_wallet = WalletTransactionService.apply_wallet_to_booking(
+                user=request.user,
+                booking_id=booking_id,
+                booking_type='bus',
+                wallet_amount=wallet_amount_to_use,
+                description=f"Applied ₹{wallet_amount_to_use} to bus booking {booking_id}"
+            )
+            
+            # Update booking total amount
+            new_total_amount = booking.total_amount - wallet_amount_to_use
+            booking.total_amount = new_total_amount
+            booking.save()
+
+            # Update admin commission
+            commission_percent, revenue = get_admin_commission_from_db(new_total_amount)
+            try:
+                admin_commission = AdminCommission.objects.get(
+                    booking_type='bus', 
+                    booking_id=booking.booking_id
+                )
+                admin_commission.revenue_to_admin = revenue
+                admin_commission.commission_percentage = commission_percent
+                admin_commission.save()
+                logger.info(f"Updated admin commission for bus booking {booking.booking_id}")
+            except AdminCommission.DoesNotExist:
+                logger.warning(f"Admin commission not found for booking {booking.booking_id}")
+
+            return Response({
+                "message": "Wallet balance applied successfully",
+                "wallet_amount_used": float(wallet_amount_to_use),
+                "new_total_amount": float(new_total_amount),
+                "remaining_wallet_balance": float(updated_wallet.balance),
+                "transaction_id": wallet_transaction.id
+            }, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            return Response({
+                "error": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Error applying wallet to bus booking: {str(e)}")
+            return Response({
+                "error": f"Error applying wallet balance: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RemoveWalletFromBusBookingAPIView(APIView):
+    """Remove wallet balance from bus booking"""
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, booking_id):
+        try:
+            # Get the booking
+            booking = get_object_or_404(BusBooking, booking_id=booking_id, user=request.user)
+            
+            # Remove wallet using service
+            removal_transaction, updated_wallet, wallet_amount_restored = WalletTransactionService.remove_wallet_from_booking(
+                user=request.user,
+                booking_id=booking_id,
+                booking_type='bus',
+                description=f"Removed from bus booking {booking_id}"
+            )
+            
+            # Restore the original total amount
+            original_total_amount = booking.total_amount + wallet_amount_restored
+            booking.total_amount = original_total_amount
+            booking.save()
+
+            # Update admin commission
+            commission_percent, revenue = get_admin_commission_from_db(original_total_amount)
+            try:
+                admin_commission = AdminCommission.objects.get(
+                    booking_type='bus', 
+                    booking_id=booking.booking_id
+                )
+                admin_commission.revenue_to_admin = revenue
+                admin_commission.commission_percentage = commission_percent
+                admin_commission.save()
+                logger.info(f"Updated admin commission for bus booking {booking.booking_id}")
+            except AdminCommission.DoesNotExist:
+                logger.warning(f"Admin commission not found for booking {booking.booking_id}")
+
+            return Response({
+                "message": "Wallet balance removed successfully",
+                "wallet_amount_restored": float(wallet_amount_restored),
+                "new_total_amount": float(original_total_amount),
+                "current_wallet_balance": float(updated_wallet.balance),
+                "transaction_id": removal_transaction.id
+            }, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            return Response({
+                "error": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Error removing wallet from bus booking: {str(e)}")
+            return Response({
+                "error": f"Error removing wallet balance: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ApplyWalletToPackageBookingAPIView(APIView):
+    """Apply wallet balance to package booking"""
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, booking_id):
+        try:
+            # Get the booking
+            booking = get_object_or_404(PackageBooking, booking_id=booking_id, user=request.user)
+            
+            # Check if wallet has already been applied
+            if WalletTransactionService.has_wallet_been_applied(booking_id, 'package', request.user):
+                return Response({
+                    "error": "Wallet balance has already been applied to this booking"
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Get user's wallet
+            try:
+                wallet = Wallet.objects.get(user=request.user)
+            except Wallet.DoesNotExist:
+                return Response({
+                    "error": "Wallet not found for user"
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # Check wallet balance
+            if wallet.balance <= 0:
+                return Response({
+                    "error": "No wallet balance available"
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+            if wallet.balance > booking.total_amount:
+                return Response({
+                    "error": "Wallet balance cannot be greater than total amount"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            wallet_amount_to_use = wallet.balance
+            
+            # Apply wallet using service
+            wallet_transaction, updated_wallet = WalletTransactionService.apply_wallet_to_booking(
+                user=request.user,
+                booking_id=booking_id,
+                booking_type='package',
+                wallet_amount=wallet_amount_to_use,
+                description=f"Applied ₹{wallet_amount_to_use} to package booking {booking_id}"
+            )
+            
+            # Update booking total amount
+            new_total_amount = booking.total_amount - wallet_amount_to_use
+            booking.total_amount = new_total_amount
+            booking.save()
+
+            # Update admin commission
+            commission_percent, revenue = get_admin_commission_from_db(new_total_amount)
+            try:
+                admin_commission = AdminCommission.objects.get(
+                    booking_type='package', 
+                    booking_id=booking.booking_id
+                )
+                admin_commission.revenue_to_admin = revenue
+                admin_commission.commission_percentage = commission_percent
+                admin_commission.save()
+                logger.info(f"Updated admin commission for package booking {booking.booking_id}")
+            except AdminCommission.DoesNotExist:
+                logger.warning(f"Admin commission not found for booking {booking.booking_id}")
+
+            return Response({
+                "message": "Wallet balance applied successfully",
+                "wallet_amount_used": float(wallet_amount_to_use),
+                "new_total_amount": float(new_total_amount),
+                "remaining_wallet_balance": float(updated_wallet.balance),
+                "transaction_id": wallet_transaction.id
+            }, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            return Response({
+                "error": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Error applying wallet to package booking: {str(e)}")
+            return Response({
+                "error": f"Error applying wallet balance: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RemoveWalletFromPackageBookingAPIView(APIView):
+    """Remove wallet balance from package booking"""
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, booking_id):
+        try:
+            # Get the booking
+            booking = get_object_or_404(PackageBooking, booking_id=booking_id, user=request.user)
+            
+            # Remove wallet using service
+            removal_transaction, updated_wallet, wallet_amount_restored = WalletTransactionService.remove_wallet_from_booking(
+                user=request.user,
+                booking_id=booking_id,
+                booking_type='package',
+                description=f"Removed from package booking {booking_id}"
+            )
+            
+            # Restore the original total amount
+            original_total_amount = booking.total_amount + wallet_amount_restored
+            booking.total_amount = original_total_amount
+            booking.save()
+
+            # Update admin commission
+            commission_percent, revenue = get_admin_commission_from_db(original_total_amount)
+            try:
+                admin_commission = AdminCommission.objects.get(
+                    booking_type='package', 
+                    booking_id=booking.booking_id
+                )
+                admin_commission.revenue_to_admin = revenue
+                admin_commission.commission_percentage = commission_percent
+                admin_commission.save()
+                logger.info(f"Updated admin commission for package booking {booking.booking_id}")
+            except AdminCommission.DoesNotExist:
+                logger.warning(f"Admin commission not found for booking {booking.booking_id}")
+
+            return Response({
+                "message": "Wallet balance removed successfully",
+                "wallet_amount_restored": float(wallet_amount_restored),
+                "new_total_amount": float(original_total_amount),
+                "current_wallet_balance": float(updated_wallet.balance),
+                "transaction_id": removal_transaction.id
+            }, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            return Response({
+                "error": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Error removing wallet from package booking: {str(e)}")
+            return Response({
+                "error": f"Error removing wallet balance: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class GetWalletBalanceAPIView(APIView):
+    """Get user's current wallet balance and recent transactions"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            wallet = Wallet.objects.get(user=request.user)
+            
+            # Get recent transactions
+            recent_transactions = WalletTransactionService.get_user_wallet_transactions(
+                user=request.user, 
+                limit=10
+            )
+            
+            transactions_data = []
+            for txn in recent_transactions:
+                transactions_data.append({
+                    "id": txn.id,
+                    "booking_id": txn.booking_id,
+                    "booking_type": txn.booking_type,
+                    "transaction_type": txn.transaction_type,
+                    "amount": float(txn.amount),
+                    "balance_before": float(txn.balance_before),
+                    "balance_after": float(txn.balance_after),
+                    "description": txn.description,
+                    "created_at": txn.created_at.isoformat(),
+                    "is_active": txn.is_active
+                })
+            
+            return Response({
+                "balance": float(wallet.balance),
+                "recent_transactions": transactions_data
+            }, status=status.HTTP_200_OK)
+            
+        except Wallet.DoesNotExist:
+            return Response({
+                "balance": 0.00,
+                "recent_transactions": [],
+                "message": "Wallet not found"
+            }, status=status.HTTP_200_OK)
+
+
+class WalletTransactionHistoryAPIView(APIView):
+    """Get detailed wallet transaction history"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            page = int(request.GET.get('page', 1))
+            limit = int(request.GET.get('limit', 20))
+            transaction_type = request.GET.get('transaction_type', None)
+            booking_type = request.GET.get('booking_type', None)
+            
+            # Build query
+            queryset = WalletTransaction.objects.filter(user=request.user)
+            
+            if transaction_type:
+                queryset = queryset.filter(transaction_type=transaction_type)
+            
+            if booking_type:
+                queryset = queryset.filter(booking_type=booking_type)
+            
+            # Pagination
+            offset = (page - 1) * limit
+            transactions = queryset[offset:offset + limit]
+            total_count = queryset.count()
+            
+            transactions_data = []
+            for txn in transactions:
+                transactions_data.append({
+                    "id": txn.id,
+                    "booking_id": txn.booking_id,
+                    "booking_type": txn.booking_type,
+                    "transaction_type": txn.transaction_type,
+                    "amount": float(txn.amount),
+                    "balance_before": float(txn.balance_before),
+                    "balance_after": float(txn.balance_after),
+                    "description": txn.description,
+                    "created_at": txn.created_at.isoformat(),
+                    "is_active": txn.is_active,
+                    "reference_id": txn.reference_id
+                })
+            
+            return Response({
+                "transactions": transactions_data,
+                "pagination": {
+                    "current_page": page,
+                    "total_pages": (total_count + limit - 1) // limit,
+                    "total_count": total_count,
+                    "has_next": offset + limit < total_count,
+                    "has_previous": page > 1
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error fetching wallet transaction history: {str(e)}")
+            return Response({
+                "error": "Error fetching transaction history"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
