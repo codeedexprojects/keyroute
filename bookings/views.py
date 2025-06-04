@@ -117,9 +117,12 @@ class SinglePackageListAPIView(APIView):
     permission_classes = [AllowAny]
     
     def get(self, request,package_id):
-        packages = Package.objects.get(id=package_id)
-        serializer = ListingUserPackageSerializer(packages, many=False, context={'request': request})
-        return Response(serializer.data)
+        try:
+            packages = Package.objects.get(id=package_id)
+            serializer = ListingUserPackageSerializer(packages, many=False, context={'request': request})
+            return Response(serializer.data)
+        except Package.DoesNotExist:
+            return Response({"error": "No Pckages Found."}, status=404)
 
 
 class BusListAPIView(APIView):
@@ -1317,3 +1320,400 @@ class PayoutDetailAPI(APIView):
             return Response(serializer.data)
         except PayoutHistory.DoesNotExist:
             return Response({'error': 'Payout not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
+from django.db import transaction
+from decimal import Decimal
+import logging
+from users.models import Wallet
+from admin_panel.models import AdminCommission, AdminCommissionSlab
+from .services import WalletTransactionService
+
+logger = logging.getLogger(__name__)
+
+class ApplyWalletToBusBookingAPIView(APIView):
+    """Apply wallet balance to bus booking"""
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, booking_id):
+        try:
+            # Get the booking
+            booking = get_object_or_404(BusBooking, booking_id=booking_id, user=request.user)
+            
+            # Check if wallet has already been applied
+            if WalletTransactionService.has_wallet_been_applied(booking_id, 'bus', request.user):
+                return Response({
+                    "error": "Wallet balance has already been applied to this booking"
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Get user's wallet
+            try:
+                wallet = Wallet.objects.get(user=request.user)
+            except Wallet.DoesNotExist:
+                return Response({
+                    "error": "Wallet not found for user"
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # Check if wallet balance is sufficient and not greater than total amount
+            if wallet.balance <= 0:
+                return Response({
+                    "error": "No wallet balance available"
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+            if wallet.balance > booking.total_amount:
+                return Response({
+                    "error": "Wallet balance cannot be greater than total amount"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            wallet_amount_to_use = wallet.balance
+            
+            # Apply wallet using service
+            wallet_transaction, updated_wallet = WalletTransactionService.apply_wallet_to_booking(
+                user=request.user,
+                booking_id=booking_id,
+                booking_type='bus',
+                wallet_amount=wallet_amount_to_use,
+                description=f"Applied ₹{wallet_amount_to_use} to bus booking {booking_id}"
+            )
+            
+            # Update booking total amount
+            new_total_amount = booking.total_amount - wallet_amount_to_use
+            booking.total_amount = new_total_amount
+            booking.save()
+
+            # Update admin commission
+            commission_percent, revenue = get_admin_commission_from_db(new_total_amount)
+            try:
+                admin_commission = AdminCommission.objects.get(
+                    booking_type='bus', 
+                    booking_id=booking.booking_id
+                )
+                admin_commission.revenue_to_admin = revenue
+                admin_commission.commission_percentage = commission_percent
+                admin_commission.save()
+                logger.info(f"Updated admin commission for bus booking {booking.booking_id}")
+            except AdminCommission.DoesNotExist:
+                logger.warning(f"Admin commission not found for booking {booking.booking_id}")
+
+            return Response({
+                "message": "Wallet balance applied successfully",
+                "wallet_amount_used": float(wallet_amount_to_use),
+                "new_total_amount": float(new_total_amount),
+                "remaining_wallet_balance": float(updated_wallet.balance),
+                "transaction_id": wallet_transaction.id
+            }, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            return Response({
+                "error": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Error applying wallet to bus booking: {str(e)}")
+            return Response({
+                "error": f"Error applying wallet balance: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RemoveWalletFromBusBookingAPIView(APIView):
+    """Remove wallet balance from bus booking"""
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, booking_id):
+        try:
+            # Get the booking
+            booking = get_object_or_404(BusBooking, booking_id=booking_id, user=request.user)
+            
+            # Remove wallet using service
+            removal_transaction, updated_wallet, wallet_amount_restored = WalletTransactionService.remove_wallet_from_booking(
+                user=request.user,
+                booking_id=booking_id,
+                booking_type='bus',
+                description=f"Removed from bus booking {booking_id}"
+            )
+            
+            # Restore the original total amount
+            original_total_amount = booking.total_amount + wallet_amount_restored
+            booking.total_amount = original_total_amount
+            booking.save()
+
+            # Update admin commission
+            commission_percent, revenue = get_admin_commission_from_db(original_total_amount)
+            try:
+                admin_commission = AdminCommission.objects.get(
+                    booking_type='bus', 
+                    booking_id=booking.booking_id
+                )
+                admin_commission.revenue_to_admin = revenue
+                admin_commission.commission_percentage = commission_percent
+                admin_commission.save()
+                logger.info(f"Updated admin commission for bus booking {booking.booking_id}")
+            except AdminCommission.DoesNotExist:
+                logger.warning(f"Admin commission not found for booking {booking.booking_id}")
+
+            return Response({
+                "message": "Wallet balance removed successfully",
+                "wallet_amount_restored": float(wallet_amount_restored),
+                "new_total_amount": float(original_total_amount),
+                "current_wallet_balance": float(updated_wallet.balance),
+                "transaction_id": removal_transaction.id
+            }, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            return Response({
+                "error": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Error removing wallet from bus booking: {str(e)}")
+            return Response({
+                "error": f"Error removing wallet balance: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ApplyWalletToPackageBookingAPIView(APIView):
+    """Apply wallet balance to package booking"""
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, booking_id):
+        try:
+            # Get the booking
+            booking = get_object_or_404(PackageBooking, booking_id=booking_id, user=request.user)
+            
+            # Check if wallet has already been applied
+            if WalletTransactionService.has_wallet_been_applied(booking_id, 'package', request.user):
+                return Response({
+                    "error": "Wallet balance has already been applied to this booking"
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Get user's wallet
+            try:
+                wallet = Wallet.objects.get(user=request.user)
+            except Wallet.DoesNotExist:
+                return Response({
+                    "error": "Wallet not found for user"
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # Check wallet balance
+            if wallet.balance <= 0:
+                return Response({
+                    "error": "No wallet balance available"
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+            if wallet.balance > booking.total_amount:
+                return Response({
+                    "error": "Wallet balance cannot be greater than total amount"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            wallet_amount_to_use = wallet.balance
+            
+            # Apply wallet using service
+            wallet_transaction, updated_wallet = WalletTransactionService.apply_wallet_to_booking(
+                user=request.user,
+                booking_id=booking_id,
+                booking_type='package',
+                wallet_amount=wallet_amount_to_use,
+                description=f"Applied ₹{wallet_amount_to_use} to package booking {booking_id}"
+            )
+            
+            # Update booking total amount
+            new_total_amount = booking.total_amount - wallet_amount_to_use
+            booking.total_amount = new_total_amount
+            booking.save()
+
+            # Update admin commission
+            commission_percent, revenue = get_admin_commission_from_db(new_total_amount)
+            try:
+                admin_commission = AdminCommission.objects.get(
+                    booking_type='package', 
+                    booking_id=booking.booking_id
+                )
+                admin_commission.revenue_to_admin = revenue
+                admin_commission.commission_percentage = commission_percent
+                admin_commission.save()
+                logger.info(f"Updated admin commission for package booking {booking.booking_id}")
+            except AdminCommission.DoesNotExist:
+                logger.warning(f"Admin commission not found for booking {booking.booking_id}")
+
+            return Response({
+                "message": "Wallet balance applied successfully",
+                "wallet_amount_used": float(wallet_amount_to_use),
+                "new_total_amount": float(new_total_amount),
+                "remaining_wallet_balance": float(updated_wallet.balance),
+                "transaction_id": wallet_transaction.id
+            }, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            return Response({
+                "error": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Error applying wallet to package booking: {str(e)}")
+            return Response({
+                "error": f"Error applying wallet balance: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RemoveWalletFromPackageBookingAPIView(APIView):
+    """Remove wallet balance from package booking"""
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request, booking_id):
+        try:
+            # Get the booking
+            booking = get_object_or_404(PackageBooking, booking_id=booking_id, user=request.user)
+            
+            # Remove wallet using service
+            removal_transaction, updated_wallet, wallet_amount_restored = WalletTransactionService.remove_wallet_from_booking(
+                user=request.user,
+                booking_id=booking_id,
+                booking_type='package',
+                description=f"Removed from package booking {booking_id}"
+            )
+            
+            # Restore the original total amount
+            original_total_amount = booking.total_amount + wallet_amount_restored
+            booking.total_amount = original_total_amount
+            booking.save()
+
+            # Update admin commission
+            commission_percent, revenue = get_admin_commission_from_db(original_total_amount)
+            try:
+                admin_commission = AdminCommission.objects.get(
+                    booking_type='package', 
+                    booking_id=booking.booking_id
+                )
+                admin_commission.revenue_to_admin = revenue
+                admin_commission.commission_percentage = commission_percent
+                admin_commission.save()
+                logger.info(f"Updated admin commission for package booking {booking.booking_id}")
+            except AdminCommission.DoesNotExist:
+                logger.warning(f"Admin commission not found for booking {booking.booking_id}")
+
+            return Response({
+                "message": "Wallet balance removed successfully",
+                "wallet_amount_restored": float(wallet_amount_restored),
+                "new_total_amount": float(original_total_amount),
+                "current_wallet_balance": float(updated_wallet.balance),
+                "transaction_id": removal_transaction.id
+            }, status=status.HTTP_200_OK)
+
+        except ValueError as e:
+            return Response({
+                "error": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.error(f"Error removing wallet from package booking: {str(e)}")
+            return Response({
+                "error": f"Error removing wallet balance: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class GetWalletBalanceAPIView(APIView):
+    """Get user's current wallet balance and recent transactions"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            wallet = Wallet.objects.get(user=request.user)
+            
+            # Get recent transactions
+            recent_transactions = WalletTransactionService.get_user_wallet_transactions(
+                user=request.user, 
+                limit=10
+            )
+            
+            transactions_data = []
+            for txn in recent_transactions:
+                transactions_data.append({
+                    "id": txn.id,
+                    "booking_id": txn.booking_id,
+                    "booking_type": txn.booking_type,
+                    "transaction_type": txn.transaction_type,
+                    "amount": float(txn.amount),
+                    "balance_before": float(txn.balance_before),
+                    "balance_after": float(txn.balance_after),
+                    "description": txn.description,
+                    "created_at": txn.created_at.isoformat(),
+                    "is_active": txn.is_active
+                })
+            
+            return Response({
+                "balance": float(wallet.balance),
+                "recent_transactions": transactions_data
+            }, status=status.HTTP_200_OK)
+            
+        except Wallet.DoesNotExist:
+            return Response({
+                "balance": 0.00,
+                "recent_transactions": [],
+                "message": "Wallet not found"
+            }, status=status.HTTP_200_OK)
+
+
+class WalletTransactionHistoryAPIView(APIView):
+    """Get detailed wallet transaction history"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            page = int(request.GET.get('page', 1))
+            limit = int(request.GET.get('limit', 20))
+            transaction_type = request.GET.get('transaction_type', None)
+            booking_type = request.GET.get('booking_type', None)
+            
+            # Build query
+            queryset = WalletTransaction.objects.filter(user=request.user)
+            
+            if transaction_type:
+                queryset = queryset.filter(transaction_type=transaction_type)
+            
+            if booking_type:
+                queryset = queryset.filter(booking_type=booking_type)
+            
+            # Pagination
+            offset = (page - 1) * limit
+            transactions = queryset[offset:offset + limit]
+            total_count = queryset.count()
+            
+            transactions_data = []
+            for txn in transactions:
+                transactions_data.append({
+                    "id": txn.id,
+                    "booking_id": txn.booking_id,
+                    "booking_type": txn.booking_type,
+                    "transaction_type": txn.transaction_type,
+                    "amount": float(txn.amount),
+                    "balance_before": float(txn.balance_before),
+                    "balance_after": float(txn.balance_after),
+                    "description": txn.description,
+                    "created_at": txn.created_at.isoformat(),
+                    "is_active": txn.is_active,
+                    "reference_id": txn.reference_id
+                })
+            
+            return Response({
+                "transactions": transactions_data,
+                "pagination": {
+                    "current_page": page,
+                    "total_pages": (total_count + limit - 1) // limit,
+                    "total_count": total_count,
+                    "has_next": offset + limit < total_count,
+                    "has_previous": page > 1
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            logger.error(f"Error fetching wallet transaction history: {str(e)}")
+            return Response({
+                "error": "Error fetching transaction history"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

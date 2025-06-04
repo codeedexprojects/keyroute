@@ -238,3 +238,46 @@ class PayoutBooking(models.Model):
 
     def __str__(self):
         return f"{self.booking_type} booking #{self.booking_id}"
+    
+
+
+
+
+
+
+class WalletTransaction(models.Model):
+    TRANSACTION_TYPES = [
+        ('applied', 'Applied to Booking'),
+        ('removed', 'Removed from Booking'),
+        ('refund', 'Refunded'),
+        ('added', 'Added to Wallet'),
+        ('deducted', 'Deducted from Wallet'),
+    ]
+    
+    BOOKING_TYPES = [
+        ('bus', 'Bus Booking'),
+        ('package', 'Package Booking'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wallet_transactions')
+    booking_id = models.CharField(max_length=100)
+    booking_type = models.CharField(max_length=20, choices=BOOKING_TYPES)
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    balance_before = models.DecimalField(max_digits=10, decimal_places=2)
+    balance_after = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+    reference_id = models.CharField(max_length=100, blank=True, null=True)  # For tracking related transactions
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'booking_id', 'booking_type']),
+            models.Index(fields=['user', 'transaction_type']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.transaction_type} - ₹{self.amount} - {self.booking_type} ({self.booking_id})"
