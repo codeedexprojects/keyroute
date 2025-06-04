@@ -79,9 +79,6 @@ class BusBookingSerializer(BaseBookingSerializer):
         help_text="Amount user chooses to pay initially. Must be >= advance_amount."
     )
 
-    # Location fields are now read from UserBusSearch model
-    # No need to pass them in the serializer
-
     class Meta:
         model = BusBooking
         fields = BaseBookingSerializer.Meta.fields + [
@@ -276,23 +273,7 @@ class BusBookingSerializer(BaseBookingSerializer):
         # Get the total amount (this is now the same as the price)
         total_amount = validated_data.get('total_amount')
 
-        # Apply wallet balance if available
-        try:
-            wallet = Wallet.objects.get(user=user)
-            if wallet.balance >= MINIMUM_WALLET_AMOUNT:
-                wallet_amount_used = wallet.balance
-                total_amount -= wallet_amount_used
-                validated_data['total_amount'] = total_amount
-
-                # Update wallet balance
-                wallet.balance = Decimal('0.00')
-                wallet.save()
-
-                logger.info(f"Used wallet balance of {wallet_amount_used} for booking. New total: {total_amount}")
-        except Wallet.DoesNotExist:
-            logger.info(f"No wallet found for user {user.id}")
-        except Exception as e:
-            logger.error(f"Error processing wallet: {str(e)}")
+        # REMOVED: Auto wallet balance application logic
 
         # Calculate minimum advance amount required
         advance_percent, min_advance_amount = get_advance_amount_from_db(total_amount)
@@ -534,22 +515,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
         
         user = self.context['request'].user
 
-        # Apply wallet balance if available
-        try:
-            wallet = Wallet.objects.get(user=user)
-            if wallet.balance >= MINIMUM_WALLET_AMOUNT:
-                wallet_amount_used = wallet.balance
-                calculated_total_amount -= wallet_amount_used
-                validated_data['total_amount'] = calculated_total_amount
-
-                wallet.balance = Decimal('0.00')
-                wallet.save()
-
-                logger.info(f"Used wallet balance of {wallet_amount_used} for package booking. New total: {calculated_total_amount}")
-        except Wallet.DoesNotExist:
-            logger.info(f"No wallet found for user {user.id}")
-        except Exception as e:
-            logger.error(f"Error processing wallet: {str(e)}")
+        # REMOVED: Auto wallet balance application logic
 
         # Calculate advance amount
         advance_percent, min_advance_amount = get_advance_amount_from_db(calculated_total_amount)
