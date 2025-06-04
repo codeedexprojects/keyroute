@@ -1576,4 +1576,26 @@ class PackageBookingREQUESTSerializer(serializers.ModelSerializer):
 
 
 
+
+
+
+
+class BaseBookingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusBooking  # or PackageBooking
+        fields = '__all__'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     
