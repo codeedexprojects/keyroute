@@ -1992,6 +1992,9 @@ class VendorBusBookingListView(APIView):
         current_month = datetime.now().month
         
         bookings = BusBooking.objects.filter(bus__vendor=vendor)
+        for booking in bookings:
+            print("Booking created at:", booking.created_at)
+
         
         monthly_bookings = bookings.filter(
             created_at__year=current_year,
@@ -2003,6 +2006,12 @@ class VendorBusBookingListView(APIView):
         monthly_booking_count = monthly_bookings.count()
 
         serializer = BusBookingDetailSerializer(bookings, many=True)
+
+        print("Vendor:", vendor)
+        print("Total Bookings:", bookings.count())
+        print("Monthly Bookings:", monthly_bookings.count())
+
+
         
         return Response({
             "bookings": serializer.data,
@@ -2014,7 +2023,7 @@ class VendorBusBookingListView(APIView):
 
 
 
-
+    
 
 class BusBookingDetailView(APIView):
     """API View to get full details of a single bus booking"""
@@ -3931,6 +3940,23 @@ class PackageUpdateAPIView(APIView):
 
 
 
+
+class VendorTransactionHistoryAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            vendor = Vendor.objects.get(user=request.user)
+        except Vendor.DoesNotExist:
+            return Response({"error": "Vendor not found."}, status=404)
+
+        transactions = BusBooking.objects.filter(
+            bus__vendor=vendor,
+            payment_status__in=['partial', 'paid']
+        ).order_by('-created_at')
+
+        serializer = BaseBookingSerializer(transactions, many=True)
+        return Response(serializer.data, status=200)
 
 
 
