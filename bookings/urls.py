@@ -7,7 +7,13 @@ from .views import (
     TravelerDetailAPIView, UserBookingsByStatus,CancelBookingView,PackageCategoryListAPIView,PackageSubCategoryListAPIView,
     SingleBusListAPIView,SinglePackageListAPIView,
     PopularBusApi,PackageBookingUpdateAPIView,PackageDriverDetailListAPIView,UserBusSearchCreateAPIView,
-    FooterSectionListAPIView,AdvertisementListAPIView,PilgrimagePackagesAPIView,BusBookingUpdateAPIView
+    FooterSectionListAPIView,AdvertisementListAPIView,PilgrimagePackagesAPIView,BusBookingUpdateAPIView,
+    ApplyWalletToBusBookingAPIView,
+    RemoveWalletFromBusBookingAPIView,
+    ApplyWalletToPackageBookingAPIView,
+    RemoveWalletFromPackageBookingAPIView,
+    GetWalletBalanceAPIView,
+    WalletTransactionHistoryAPIView
 
 )
 
@@ -54,4 +60,19 @@ urlpatterns = [
     path('bus-search/',UserBusSearchCreateAPIView.as_view(),name="bus-search"),
 
     path('pilgrimage/', PilgrimagePackagesAPIView.as_view(), name='pilgrimage-packages'),
+
+
+    # Wallet balance endpoint
+    path('wallet/balance/', GetWalletBalanceAPIView.as_view(), name='wallet-balance'),
+    
+    # Bus booking wallet operations
+    path('wallet/bus-booking/<str:booking_id>/apply/', ApplyWalletToBusBookingAPIView.as_view(), name='apply-wallet-bus-booking'),
+    path('wallet/bus-booking/<str:booking_id>/remove/', RemoveWalletFromBusBookingAPIView.as_view(), name='remove-wallet-bus-booking'),
+    
+    # Package booking wallet operations
+    path('wallet/package-booking/<str:booking_id>/apply/', ApplyWalletToPackageBookingAPIView.as_view(), name='apply-wallet-package-booking'),
+    path('wallet/package-booking/<str:booking_id>/remove/', RemoveWalletFromPackageBookingAPIView.as_view(), name='remove-wallet-package-booking'),
+
+    path('wallet/transactions/',WalletTransactionHistoryAPIView.as_view(), name='wallet-transactions'),
+
 ]
