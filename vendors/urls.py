@@ -200,6 +200,9 @@ urlpatterns = [
     
 
     # 
+
+    # TRANSATION HISTORY
+    path('api/vendor/transaction-history/', VendorTransactionHistoryAPIView.as_view(), name='vendor-transaction-history'),
    
 
 ]
