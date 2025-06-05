@@ -206,16 +206,22 @@ class BusSummarySerializer(serializers.ModelSerializer):
 
 # -----------------------
 
+
 class BusSerializer(serializers.ModelSerializer):
     features = serializers.SerializerMethodField()
     amenities = serializers.SerializerMethodField()
     is_favorite = serializers.SerializerMethodField()
-    bus_view_images = serializers.ListField(
+    bus_view_images = serializers.SerializerMethodField()  # Changed to SerializerMethodField for reading
+    bus_travel_images = serializers.SerializerMethodField()  # Changed to SerializerMethodField for reading
+    
+    # Separate write-only fields for creating/updating images
+    bus_view_images_upload = serializers.ListField(
         child=serializers.ImageField(),
-        write_only=True
+        write_only=True,
+        required=False
     )
 
-    bus_travel_images = serializers.ListField(
+    bus_travel_images_upload = serializers.ListField(
         child=serializers.ImageField(),
         write_only=True,
         required=False
@@ -230,74 +236,10 @@ class BusSerializer(serializers.ModelSerializer):
             'id','average_rating', 'total_reviews', 'features', 'minimum_fare', 'bus_travel_images', 'bus_name', 'bus_number',
             'capacity', 'vehicle_description', 'vehicle_rc_number', 'travels_logo',
             'rc_certificate', 'license', 'contract_carriage_permit', 'passenger_insurance',
-            'vehicle_insurance', 'bus_view_images', 'amenities', 'base_price', 'price_per_km','location','is_favorite','bus_type','longitude','latitude','base_price_km','is_popular'
-# =======
-#             'vehicle_insurance', 'bus_view_images', 'amenities', 'base_price', 'price_per_km','is_favorite'
-# >>>>>>> dev
-# =======
-#     average_rating = serializers.SerializerMethodField()
-#     total_reviews = serializers.SerializerMethodField()
-
-#     # amenities = AmenitySerializer(many=True, read_only=True)
-#     def to_representation(self, instance):
-#         rep = super().to_representation(instance)
-#         rep['amenities'] = AmenitySerializer(instance.amenities.all(), many=True).data
-#         return rep
-    
-    
-#     def get_average_rating(self, obj):
-#         from reviews.models import BusReview
-#         avg = BusReview.objects.filter(bus=obj).aggregate(models.Avg('rating'))['rating__avg']
-#         return round(avg, 1) if avg is not None else 0.0
-    
-#     def get_total_reviews(self, obj):
-#         from reviews.models import BusReview
-#         return BusReview.objects.filter(bus=obj).count()
-
-    
-#     class Meta:
-#         model = Bus
-#         fields = [
-#             'id',
-#             'features',
-#             'id',
-#             'features',
-#             'minimum_fare',
-#             'bus_travel_images',
-
-#             'bus_name', 'bus_number',  'capacity', 'vehicle_description',
-#             'vehicle_rc_number', 'travels_logo', 'rc_certificate', 'license',
-#             'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance', 'bus_view_images','amenities','base_price', 'price_per_km',
-#             'average_rating',
-#             'total_reviews'
-# >>>>>>> dev
+            'vehicle_insurance', 'bus_view_images', 'amenities', 'base_price', 'price_per_km','location','is_favorite','bus_type','longitude','latitude','base_price_km','is_popular',
+            'bus_view_images_upload', 'bus_travel_images_upload'
         ]
 
-# <<<<<<< maqswood
-    
-
-#     bus_view_images = serializers.ListField(
-#         child=serializers.ImageField(),
-#         write_only=True
-#     )
-
-#     bus_travel_images = serializers.ListField(
-#         child=serializers.ImageField(),
-#         write_only=True,
-#         required=False
-#     )
-
-#     class Meta:
-#         model = Bus
-#         fields = [
-#             'id', 'features', 'minimum_fare', 'bus_travel_images', 'bus_name', 'bus_number',
-#             'capacity', 'vehicle_description', 'vehicle_rc_number', 'travels_logo',
-#             'rc_certificate', 'license', 'contract_carriage_permit', 'passenger_insurance',
-#             'vehicle_insurance', 'bus_view_images', 'amenities', 'base_price', 'price_per_km'
-#         ]
-
-# =======
-# >>>>>>> dev
     def get_features(self, obj):
         return BusFeatureSerializer(obj.features.all(), many=True).data
     
@@ -310,8 +252,29 @@ class BusSerializer(serializers.ModelSerializer):
     def get_amenities(self, obj):
         return AmenitySerializer(obj.amenities.all(), many=True).data
 
+    def get_bus_view_images(self, obj):
+        """Return list of bus view image URLs"""
+        request = self.context.get('request')
+        images = obj.images.all()  # Using related_name='images' from BusImage model
+        if request:
+            return [request.build_absolute_uri(image.bus_view_image.url) for image in images if image.bus_view_image]
+        return [image.bus_view_image.url for image in images if image.bus_view_image]
+
+    def get_bus_travel_images(self, obj):
+        """Return list of bus travel image URLs"""
+        request = self.context.get('request')
+        images = obj.travel_images.all()  # Using related_name='travel_images' from BusTravelImage model
+        if request:
+            return [request.build_absolute_uri(image.image.url) for image in images if image.image]
+        return [image.image.url for image in images if image.image]
+
     def validate_bus_number(self, value):
-        if Bus.objects.filter(bus_number=value).exists():
+        # Fixed validation to exclude current instance during updates
+        instance = getattr(self, 'instance', None)
+        queryset = Bus.objects.filter(bus_number=value)
+        if instance:
+            queryset = queryset.exclude(pk=instance.pk)
+        if queryset.exists():
             raise serializers.ValidationError("A bus with this number already exists.")
         return value
 
@@ -325,27 +288,148 @@ class BusSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("RC number must be alphanumeric.")
         return value
 
-
-    
     def create(self, validated_data):
-        bus_images = validated_data.pop('bus_view_images', [])
+        # Fixed: Use get() with default empty list to avoid KeyError
+        bus_images = validated_data.pop('bus_view_images_upload', [])
+        travel_images = validated_data.pop('bus_travel_images_upload', [])
         amenities = validated_data.pop('amenities', [])
-        
         features = validated_data.pop('features', [])
+        
         vendor = self.context['vendor']
-        travel_images = validated_data.pop('bus_travel_images', [])
 
         bus = Bus.objects.create(vendor=vendor, **validated_data)
 
+        # Create bus view images
         for image in bus_images:
             BusImage.objects.create(bus=bus, bus_view_image=image)
 
+        # Create bus travel images
         for travel_img in travel_images:
             BusTravelImage.objects.create(bus=bus, image=travel_img)
 
+        # Set many-to-many relationships
         bus.amenities.set(amenities)
-        bus.features.set(features) 
+        bus.features.set(features)
+        
         return bus
+
+    def update(self, instance, validated_data):
+        # Handle image updates
+        bus_images = validated_data.pop('bus_view_images_upload', None)
+        travel_images = validated_data.pop('bus_travel_images_upload', None)
+        amenities = validated_data.pop('amenities', None)
+        features = validated_data.pop('features', None)
+
+        # Update basic fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Update bus view images if provided
+        if bus_images is not None:
+            # Clear existing images and add new ones
+            instance.images.all().delete()  # Using related_name='images'
+            for image in bus_images:
+                BusImage.objects.create(bus=instance, bus_view_image=image)
+
+        # Update bus travel images if provided
+        if travel_images is not None:
+            # Clear existing images and add new ones
+            instance.travel_images.all().delete()  # Using related_name='travel_images'
+            for travel_img in travel_images:
+                BusTravelImage.objects.create(bus=instance, image=travel_img)
+
+        # Update many-to-many relationships if provided
+        if amenities is not None:
+            instance.amenities.set(amenities)
+        if features is not None:
+            instance.features.set(features)
+
+        return instance
+
+
+# commented for rabeeh
+
+
+# class BusSerializer(serializers.ModelSerializer):
+#     features = serializers.SerializerMethodField()
+#     amenities = serializers.SerializerMethodField()
+#     is_favorite = serializers.SerializerMethodField()
+#     bus_view_images = serializers.ListField(
+#         child=serializers.ImageField(),
+#         write_only=True
+#     )
+
+#     bus_travel_images = serializers.ListField(
+#         child=serializers.ImageField(),
+#         write_only=True,
+#         required=False
+#     )
+
+#     average_rating = serializers.ReadOnlyField()
+#     total_reviews = serializers.ReadOnlyField()
+
+#     class Meta:
+#         model = Bus
+#         fields = [
+#             'id','average_rating', 'total_reviews', 'features', 'minimum_fare', 'bus_travel_images', 'bus_name', 'bus_number',
+#             'capacity', 'vehicle_description', 'vehicle_rc_number', 'travels_logo',
+#             'rc_certificate', 'license', 'contract_carriage_permit', 'passenger_insurance',
+#             'vehicle_insurance', 'bus_view_images', 'amenities', 'base_price', 'price_per_km','location','is_favorite','bus_type','longitude','latitude','base_price_km','is_popular'
+#         ]
+
+#     def get_features(self, obj):
+#         return BusFeatureSerializer(obj.features.all(), many=True).data
+    
+#     def get_is_favorite(self, obj):
+#         request = self.context.get('request')
+#         if request and request.user.is_authenticated:
+#             return Favourite.objects.filter(user=request.user, bus=obj).exists()
+#         return False
+
+#     def get_amenities(self, obj):
+#         return AmenitySerializer(obj.amenities.all(), many=True).data
+
+#     def validate_bus_number(self, value):
+#         if Bus.objects.filter(bus_number=value).exists():
+#             raise serializers.ValidationError("A bus with this number already exists.")
+#         return value
+
+#     def validate_capacity(self, value):
+#         if value <= 0:
+#             raise serializers.ValidationError("Capacity must be a positive number.")
+#         return value
+
+#     def validate_vehicle_rc_number(self, value):
+#         if not value.isalnum():
+#             raise serializers.ValidationError("RC number must be alphanumeric.")
+#         return value
+
+
+    
+#     def create(self, validated_data):
+#         bus_images = validated_data.pop('bus_view_images', [])
+#         amenities = validated_data.pop('amenities', [])
+        
+#         features = validated_data.pop('features', [])
+#         vendor = self.context['vendor']
+#         travel_images = validated_data.pop('bus_travel_images', [])
+
+#         bus = Bus.objects.create(vendor=vendor, **validated_data)
+
+#         for image in bus_images:
+#             BusImage.objects.create(bus=bus, bus_view_image=image)
+
+#         for travel_img in travel_images:
+#             BusTravelImage.objects.create(bus=bus, image=travel_img)
+
+#         bus.amenities.set(amenities)
+#         bus.features.set(features) 
+#         return bus
+
+
+# here it end
+
 
 # class BusSerializer(serializers.ModelSerializer):
 
