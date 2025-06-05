@@ -1953,9 +1953,18 @@ class LatestSingleBookingView(APIView):
         except Vendor.DoesNotExist:
             return Response({"message": "Vendor profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        latest_bus = BusBooking.objects.filter(bus__vendor=vendor).order_by('-created_at').first()
-        latest_package = PackageBooking.objects.filter(package__vendor=vendor).order_by('-created_at').first()
+        # Filter only ongoing bookings
+        latest_bus = BusBooking.objects.filter(
+            bus__vendor=vendor,
+            trip_status='ongoing'
+        ).order_by('-created_at').first()
 
+        latest_package = PackageBooking.objects.filter(
+            package__vendor=vendor,
+            trip_status='ongoing'
+        ).order_by('-created_at').first()
+
+        # Find the latest one among them
         latest = max(
             filter(None, [latest_bus, latest_package]),
             key=lambda x: x.created_at,
@@ -1963,7 +1972,7 @@ class LatestSingleBookingView(APIView):
         )
 
         if not latest:
-            return Response({"message": "No bookings found for the current vendor."}, status=status.HTTP_200_OK)
+            return Response({"message": "No ongoing bookings found for the current vendor."}, status=status.HTTP_200_OK)
 
         serializer = CombinedBookingSerializer(latest)
         return Response(serializer.data, status=status.HTTP_200_OK)
