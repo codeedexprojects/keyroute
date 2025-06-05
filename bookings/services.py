@@ -83,7 +83,7 @@ class WalletTransactionService:
     @staticmethod
     @transaction.atomic
     def remove_wallet_from_booking(user, booking_id, booking_type, description=None):
-        """Remove wallet amount from a booking and restore to wallet"""
+        """Remove wallet amount from a booking and restore to wallet - Updates existing transaction instead of creating new one"""
         try:
             # Get the active wallet transaction for this booking
             wallet_transaction = WalletTransaction.objects.select_for_update().get(
@@ -100,35 +100,22 @@ class WalletTransactionService:
             # Get the wallet amount from the transaction record
             wallet_amount_restored = wallet_transaction.amount
             
-            # Record balance before restoration
-            balance_before = wallet.balance
-            
             # Restore wallet balance
             wallet.balance += wallet_amount_restored
-            balance_after = wallet.balance
             wallet.save()
             
-            # Mark the original transaction as inactive
+            # Update the existing transaction to mark as removed/inactive
             wallet_transaction.is_active = False
+            wallet_transaction.transaction_type = 'removed'
+            if description:
+                wallet_transaction.description = description
+            else:
+                wallet_transaction.description = f"Removed from {booking_type} booking {booking_id}"
             wallet_transaction.save()
-            
-            # Create a new transaction record for removal
-            removal_transaction = WalletTransaction.objects.create(
-                user=user,
-                booking_id=booking_id,
-                booking_type=booking_type,
-                transaction_type='removed',
-                amount=wallet_amount_restored,
-                balance_before=balance_before,
-                balance_after=balance_after,
-                description=description or f"Removed from {booking_type} booking {booking_id}",
-                reference_id=wallet_transaction.reference_id,
-                is_active=True
-            )
             
             logger.info(f"Removed wallet ₹{wallet_amount_restored} from {booking_type} booking {booking_id} for user {user.name}")
             
-            return removal_transaction, wallet, wallet_amount_restored
+            return wallet_transaction, wallet, wallet_amount_restored
             
         except WalletTransaction.DoesNotExist:
             raise ValueError("No active wallet transaction found for this booking")
@@ -139,7 +126,16 @@ class WalletTransactionService:
     @staticmethod
     def get_user_wallet_transactions(user, limit=None):
         """Get wallet transactions for a user"""
-        queryset = WalletTransaction.objects.filter(user=user)
+        queryset = WalletTransaction.objects.filter(user=user).order_by('-created_at')
         if limit:
             queryset = queryset[:limit]
         return queryset
+    
+    @staticmethod
+    def is_wallet_currently_used(user):
+        """Check if user has any active wallet transactions (wallet is currently being used)"""
+        return WalletTransaction.objects.filter(
+            user=user,
+            transaction_type='applied',
+            is_active=True
+        ).exists()

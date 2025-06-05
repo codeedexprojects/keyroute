@@ -1408,7 +1408,8 @@ class ApplyWalletToBusBookingAPIView(APIView):
                 "wallet_amount_used": float(wallet_amount_to_use),
                 "new_total_amount": float(new_total_amount),
                 "remaining_wallet_balance": float(updated_wallet.balance),
-                "transaction_id": wallet_transaction.id
+                "transaction_id": wallet_transaction.id,
+                "wallet_used": True
             }, status=status.HTTP_200_OK)
 
         except ValueError as e:
@@ -1432,7 +1433,7 @@ class RemoveWalletFromBusBookingAPIView(APIView):
             # Get the booking
             booking = get_object_or_404(BusBooking, booking_id=booking_id, user=request.user)
             
-            # Remove wallet using service
+            # Remove wallet using service (now updates existing transaction instead of creating new one)
             removal_transaction, updated_wallet, wallet_amount_restored = WalletTransactionService.remove_wallet_from_booking(
                 user=request.user,
                 booking_id=booking_id,
@@ -1464,7 +1465,8 @@ class RemoveWalletFromBusBookingAPIView(APIView):
                 "wallet_amount_restored": float(wallet_amount_restored),
                 "new_total_amount": float(original_total_amount),
                 "current_wallet_balance": float(updated_wallet.balance),
-                "transaction_id": removal_transaction.id
+                "transaction_id": removal_transaction.id,
+                "wallet_used": False
             }, status=status.HTTP_200_OK)
 
         except ValueError as e:
@@ -1548,7 +1550,8 @@ class ApplyWalletToPackageBookingAPIView(APIView):
                 "wallet_amount_used": float(wallet_amount_to_use),
                 "new_total_amount": float(new_total_amount),
                 "remaining_wallet_balance": float(updated_wallet.balance),
-                "transaction_id": wallet_transaction.id
+                "transaction_id": wallet_transaction.id,
+                "wallet_used": True
             }, status=status.HTTP_200_OK)
 
         except ValueError as e:
@@ -1572,7 +1575,7 @@ class RemoveWalletFromPackageBookingAPIView(APIView):
             # Get the booking
             booking = get_object_or_404(PackageBooking, booking_id=booking_id, user=request.user)
             
-            # Remove wallet using service
+            # Remove wallet using service (now updates existing transaction instead of creating new one)
             removal_transaction, updated_wallet, wallet_amount_restored = WalletTransactionService.remove_wallet_from_booking(
                 user=request.user,
                 booking_id=booking_id,
@@ -1604,7 +1607,8 @@ class RemoveWalletFromPackageBookingAPIView(APIView):
                 "wallet_amount_restored": float(wallet_amount_restored),
                 "new_total_amount": float(original_total_amount),
                 "current_wallet_balance": float(updated_wallet.balance),
-                "transaction_id": removal_transaction.id
+                "transaction_id": removal_transaction.id,
+                "wallet_used": False
             }, status=status.HTTP_200_OK)
 
         except ValueError as e:
@@ -1625,6 +1629,9 @@ class GetWalletBalanceAPIView(APIView):
     def get(self, request):
         try:
             wallet = Wallet.objects.get(user=request.user)
+            
+            # Check if wallet is currently being used
+            wallet_used = WalletTransactionService.is_wallet_currently_used(request.user)
             
             # Get recent transactions
             recent_transactions = WalletTransactionService.get_user_wallet_transactions(
@@ -1649,12 +1656,14 @@ class GetWalletBalanceAPIView(APIView):
             
             return Response({
                 "balance": float(wallet.balance),
+                "wallet_used": wallet_used,
                 "recent_transactions": transactions_data
             }, status=status.HTTP_200_OK)
             
         except Wallet.DoesNotExist:
             return Response({
                 "balance": 0.00,
+                "wallet_used": False,
                 "recent_transactions": [],
                 "message": "Wallet not found"
             }, status=status.HTTP_200_OK)
@@ -1672,7 +1681,7 @@ class WalletTransactionHistoryAPIView(APIView):
             booking_type = request.GET.get('booking_type', None)
             
             # Build query
-            queryset = WalletTransaction.objects.filter(user=request.user)
+            queryset = WalletTransaction.objects.filter(user=request.user).order_by('-created_at')
             
             if transaction_type:
                 queryset = queryset.filter(transaction_type=transaction_type)
