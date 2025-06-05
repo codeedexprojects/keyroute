@@ -44,6 +44,7 @@ class PackageListAPIView(APIView):
     def get(self, request, category):
         lat = request.query_params.get('lat')
         lon = request.query_params.get('lon')
+        total_travellers = request.query_params.get('total_travellers')  # New optional parameter
 
         if lat is None or lon is None:
             return Response(
@@ -74,6 +75,22 @@ class PackageListAPIView(APIView):
                 status=400
             )
 
+        # Validate total_travellers if provided
+        travellers_count = None
+        if total_travellers is not None:
+            try:
+                travellers_count = int(total_travellers)
+                if travellers_count <= 0:
+                    return Response(
+                        {"error": "Total travellers must be a positive integer."},
+                        status=400
+                    )
+            except ValueError:
+                return Response(
+                    {"error": "Total travellers must be a valid integer."},
+                    status=400
+                )
+
         packages = Package.objects.filter(sub_category=category)
         if not packages.exists():
             return Response({"error": f"No packages found under category '{category}'."}, status=404)
@@ -89,6 +106,8 @@ class PackageListAPIView(APIView):
                 
                 # Check if at least one bus is within range
                 is_nearby = False
+                has_suitable_capacity = True  # Default to True if no travellers filter
+                
                 for bus in buses_with_coords:
                     bus_coords = (bus.latitude, bus.longitude)
                     distance_km = geodesic(user_coords, bus_coords).kilometers
@@ -96,22 +115,55 @@ class PackageListAPIView(APIView):
                         is_nearby = True
                         break
                 
-                if is_nearby:
+                # If travellers count is specified, check bus capacity suitability
+                if travellers_count is not None and is_nearby:
+                    has_suitable_capacity = self._has_suitable_bus_capacity(package, travellers_count)
+                
+                if is_nearby and has_suitable_capacity:
                     nearby_packages.append(package)
 
         if not nearby_packages:
-            return Response({
-                "message": f"No packages found near your location within 30 km"
-            }, status=200)
+            message = f"No packages found near your location within 30 km"
+            if travellers_count:
+                message += f" with suitable capacity for {travellers_count} travellers"
+            return Response({"message": message}, status=200)
 
         # Create a custom serializer context with user location for distance calculation
         context = {
             'request': request,
-            'user_location': user_coords
+            'user_location': user_coords,
+            'total_travellers': travellers_count
         }
         
         serializer = ListPackageSerializer(nearby_packages, many=True, context=context)
         return Response(serializer.data)
+
+    def _has_suitable_bus_capacity(self, package, required_capacity):
+        """
+        Check if the package has buses with suitable capacity.
+        Returns True if there's a bus with exact capacity or the next available higher capacity.
+        """
+        # Get all bus capacities for this package
+        bus_capacities = list(package.buses.values_list('capacity', flat=True))
+        
+        if not bus_capacities:
+            return False
+        
+        # Check if there's an exact match
+        if required_capacity in bus_capacities:
+            return True
+        
+        # Find the next available higher capacity
+        higher_capacities = [cap for cap in bus_capacities if cap > required_capacity]
+        
+        if higher_capacities:
+            # Get the minimum higher capacity
+            min_higher_capacity = min(higher_capacities)
+            # Allow some reasonable buffer (e.g., within 50% of required capacity)
+            capacity_threshold = required_capacity * 1.5
+            return min_higher_capacity <= capacity_threshold
+        
+        return False
     
 class SinglePackageListAPIView(APIView):
     permission_classes = [AllowAny]
