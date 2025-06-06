@@ -1116,8 +1116,19 @@ from django.db.models import Sum, Q
 from .models import BusBooking, PackageBooking, Vendor, AdminCommissionSlab, PayoutHistory, PayoutBooking
 from vendors.models import VendorBankDetail
 from .serializers import PayoutHistorySerializer
+from bookings.models import WalletTransaction
 from datetime import datetime
 from operator import itemgetter
+from rest_framework.permissions import IsAuthenticated
+from django.shortcuts import get_object_or_404
+from django.db import transaction
+from decimal import Decimal
+import logging
+from users.models import Wallet
+from admin_panel.models import AdminCommission, AdminCommissionSlab
+from .services import WalletTransactionService
+
+logger = logging.getLogger(__name__)
 
 class UnpaidBookingsAPI(APIView):
     permission_classes = [IsAuthenticated]
@@ -1372,23 +1383,24 @@ class PayoutDetailAPI(APIView):
             return Response(serializer.data)
         except PayoutHistory.DoesNotExist:
             return Response({'error': 'Payout not found'}, status=status.HTTP_404_NOT_FOUND)
+
+# Helper function to get admin commission from database
+def get_admin_commission_from_db(amount):
+    """Get admin commission percentage and revenue from database"""
+    try:
+        slab = AdminCommissionSlab.objects.filter(
+            min_amount__lte=amount,
+            max_amount__gte=amount
+        ).first()
         
-
-
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from django.shortcuts import get_object_or_404
-from django.db import transaction
-from decimal import Decimal
-import logging
-from users.models import Wallet
-from admin_panel.models import AdminCommission, AdminCommissionSlab
-from .services import WalletTransactionService
-
-logger = logging.getLogger(__name__)
+        if slab:
+            commission_percent = slab.commission_percentage
+            revenue = (amount * commission_percent) / 100
+            return commission_percent, revenue
+        return 0, 0
+    except Exception as e:
+        logger.error(f"Error getting admin commission: {str(e)}")
+        return 0, 0
 
 class ApplyWalletToBusBookingAPIView(APIView):
     """Apply wallet balance to bus booking"""
@@ -1414,18 +1426,15 @@ class ApplyWalletToBusBookingAPIView(APIView):
                     "error": "Wallet not found for user"
                 }, status=status.HTTP_404_NOT_FOUND)
 
-            # Check if wallet balance is sufficient and not greater than total amount
+            # Check if wallet balance is available
             if wallet.balance <= 0:
                 return Response({
                     "error": "No wallet balance available"
                 }, status=status.HTTP_400_BAD_REQUEST)
-                
-            if wallet.balance > booking.total_amount:
-                return Response({
-                    "error": "Wallet balance cannot be greater than total amount"
-                }, status=status.HTTP_400_BAD_REQUEST)
 
-            wallet_amount_to_use = wallet.balance
+            # Use the minimum of wallet balance or booking total amount
+            # This allows partial wallet usage if wallet balance is less than total amount
+            wallet_amount_to_use = min(wallet.balance, booking.total_amount)
             
             # Apply wallet using service
             wallet_transaction, updated_wallet = WalletTransactionService.apply_wallet_to_booking(
@@ -1561,13 +1570,10 @@ class ApplyWalletToPackageBookingAPIView(APIView):
                 return Response({
                     "error": "No wallet balance available"
                 }, status=status.HTTP_400_BAD_REQUEST)
-                
-            if wallet.balance > booking.total_amount:
-                return Response({
-                    "error": "Wallet balance cannot be greater than total amount"
-                }, status=status.HTTP_400_BAD_REQUEST)
 
-            wallet_amount_to_use = wallet.balance
+            # Use the minimum of wallet balance or booking total amount
+            # This allows partial wallet usage if wallet balance is less than total amount
+            wallet_amount_to_use = min(wallet.balance, booking.total_amount)
             
             # Apply wallet using service
             wallet_transaction, updated_wallet = WalletTransactionService.apply_wallet_to_booking(
