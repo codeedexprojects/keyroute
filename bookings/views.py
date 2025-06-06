@@ -44,7 +44,7 @@ class PackageListAPIView(APIView):
     def get(self, request, category):
         lat = request.query_params.get('lat')
         lon = request.query_params.get('lon')
-        total_travellers = request.query_params.get('total_travellers')  # New optional parameter
+        total_travellers = request.query_params.get('total_travellers')
 
         if lat is None or lon is None:
             return Response(
