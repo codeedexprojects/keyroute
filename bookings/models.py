@@ -280,4 +280,4 @@ class WalletTransaction(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.user.username} - {self.transaction_type} - ₹{self.amount} - {self.booking_type} ({self.booking_id})"
+        return f"{self.user.name} - {self.transaction_type} - ₹{self.amount} - {self.booking_type} ({self.booking_id})"
