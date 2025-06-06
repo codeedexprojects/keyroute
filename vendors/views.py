@@ -143,17 +143,21 @@ class SendOtpAPIView(APIView):
             except Vendor.DoesNotExist:
                 return Response({"error": "No vendor found with this email."}, status=status.HTTP_404_NOT_FOUND)
 
-        else:  # Handle Phone OTP
+        else:
             try:
-                vendor = Vendor.objects.get(phone_no=identifier)
-                otp_response = send_otp(identifier)
+                vendor = User.objects.get(mobile=identifier)
+                
+                if vendor.role.lower() == 'vendor':
+                    otp_response = send_otp(identifier)
 
-                if otp_response.get("Status") == "Success":
-                    return Response({"message": "OTP sent to phone!"}, status=status.HTTP_200_OK)
+                    if otp_response.get("Status") == "Success":
+                        return Response({"message": "OTP sent to phone!"}, status=status.HTTP_200_OK)
+                    else:
+                        return Response({"error": "Failed to send OTP via SMS."}, status=status.HTTP_400_BAD_REQUEST)
                 else:
-                    return Response({"error": "Failed to send OTP via SMS."}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({"error": "User is not a vendor."}, status=status.HTTP_403_FORBIDDEN)
 
-            except Vendor.DoesNotExist:
+            except User.DoesNotExist:
                 return Response({"error": "No vendor found with this phone number."}, status=status.HTTP_404_NOT_FOUND)
 
 
@@ -184,15 +188,19 @@ class VerifyOtpAPIView(APIView):
 
         else:  # Verify Phone OTP using 2Factor API
             try:
-                vendor = Vendor.objects.get(phone_no=identifier)
-                verification_response = verify_otp(identifier, otp)
+                user = User.objects.get(mobile=identifier)
 
-                if verification_response.get("Status") == "Success":
-                    return Response({"message": "OTP verified successfully!"}, status=status.HTTP_200_OK)
+                if user.role.lower() == 'vendor':
+                    verification_response = verify_otp(identifier, otp)
+
+                    if verification_response.get("Status") == "Success":
+                        return Response({"message": "OTP verified successfully!"}, status=status.HTTP_200_OK)
+                    else:
+                        return Response({"error": "Invalid or expired OTP."}, status=status.HTTP_400_BAD_REQUEST)
                 else:
-                    return Response({"error": "Invalid or expired OTP."}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({"error": "User is not a vendor."}, status=status.HTTP_403_FORBIDDEN)
 
-            except Vendor.DoesNotExist:
+            except User.DoesNotExist:
                 return Response({"error": "Invalid phone number or OTP."}, status=status.HTTP_404_NOT_FOUND)
 
 
@@ -200,30 +208,41 @@ class VerifyOtpAPIView(APIView):
 class ResetPasswordAPIView(APIView):
     def post(self, request):
 
-        email = request.data.get('email')
+        email_phone = request.data.get('email_phone')
         new_password = request.data.get('new_password')
         confirm_password = request.data.get('confirm_password')
 
-        if not all([email, new_password, confirm_password]):
+        if not all([email_phone, new_password, confirm_password]):
             return Response({"error": "All fields are required."}, status=status.HTTP_400_BAD_REQUEST)
 
         if new_password != confirm_password:
             return Response({"error": "Passwords do not match."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if is_valid_email(email_phone):
+            try:
+                vendor = Vendor.objects.get(email_address=email_phone)
+                user = vendor.user
+                user.set_password(new_password)
+                user.save()
 
-        try:
-            vendor = Vendor.objects.get(email_address=email)
-            user = vendor.user
-            user.set_password(new_password)
-            user.save()
+                OTP.objects.filter(user=user).delete()
 
-            OTP.objects.filter(user=user).delete()
+                return Response({"message": "Password updated successfully!"}, status=status.HTTP_200_OK)
 
-            return Response({"message": "Password updated successfully!"}, status=status.HTTP_200_OK)
+            except Vendor.DoesNotExist:
+                return Response({"error": "Vendor with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            try:
+                vendor = User.objects.get(mobile=email_phone)
+                vendor.set_password(new_password)
+                vendor.save()
 
-        except Vendor.DoesNotExist:
-            return Response({"error": "Vendor with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+                OTP.objects.filter(user=vendor).delete()
 
+                return Response({"message": "Password updated successfully!"}, status=status.HTTP_200_OK)
 
+            except Vendor.DoesNotExist:
+                return Response({"error": "Vendor with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
 
 
 
