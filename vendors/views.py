@@ -208,30 +208,41 @@ class VerifyOtpAPIView(APIView):
 class ResetPasswordAPIView(APIView):
     def post(self, request):
 
-        email = request.data.get('email')
+        email_phone = request.data.get('email_phone')
         new_password = request.data.get('new_password')
         confirm_password = request.data.get('confirm_password')
 
-        if not all([email, new_password, confirm_password]):
+        if not all([email_phone, new_password, confirm_password]):
             return Response({"error": "All fields are required."}, status=status.HTTP_400_BAD_REQUEST)
 
         if new_password != confirm_password:
             return Response({"error": "Passwords do not match."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if is_valid_email(email_phone):
+            try:
+                vendor = Vendor.objects.get(email_address=email_phone)
+                user = vendor.user
+                user.set_password(new_password)
+                user.save()
 
-        try:
-            vendor = Vendor.objects.get(email_address=email)
-            user = vendor.user
-            user.set_password(new_password)
-            user.save()
+                OTP.objects.filter(user=user).delete()
 
-            OTP.objects.filter(user=user).delete()
+                return Response({"message": "Password updated successfully!"}, status=status.HTTP_200_OK)
 
-            return Response({"message": "Password updated successfully!"}, status=status.HTTP_200_OK)
+            except Vendor.DoesNotExist:
+                return Response({"error": "Vendor with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            try:
+                vendor = User.objects.get(mobile=email_phone)
+                vendor.set_password(new_password)
+                vendor.save()
 
-        except Vendor.DoesNotExist:
-            return Response({"error": "Vendor with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
+                OTP.objects.filter(user=vendor).delete()
 
+                return Response({"message": "Password updated successfully!"}, status=status.HTTP_200_OK)
 
+            except Vendor.DoesNotExist:
+                return Response({"error": "Vendor with this email does not exist."}, status=status.HTTP_404_NOT_FOUND)
 
 
 
