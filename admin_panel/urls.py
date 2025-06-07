@@ -191,5 +191,12 @@ urlpatterns = [
     path('api/admin/payout/unpaid-bookings/', UnpaidBookingsAPI.as_view(), name='unpaid-bookings'),
     path('api/admin/payout/create/', CreatePayoutAPI.as_view(), name='create-payout'),
     path('api/admin/payout/history/', PayoutHistoryAPI.as_view(), name='payout-history'),
-    path('api/admin/payout/history/<int:payout_id>/', PayoutDetailAPI.as_view(), name='payout-detail')
+    path('api/admin/payout/history/<int:payout_id>/', PayoutDetailAPI.as_view(), name='payout-detail'),
+
+
+    path('api/admin/amenities/', AmenityListCreateAPIView.as_view(), name='amenity-list-create'),
+    path('api/admin/amenities/<int:pk>/', AmenityRetrieveUpdateDeleteAPIView.as_view(), name='amenity-detail'),
+
+
+
 ] 
