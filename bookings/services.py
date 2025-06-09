@@ -1,5 +1,6 @@
 from decimal import Decimal
 from django.db import transaction
+from django.utils import timezone
 from users.models import Wallet
 from .models import WalletTransaction
 import uuid
@@ -72,7 +73,7 @@ class WalletTransactionService:
                 is_active=True
             )
             
-            logger.info(f"Applied wallet ₹{wallet_amount} to {booking_type} booking {booking_id} for user {user.name}")
+            logger.info(f"Applied wallet ₹{wallet_amount} to {booking_type} booking {booking_id} for user {user.id}")
             
             return wallet_transaction, wallet
             
@@ -83,7 +84,7 @@ class WalletTransactionService:
     @staticmethod
     @transaction.atomic
     def remove_wallet_from_booking(user, booking_id, booking_type, description=None):
-        """Remove wallet amount from a booking and restore to wallet - Updates existing transaction instead of creating new one"""
+        """Remove wallet amount from a booking and restore to wallet - Updates existing transaction"""
         try:
             # Get the active wallet transaction for this booking
             wallet_transaction = WalletTransaction.objects.select_for_update().get(
@@ -104,16 +105,20 @@ class WalletTransactionService:
             wallet.balance += wallet_amount_restored
             wallet.save()
             
-            # Update the existing transaction to mark as removed/inactive
+            # Update the existing transaction record
             wallet_transaction.is_active = False
             wallet_transaction.transaction_type = 'removed'
+            wallet_transaction.balance_after = wallet.balance  # Update balance_after to current wallet balance
             if description:
                 wallet_transaction.description = description
             else:
                 wallet_transaction.description = f"Removed from {booking_type} booking {booking_id}"
+            
+            # Update the timestamp to show when it was removed
+            wallet_transaction.updated_at = timezone.now()
             wallet_transaction.save()
             
-            logger.info(f"Removed wallet ₹{wallet_amount_restored} from {booking_type} booking {booking_id} for user {user.name}")
+            logger.info(f"Removed wallet ₹{wallet_amount_restored} from {booking_type} booking {booking_id} for user {user.id}")
             
             return wallet_transaction, wallet, wallet_amount_restored
             
@@ -125,7 +130,7 @@ class WalletTransactionService:
     
     @staticmethod
     def get_user_wallet_transactions(user, limit=None):
-        """Get wallet transactions for a user"""
+        """Get wallet transactions for a user - shows all transactions regardless of status"""
         queryset = WalletTransaction.objects.filter(user=user).order_by('-created_at')
         if limit:
             queryset = queryset[:limit]
@@ -139,3 +144,26 @@ class WalletTransactionService:
             transaction_type='applied',
             is_active=True
         ).exists()
+    
+    @staticmethod
+    def get_active_wallet_transactions(user):
+        """Get all active wallet transactions for a user"""
+        return WalletTransaction.objects.filter(
+            user=user,
+            transaction_type='applied',
+            is_active=True
+        ).order_by('-created_at')
+    
+    @staticmethod
+    def get_wallet_transaction_by_booking(booking_id, booking_type, user):
+        """Get wallet transaction for a specific booking"""
+        try:
+            return WalletTransaction.objects.get(
+                booking_id=booking_id,
+                booking_type=booking_type,
+                user=user,
+                transaction_type='applied',
+                is_active=True
+            )
+        except WalletTransaction.DoesNotExist:
+            return None

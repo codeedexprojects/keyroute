@@ -2009,3 +2009,46 @@ class PayoutHistorySerializer(serializers.ModelSerializer):
             }
         except VendorBankDetail.DoesNotExist:
             return None
+        
+
+
+
+
+
+class TripStatusUpdateSerializer(serializers.Serializer):
+    booking_type = serializers.ChoiceField(choices=['bus', 'package'])
+    booking_id = serializers.IntegerField()
+    
+    def validate(self, data):
+        booking_type = data['booking_type']
+        booking_id = data['booking_id']
+        
+        # Get the appropriate model based on booking type
+        if booking_type == 'bus':
+            model_class = BusBooking
+        elif booking_type == 'package':
+            model_class = PackageBooking
+        else:
+            raise serializers.ValidationError("Invalid booking type")
+        
+        # Check if booking exists
+        try:
+            booking = model_class.objects.get(booking_id=booking_id)
+        except model_class.DoesNotExist:
+            raise serializers.ValidationError(f"{booking_type.title()} booking with ID {booking_id} not found")
+        
+        # Check if trip can be completed (must be ongoing)
+        if booking.trip_status != 'ongoing':
+            raise serializers.ValidationError(
+                f"Trip status is currently '{booking.get_trip_status_display()}'. "
+                "Only ongoing trips can be marked as completed."
+            )
+        
+        # Check if booking is accepted
+        if booking.booking_status != 'accepted':
+            raise serializers.ValidationError(
+                "Booking must be accepted before trip can be completed"
+            )
+        
+        data['booking'] = booking
+        return data
