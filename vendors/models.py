@@ -195,6 +195,7 @@ class PackageImage(models.Model):
 
 
 
+
 class DayPlan(models.Model):
     package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='day_plans')
     day_number = models.PositiveIntegerField()
