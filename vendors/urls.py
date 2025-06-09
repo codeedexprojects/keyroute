@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import *
-from bookings.views import VendorBusBookingAPI,VendorPackageBookingAPI,VendorBusBookingByStatusAPI,VendorPackageBookingByStatusAPI,BookingFilterByDate
+from bookings.views import CompleteTripAPIView,VendorPackageBookingAPI,VendorBusBookingByStatusAPI,VendorPackageBookingByStatusAPI,BookingFilterByDate
 from reviews.views import VendorAllReviewsView
 urlpatterns = [
    path('api/vendor/signup/', VendorSignupAPIView.as_view(), name='vendor-signup'),
@@ -205,6 +205,7 @@ urlpatterns = [
     path('api/vendor/transaction-history/', VendorTransactionHistoryAPIView.as_view(), name='vendor-transaction-history'),
    
 
+    path('api/vendor/booking/complete/', CompleteTripAPIView.as_view(), name='complete_trip'),
 ]
 
 
