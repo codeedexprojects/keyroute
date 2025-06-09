@@ -26,7 +26,7 @@ from .serializers import (PackageFilterSerializer,PackageBookingUpdateSerializer
                           ListPackageSerializer,ListingUserPackageSerializer,
                           UserBusSearchSerializer,SinglePackageBookingSerilizer,
                           SingleBusBookingSerializer,PackageSerializer,PopularBusSerializer,BusListingSerializer,
-                          FooterSectionSerializer,AdvertisementSerializer,BusListResponseSerializer,BusBookingUpdateSerializer)
+                          FooterSectionSerializer,AdvertisementSerializer,BusListResponseSerializer,BusBookingUpdateSerializer,TripStatusUpdateSerializer)
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from .utils import *
@@ -1402,6 +1402,20 @@ def get_admin_commission_from_db(amount):
         logger.error(f"Error getting admin commission: {str(e)}")
         return 0, 0
 
+
+
+
+
+
+
+
+
+
+
+
+
+logger = logging.getLogger(__name__)
+
 class ApplyWalletToBusBookingAPIView(APIView):
     """Apply wallet balance to bus booking"""
     permission_classes = [IsAuthenticated]
@@ -1494,8 +1508,8 @@ class RemoveWalletFromBusBookingAPIView(APIView):
             # Get the booking
             booking = get_object_or_404(BusBooking, booking_id=booking_id, user=request.user)
             
-            # Remove wallet using service (now updates existing transaction instead of creating new one)
-            removal_transaction, updated_wallet, wallet_amount_restored = WalletTransactionService.remove_wallet_from_booking(
+            # Remove wallet using service (updates existing transaction instead of creating new one)
+            updated_transaction, updated_wallet, wallet_amount_restored = WalletTransactionService.remove_wallet_from_booking(
                 user=request.user,
                 booking_id=booking_id,
                 booking_type='bus',
@@ -1526,7 +1540,7 @@ class RemoveWalletFromBusBookingAPIView(APIView):
                 "wallet_amount_restored": float(wallet_amount_restored),
                 "new_total_amount": float(original_total_amount),
                 "current_wallet_balance": float(updated_wallet.balance),
-                "transaction_id": removal_transaction.id,
+                "transaction_id": updated_transaction.id,
                 "wallet_used": False
             }, status=status.HTTP_200_OK)
 
@@ -1633,8 +1647,8 @@ class RemoveWalletFromPackageBookingAPIView(APIView):
             # Get the booking
             booking = get_object_or_404(PackageBooking, booking_id=booking_id, user=request.user)
             
-            # Remove wallet using service (now updates existing transaction instead of creating new one)
-            removal_transaction, updated_wallet, wallet_amount_restored = WalletTransactionService.remove_wallet_from_booking(
+            # Remove wallet using service (updates existing transaction instead of creating new one)
+            updated_transaction, updated_wallet, wallet_amount_restored = WalletTransactionService.remove_wallet_from_booking(
                 user=request.user,
                 booking_id=booking_id,
                 booking_type='package',
@@ -1665,7 +1679,7 @@ class RemoveWalletFromPackageBookingAPIView(APIView):
                 "wallet_amount_restored": float(wallet_amount_restored),
                 "new_total_amount": float(original_total_amount),
                 "current_wallet_balance": float(updated_wallet.balance),
-                "transaction_id": removal_transaction.id,
+                "transaction_id": updated_transaction.id,
                 "wallet_used": False
             }, status=status.HTTP_200_OK)
 
@@ -1688,10 +1702,10 @@ class GetWalletBalanceAPIView(APIView):
         try:
             wallet = Wallet.objects.get(user=request.user)
             
-            # Check if wallet is currently being used
+            # Check if wallet is currently being used (has active applied transactions)
             wallet_used = WalletTransactionService.is_wallet_currently_used(request.user)
             
-            # Get recent transactions
+            # Get recent transactions (all transactions, not just active ones)
             recent_transactions = WalletTransactionService.get_user_wallet_transactions(
                 user=request.user, 
                 limit=10
@@ -1738,7 +1752,7 @@ class WalletTransactionHistoryAPIView(APIView):
             transaction_type = request.GET.get('transaction_type', None)
             booking_type = request.GET.get('booking_type', None)
             
-            # Build query
+            # Build query - show all transactions regardless of is_active status
             queryset = WalletTransaction.objects.filter(user=request.user).order_by('-created_at')
             
             if transaction_type:
@@ -1784,3 +1798,52 @@ class WalletTransactionHistoryAPIView(APIView):
             return Response({
                 "error": "Error fetching transaction history"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+
+
+
+
+class CompleteTripAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        serializer = TripStatusUpdateSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            try:
+                with transaction.atomic():
+                    booking = serializer.validated_data['booking']
+                    
+                    # Update trip status to completed
+                    booking.trip_status = 'completed'
+                    booking.save(update_fields=['trip_status'])
+                    
+                    # Prepare response data
+                    response_data = {
+                        'success': True,
+                        'message': 'Trip status updated to completed successfully',
+                        'booking_details': {
+                            'booking_id': booking.booking_id,
+                            'booking_type': serializer.validated_data['booking_type'],
+                            'trip_status': booking.get_trip_status_display(),
+                            'payment_status': booking.get_payment_status_display(),
+                            'booking_status': booking.get_booking_status_display(),
+                            'user': booking.user.username if booking.user else None,
+                            'total_amount': str(booking.total_amount),
+                            'start_date': booking.start_date,
+                        }
+                    }
+                    
+                    return Response(response_data, status=status.HTTP_200_OK)
+                    
+            except Exception as e:
+                return Response({
+                    'success': False,
+                    'error': f'An error occurred while updating trip status: {str(e)}'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response({
+            'success': False,
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
