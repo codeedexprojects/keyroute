@@ -312,3 +312,33 @@ class LimitedDealSerializer(serializers.ModelSerializer):
     class Meta:
         model = LimitedDeal
         fields = ['id', 'title', 'created_at', 'terms_and_conditions', 'offer', 'subtitle', 'images']
+
+
+
+
+class GoogleUserCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['email', 'name', 'mobile', 'is_google_user', 'firebase_uid']
+
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("User with this email already exists.")
+        return value
+
+    def create(self, validated_data):
+        # Create user
+        user = User.objects.create(**validated_data)
+        
+        # Handle referral system
+        referrer = self.context.get('referrer')
+        if referrer:
+            Wallet.objects.create(
+                user=user, 
+                referred_by=referrer.mobile or referrer.email,  # Use email if mobile not available
+                referral_used=True
+            )
+        else:
+            Wallet.objects.create(user=user)
+        
+        return user
