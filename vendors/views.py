@@ -3150,7 +3150,8 @@ class AcceptedBusBookingListView(APIView):
             vendor = request.user.vendor   
             
             accepted_bus_bookings = BusBooking.objects.filter(
-                booking_status='accepted',   
+                booking_status='accepted',
+                trip_status='ongoing',
                 bus__vendor=vendor
             ).order_by('-created_at')
 
@@ -3350,7 +3351,8 @@ class AcceptedPackageBookingListView(APIView):
         try:
             vendor = request.user.vendor   
             accepted_bookings = PackageBooking.objects.filter(
-                booking_status='accepted',   
+                booking_status='accepted',
+                trip_status='ongoing',  
                 package__vendor=vendor   
             )
             
