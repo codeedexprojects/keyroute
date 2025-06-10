@@ -4,13 +4,15 @@ from .views import (UserLogoutView, UserProfileAPIView,  AuthenticationView,
                     GetWalletView,OngoingReferralsView,ReferralHistoryView,
                     SightDetailView,ExperienceView,ExperienceDetailView,RemoveFavouriteAPIView,SeasonTimeDetailView,
                     SeasonTimeView,SightView,GreetingAPIView,ResendOTPView,
-                    SimilarExperienceView,LimitedDealListAPIView,GetLocationAPIView)
+                    SimilarExperienceView,LimitedDealListAPIView,GetLocationAPIView,FirebaseGoogleAuthView)
 
 urlpatterns = [
     path('auth/', AuthenticationView.as_view(), name='authentication'),
     path('verify-otp/', VerifyOTPView.as_view(), name='verify-otp'),
     path('resend-otp/', ResendOTPView.as_view(), name='resend-otp'),
     path('logout/', UserLogoutView.as_view(), name='logout'),
+    path('google-auth/', FirebaseGoogleAuthView.as_view(), name='google-auth'),
+
 
     # path('reviews/create/', CreateReviewView.as_view(), name='create-review'),
     

@@ -30,6 +30,25 @@ load_dotenv()
 GOOGLE_MAPS_API_KEY = "AIzaSyCnNixdBmNb0cOCet3HofxffjMSKOsAm4w"
 
 
+import firebase_admin
+from firebase_admin import credentials
+import os
+
+# Firebase initialization
+if not firebase_admin._apps:
+    try:
+        # Replace with your actual path to the Firebase service account key
+        FIREBASE_KEY_PATH = os.path.join(BASE_DIR, 'keyroutproject-firebase-adminsdk-fbsvc-ea737454d9.json')
+        
+        if os.path.exists(FIREBASE_KEY_PATH):
+            cred = credentials.Certificate(FIREBASE_KEY_PATH)
+            firebase_admin.initialize_app(cred)
+            print("Firebase initialized successfully")
+        else:
+            print(f"Firebase key file not found at: {FIREBASE_KEY_PATH}")
+    except Exception as e:
+        print(f"Firebase initialization error: {e}")
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
