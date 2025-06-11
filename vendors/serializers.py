@@ -926,11 +926,12 @@ class PackageReadSerializer(serializers.ModelSerializer):
     buses = BusSerializer2(many=True, read_only=True)
     nights = serializers.SerializerMethodField()
     category = serializers.SerializerMethodField()
+    sub_category_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
         fields = [
-            'id', 'sub_category', 'category',
+            'id','sub_category', 'sub_category_name', 'category',
             'header_image', 'places', 'days', 'nights',
             'ac_available', 'guide_included', 'buses', 'day_plans',
             'created_at', 'updated_at', 'bus_location',
@@ -942,6 +943,9 @@ class PackageReadSerializer(serializers.ModelSerializer):
 
     def get_category(self, obj):
         return obj.sub_category.category.name
+    
+    def get_sub_category_name(self, obj):
+        return obj.sub_category.name
 
 
 
