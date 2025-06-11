@@ -3812,6 +3812,13 @@ class UnifiedBookingDetailView(APIView):
 
 
 
+
+
+
+
+
+
+
 class PreAcceptPackageBookingDetailView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -3988,6 +3995,13 @@ class VendorTransactionHistoryAPIView(APIView):
 
         serializer = BaseBookingSerializer(transactions, many=True)
         return Response(serializer.data, status=200)
+
+
+
+
+
+
+
 
 
 
