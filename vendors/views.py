@@ -3980,7 +3980,26 @@ class VendorTransactionHistoryAPIView(APIView):
 
 
 
+class DeleteVendorAccountView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
+    def delete(self, request):
+        user = request.user
+
+        # Check if user is a vendor
+        if user.role != User.VENDOR:
+            return Response(
+                {"error": "Only vendors can delete their account."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        vendor = get_object_or_404(Vendor, user=user)
+        
+        # Delete the user and cascade the vendor deletion
+        user.delete()
+
+        return Response({"message": "Vendor account deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
 
 
