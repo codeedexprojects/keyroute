@@ -34,4 +34,9 @@ keyroute/settings.py
 
 *settings.py
 
+
+firbase/*.json
+        
+
 media
+
