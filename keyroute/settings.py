@@ -49,6 +49,7 @@ if not firebase_admin._apps:
     except Exception as e:
         print(f"Firebase initialization error: {e}")
 
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
