@@ -1,8 +1,13 @@
 import requests
-from .models import AdminCommissionSlab
+import string
+import random
+import re
 
 
 API_KEY = "15b274f8-8600-11ef-8b17-0200cd936042"
+
+def is_valid_email(value):
+    return re.match(r"[^@]+@[^@]+\.[^@]+", value)
 
 def send_otp(mobile):
     """
@@ -20,11 +25,17 @@ def verify_otp(mobile, otp):
     response = requests.get(url)
     return response.json()
 
-
+def generate_referral_code(length=7):
+    """
+    Generate a unique referral code
+    """
+    characters = string.ascii_letters + string.digits
+    return ''.join(random.choices(characters, k=length))
 
 
 
 def get_admin_commission_from_db(total_amount):
+    from .models import AdminCommissionSlab
     slab = AdminCommissionSlab.objects.filter(
         min_amount__lte=total_amount,
         max_amount__gte=total_amount
@@ -38,6 +49,7 @@ def get_admin_commission_from_db(total_amount):
 
 
 def get_advance_amount_from_db(advance_amount):
+    from .models import AdminCommissionSlab
     slab = AdminCommissionSlab.objects.filter(
         min_amount__lte=advance_amount,
         max_amount__gte=advance_amount

@@ -69,11 +69,17 @@ class Bus(models.Model):
     vehicle_insurance = models.FileField(upload_to='insurance/')
     amenities = models.ManyToManyField(Amenity, related_name='buses', blank=True)
     base_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    base_price_km = models.IntegerField()
     price_per_km = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     features = models.ManyToManyField(BusFeature, related_name='buses', blank=True)
-
     minimum_fare = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
+    location = models.CharField(max_length=255, null=True, blank=True)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    bus_type = models.CharField(max_length=50, blank=True, null=True)
+    is_popular = models.BooleanField(default=False)
+
 
     @property
     def average_rating(self):
@@ -150,13 +156,11 @@ class Package(models.Model):
     )
     places = models.CharField(max_length=255)
     days = models.PositiveIntegerField(default=0)
-    nights = models.PositiveIntegerField(default=0)
     ac_available = models.BooleanField(default=True, verbose_name="AC Available")
     guide_included = models.BooleanField(default=False, verbose_name="Includes Guide")
     buses = models.ManyToManyField(Bus)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
     bus_location = models.CharField(max_length=255, blank=True, null=True)
     price_per_person = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     extra_charge_per_km = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
@@ -191,10 +195,12 @@ class PackageImage(models.Model):
 
 
 
+
 class DayPlan(models.Model):
     package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='day_plans')
     day_number = models.PositiveIntegerField()
     description = models.TextField(blank=True, null=True)
+    night = models.BooleanField(default=False)
 
 
 class Place(models.Model):
@@ -214,7 +220,7 @@ class Stay(models.Model):
     hotel_name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     location = models.CharField(max_length=255, blank=True, null=True)  
-    is_ac = models.BooleanField(default=False, blank=True, null=True)  
+    is_ac = models.BooleanField(default=False, blank=True, null=True)
     has_breakfast = models.BooleanField(default=False, blank=True, null=True) 
 
 
@@ -294,6 +300,7 @@ class VendorNotification(models.Model):
 
 class VendorBusyDate(models.Model):
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='busy_dates')
+    buses = models.ManyToManyField('Bus', related_name='busy_dates')
     date = models.DateField()
     from_time = models.TimeField(blank=True, null=True)
     to_time = models.TimeField(blank=True, null=True)
@@ -308,6 +315,3 @@ class VendorBusyDate(models.Model):
         if self.from_time and self.to_time:
             return f"{self.vendor.user.name} - {self.date} ({self.from_time} to {self.to_time})"
         return f"{self.vendor.user.name} - {self.date} (Full Day)"
-
-
-

@@ -29,6 +29,14 @@ from itertools import chain
 from operator import attrgetter
 from django.db.models.functions import TruncMonth
 
+from django.http import HttpResponse
+from django.template.loader import render_to_string
+from xhtml2pdf import pisa
+
+import io
+
+
+
 # Create your views here.
 
 
@@ -164,32 +172,24 @@ class AllUsersAPIView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    # def get(self, request, user_id=None):
-    #     if user_id:
-    #         try:
-    #             user = User.objects.get(id=user_id, role=User.USER)
-    #             serializer = UserSerializer(user)
-    #             return Response(serializer.data, status=status.HTTP_200_OK)
-    #         except User.DoesNotExist:
-    #             return Response({"error": "User not found or not a normal user."}, status=status.HTTP_404_NOT_FOUND)
-    #     else:
-    #         users = User.objects.filter(role=User.USER)
-    #         serializer = UserSerializer(users, many=True)
-    #         return Response({
-    #             "total_users": users.count(),
-    #             "users": serializer.data
-    #         }, status=status.HTTP_200_OK)
 
     def get(self, request, user_id=None):
         if user_id:
             try:
-                user = User.objects.get(id=user_id, role=User.USER)
+                
+
+
+
+                # user = User.objects.get(id=user_id, role=User.USER)
+                user = User.objects.filter(role=User.USER).order_by('-created_at')  # or '-created_at'
+
                 serializer = UserSerializer(user)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             except User.DoesNotExist:
                 return Response({"error": "User not found or not a normal user."}, status=status.HTTP_404_NOT_FOUND)
         else:
-            users = User.objects.filter(role=User.USER)
+            # users = User.objects.filter(role=User.USER)
+            users = User.objects.filter(role=User.USER).order_by('-created_at')
 
             booked_users_bus = BusBooking.objects.values('user_id')
             booked_users_package = PackageBooking.objects.values('user_id')
@@ -262,6 +262,7 @@ class AdminVendorDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, vendor_id):
         try:
+            print('vendor single')
             vendor = Vendor.objects.get(pk=vendor_id)
         except Vendor.DoesNotExist:
             return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -319,6 +320,7 @@ class AdminVendorPackageListAPIView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, vendor_id):
         try:
+            print('hello')
             vendor = Vendor.objects.get(user=vendor_id)
         except Vendor.DoesNotExist:
             return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -336,6 +338,7 @@ class AdminPackageDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request, package_id):
         try:
+            print('hello')
             package = Package.objects.get(pk=package_id)
         except Package.DoesNotExist:
             return Response({"error": "Package not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -384,101 +387,522 @@ class AdminCreateUserView(APIView):
 
 
 # ADVERTISMENT CREATION
-class AllSectionsCreateView(APIView):
+# class AllSectionsCreateView(APIView):
+#     permission_classes = [IsAuthenticated]
+#     authentication_classes = [JWTAuthentication]
+#     parser_classes = [MultiPartParser, FormParser]
+
+ 
+
+
+
+
+   
+
+#     def post(self, request, *args, **kwargs):
+#         try:
+#             # 1. Advertisements
+#             ads_data = []
+#             i = 0
+#             while f'advertisements-{i}-title' in request.data:
+#                 ad = {
+#                     'title': request.data.get(f'advertisements-{i}-title'),
+#                     'subtitle': request.data.get(f'advertisements-{i}-subtitle'),
+#                     'type': request.data.get(f'advertisements-{i}-type'),
+#                     'image': request.FILES.get(f'advertisements-{i}-image')
+#                 }
+#                 ads_data.append(ad)
+#                 i += 1
+
+#             ad_instances = []
+#             for ad in ads_data:
+#                 serializer = AdvertisementSerializer(data=ad)
+#                 if serializer.is_valid():
+#                     instance = serializer.save()
+#                     ad_instances.append(instance)
+#                 else:
+#                     return Response({'error': serializer.errors}, status=400)
+
+#             # 2. Limited Deals
+
+#             deals_data = []
+#             i = 0
+#             while f'limited_deals-{i}-title' in request.data:
+#                 deal = {
+#                     'title': request.data.get(f'limited_deals-{i}-title'),
+#                     'offer': request.data.get(f'limited_deals-{i}-offer'),
+#                     'terms_and_conditions': request.data.get(f'limited_deals-{i}-terms_and_conditions'),
+#                     'images': request.FILES.getlist(f'limited_deals-{i}-images'),
+#                 }
+#                 deals_data.append(deal)
+#                 i += 1
+
+#             for deal in deals_data:
+#                 images = deal.pop('images', [])
+#                 serializer = LimitedDealSerializer(data=deal)
+#                 if serializer.is_valid():
+#                     limited_deal = serializer.save()
+#                     for img in images:
+#                         LimitedDealImage.objects.create(deal=limited_deal, image=img)
+#                 else:
+#                     return Response({'error': serializer.errors}, status=400)
+
+#             # 3. Footer Sections
+
+#             footers_data = []
+#             i = 0
+#             while f'footer_sections-{i}-image' in request.FILES:
+#                 footer = {
+#                     'image': request.FILES.get(f'footer_sections-{i}-image'),
+#                     'package': request.data.get(f'footer_sections-{i}-package')  # ID expected
+#                 }
+#                 footers_data.append(footer)
+#                 i += 1
+
+#             for footer in footers_data:
+#                 serializer = FooterSectionSerializer(data=footer)
+#                 if serializer.is_valid():
+#                     serializer.save()
+#                 else:
+#                     return Response({'error': serializer.errors}, status=400)
+
+#             # 4. Refer and Earn
+#             if 'refer_and_earn-image' in request.FILES and 'refer_and_earn-price' in request.data:
+#                 refer_data = {
+#                     'image': request.FILES.get('refer_and_earn-image'),
+#                     'price': request.data.get('refer_and_earn-price')
+#                 }
+#                 refer_serializer = ReferAndEarnSerializer(data=refer_data)
+#                 if refer_serializer.is_valid():
+#                     refer_serializer.save()
+#                 else:
+#                     return Response({'error': refer_serializer.errors}, status=400)
+
+#             return Response({"message": "All data saved successfully!"}, status=201)
+
+#         except Exception as e:
+#             print(f"Error: {str(e)}")
+#             return Response({"error": str(e)}, status=400)
+
+
+  
+#     def put(self, request, *args, **kwargs):
+#         try:
+#             # 1. Update Advertisements
+#             i = 0
+#             while f'advertisements-{i}-id' in request.data:
+#                 ad_id = request.data.get(f'advertisements-{i}-id')
+#                 ad_instance = Advertisement.objects.get(id=ad_id)
+#                 ad_data = {
+#                     'title': request.data.get(f'advertisements-{i}-title'),
+#                     'description': request.data.get(f'advertisements-{i}-description'),
+#                 }
+#                 if request.FILES.get(f'advertisements-{i}-image'):
+#                     ad_data['image'] = request.FILES.get(f'advertisements-{i}-image')
+
+#                 serializer = AdvertisementSerializer(ad_instance, data=ad_data, partial=True)
+#                 if serializer.is_valid():
+#                     serializer.save()
+#                 else:
+#                     return Response({'error': serializer.errors}, status=400)
+#                 i += 1
+
+#             # 2. Update Limited Deals
+#             i = 0
+#             while f'limited_deals-{i}-id' in request.data:
+#                 deal_id = request.data.get(f'limited_deals-{i}-id')
+#                 deal_instance = LimitedDeal.objects.get(id=deal_id)
+
+#                 deal_data = {
+#                     'title': request.data.get(f'limited_deals-{i}-title'),
+#                     'description': request.data.get(f'limited_deals-{i}-description'),
+#                 }
+
+#                 deal_serializer = LimitedDealSerializer(deal_instance, data=deal_data, partial=True)
+#                 if deal_serializer.is_valid():
+#                     updated_deal = deal_serializer.save()
+#                 else:
+#                     return Response({'error': deal_serializer.errors}, status=400)
+
+#                 # Add new images if provided
+#                 images = request.FILES.getlist(f'limited_deals-{i}-images')
+#                 for img in images:
+#                     LimitedDealImage.objects.create(deal=updated_deal, image=img)
+
+#                 i += 1
+
+#             # 3. Update Footer Sections
+#             i = 0
+#             while f'footer_sections-{i}-id' in request.data:
+#                 footer_id = request.data.get(f'footer_sections-{i}-id')
+#                 footer_instance = FooterSection.objects.get(id=footer_id)
+
+#                 footer_data = {
+#                     'title': request.data.get(f'footer_sections-{i}-title'),
+#                     'description': request.data.get(f'footer_sections-{i}-description'),
+#                 }
+
+#                 if request.FILES.get(f'footer_sections-{i}-image'):
+#                     footer_data['image'] = request.FILES.get(f'footer_sections-{i}-image')
+
+#                 footer_serializer = FooterSectionSerializer(footer_instance, data=footer_data, partial=True)
+#                 if footer_serializer.is_valid():
+#                     footer_serializer.save()
+#                 else:
+#                     return Response({'error': footer_serializer.errors}, status=400)
+
+#                 i += 1
+
+#             return Response({"message": "All data updated successfully!"}, status=200)
+
+#         except Exception as e:
+#             print(f"Update Error: {str(e)}")
+#             return Response({"error": str(e)}, status=400)
+
+
+
+
+
+  
+#     def put(self, request, *args, **kwargs):
+#         try:
+#             # 1. Update Advertisements
+#             i = 0
+#             while f'advertisements-{i}-id' in request.data:
+#                 ad_id = request.data.get(f'advertisements-{i}-id')
+#                 ad_instance = Advertisement.objects.get(id=ad_id)
+#                 ad_data = {
+#                     'title': request.data.get(f'advertisements-{i}-title'),
+#                     'description': request.data.get(f'advertisements-{i}-description'),
+#                 }
+#                 if request.FILES.get(f'advertisements-{i}-image'):
+#                     ad_data['image'] = request.FILES.get(f'advertisements-{i}-image')
+
+#                 serializer = AdvertisementSerializer(ad_instance, data=ad_data, partial=True)
+#                 if serializer.is_valid():
+#                     serializer.save()
+#                 else:
+#                     return Response({'error': serializer.errors}, status=400)
+#                 i += 1
+
+#             # 2. Update Limited Deals
+#             i = 0
+#             while f'limited_deals-{i}-id' in request.data:
+#                 deal_id = request.data.get(f'limited_deals-{i}-id')
+#                 deal_instance = LimitedDeal.objects.get(id=deal_id)
+
+#                 deal_data = {
+#                     'title': request.data.get(f'limited_deals-{i}-title'),
+#                     'description': request.data.get(f'limited_deals-{i}-description'),
+#                 }
+
+#                 deal_serializer = LimitedDealSerializer(deal_instance, data=deal_data, partial=True)
+#                 if deal_serializer.is_valid():
+#                     updated_deal = deal_serializer.save()
+#                 else:
+#                     return Response({'error': deal_serializer.errors}, status=400)
+
+#                 # Add new images if provided
+#                 images = request.FILES.getlist(f'limited_deals-{i}-images')
+#                 for img in images:
+#                     LimitedDealImage.objects.create(deal=updated_deal, image=img)
+
+#                 i += 1
+
+#             # 3. Update Footer Sections
+#             i = 0
+#             while f'footer_sections-{i}-id' in request.data:
+#                 footer_id = request.data.get(f'footer_sections-{i}-id')
+#                 footer_instance = FooterSection.objects.get(id=footer_id)
+
+#                 footer_data = {
+#                     'title': request.data.get(f'footer_sections-{i}-title'),
+#                     'description': request.data.get(f'footer_sections-{i}-description'),
+#                 }
+
+#                 if request.FILES.get(f'footer_sections-{i}-image'):
+#                     footer_data['image'] = request.FILES.get(f'footer_sections-{i}-image')
+
+#                 footer_serializer = FooterSectionSerializer(footer_instance, data=footer_data, partial=True)
+#                 if footer_serializer.is_valid():
+#                     footer_serializer.save()
+#                 else:
+#                     return Response({'error': footer_serializer.errors}, status=400)
+
+#                 i += 1
+
+#             return Response({"message": "All data updated successfully!"}, status=200)
+
+#         except Exception as e:
+#             print(f"Update Error: {str(e)}")
+#             return Response({"error": str(e)}, status=400)
+
+
+
+
+#     def get(self, request, *args, **kwargs):
+#         ads = Advertisement.objects.all()
+#         ads_serialized = AdvertisementSerializer(ads, many=True).data
+
+#         return Response({
+#             "advertisements": ads_serialized
+#         }, status=200)
+
+
+
+
+
+class AdvertisementCreateView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
     parser_classes = [MultiPartParser, FormParser]
 
- 
-
-    def post(self, request, *args, **kwargs):
-       
-        
+    def post(self, request):
         try:
-            ads_data = []
-            for i in range(len(request.data.getlist('advertisements-0-title'))):
-                ad = {
-                    'title': request.data.getlist(f'advertisements-{i}-title')[0],
-                    'description': request.data.getlist(f'advertisements-{i}-description')[0],
-                    'image': request.FILES.get(f'advertisements-{i}-image') if f'advertisements-{i}-image' in request.FILES else None
-                }
-                ads_data.append(ad)
-
-            deals_data = []
-            for i in range(len(request.data.getlist('limited_deals-0-title'))):
-                deal = {
-                    'title': request.data.getlist(f'limited_deals-{i}-title')[0],
-                    'description': request.data.getlist(f'limited_deals-{i}-description')[0],
-                    'images': request.FILES.getlist(f'limited_deals-{i}-images') if f'limited_deals-{i}-images' in request.FILES else []
-                }
-                deals_data.append(deal)
-
-            footers_data = []
-            for i in range(len(request.data.getlist('footer_sections-0-title'))):
-                footer = {
-                    'title': request.data.getlist(f'footer_sections-{i}-title')[0],
-                    'description': request.data.getlist(f'footer_sections-{i}-description')[0],
-                    'image': request.FILES.get(f'footer_sections-{i}-image') if f'footer_sections-{i}-image' in request.FILES else None
-                }
-                footers_data.append(footer)
-
-          
-            
-        except Exception as e:
-            print(f"Error: {str(e)}")
-            return Response({"error": "Invalid data format."}, status=400)
-
-        for ad in ads_data:
-            print(f"Processing Advertisement: {ad}")
+            ad = {
+                'title': request.data.get('title'),
+                'subtitle': request.data.get('subtitle'),
+                'type': request.data.get('type'),
+                'image': request.FILES.get('image')
+            }
             serializer = AdvertisementSerializer(data=ad)
             if serializer.is_valid():
                 serializer.save()
-            else:
-                print(f"Advertisement serializer errors: {serializer.errors}")
-                return Response({'error': serializer.errors}, status=400)
+                return Response({'message': 'Advertisement saved successfully!'}, status=201)
+            return Response({'error': serializer.errors}, status=400)
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
 
-        for deal in deals_data:
-            print(f"Processing Limited Deal: {deal}")
-            images = deal.pop('images', [])
-            deal_serializer = LimitedDealSerializer(data=deal)
-            if deal_serializer.is_valid():
-                limited_deal = deal_serializer.save()
-                for img in images:
-                    print(f"Processing image for deal: {img}")
-                    LimitedDealImage.objects.create(deal=limited_deal, image=img)
-            else:
-                print(f"Limited Deal serializer errors: {deal_serializer.errors}")
-                return Response({'error': deal_serializer.errors}, status=400)
 
-        for footer in footers_data:
-            print(f"Processing Footer Section: {footer}")
-            footer_serializer = FooterSectionSerializer(data=footer)
+
+
+
+class LimitedDealCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    parser_classes = [MultiPartParser, FormParser]
+
+    
+
+    def post(self, request, *args, **kwargs):
+        try:
+            deal_data = {
+                'title': request.data.get('title'),
+                'subtitle': request.data.get('subtitle'),
+                'offer': request.data.get('offer'),
+                'terms_and_conditions': request.data.get('terms_and_conditions'),
+            }
+
+            serializer = LimitedDealSerializer(data=deal_data)
+            if serializer.is_valid():
+                limited_deal = serializer.save()
+
+                images = request.FILES.getlist('images')
+                for image in images:
+                    LimitedDealImage.objects.create(deal=limited_deal, image=image)
+
+                return Response({"message": "Limited deal created successfully."}, status=201)
+
+            return Response({'error': serializer.errors}, status=400)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
+
+
+
+
+
+class FooterSectionCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    parser_classes = [MultiPartParser, FormParser]
+
+   
+    def post(self, request):
+        try:
+            main_image = request.FILES.get('main_image')
+            if not main_image:
+                return Response({'error': 'Main image is required.'}, status=400)
+
+            extra_images = []
+            for key in request.FILES:
+                if key.startswith('image') and key != 'main_image':
+                    extra_images.append(request.FILES[key])
+
+            footer_data = {
+                'main_image': main_image,
+                'package': request.data.get('package')
+            }
+            footer_serializer = FooterSectionSerializer(data=footer_data)
+
             if footer_serializer.is_valid():
-                footer_serializer.save()
-            else:
-                print(f"Footer Section serializer errors: {footer_serializer.errors}")
-                return Response({'error': footer_serializer.errors}, status=400)
+                footer = footer_serializer.save()
 
-        print("All data saved successfully!")
-        return Response({"message": "All data saved successfully!"}, status=201)
+                for img in extra_images:
+                    FooterImage.objects.create(footer_section=footer, image=img)
+
+                return Response({'message': 'Footer section with images saved successfully!'}, status=201)
+
+            return Response({'error': footer_serializer.errors}, status=400)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
 
 
 
+
+class ReferAndEarnCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        try:
+            if ReferAndEarn.objects.exists():
+                return Response({'error': 'A Refer and Earn entry already exists. Cannot add another one.'}, status=400)
+            refer_data = {
+                'image': request.FILES.get('image'),
+                'price': request.data.get('price')
+            }
+            serializer = ReferAndEarnSerializer(data=refer_data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({'message': 'Refer and Earn saved successfully!'}, status=201)
+            return Response({'error': serializer.errors}, status=400)
+        except Exception as e:
+            return Response({'error': str(e)}, status=400)
+
+
+
+
+
+
+class AdvertisementListView(APIView):
     def get(self, request, *args, **kwargs):
-        ads = Advertisement.objects.all()
+        advertisements = Advertisement.objects.all()
+        serializer = AdvertisementSerializer(advertisements, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
+class AdvertisementDetailView(APIView):
+    def get(self, request, ad_id, *args, **kwargs):
+        try:
+            advertisement = Advertisement.objects.get(id=ad_id)
+        except Advertisement.DoesNotExist:
+            return Response({"error": "Advertisement not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = AdvertisementSerializer(advertisement)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+    def delete(self, request, ad_id, *args, **kwargs):
+        try:
+            advertisement = Advertisement.objects.get(id=ad_id)
+        except Advertisement.DoesNotExist:
+            return Response({"error": "Advertisement not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        advertisement.delete()
+        return Response({"message": "Advertisement deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+
+class LimitedDealListView(APIView):
+    def get(self, request, *args, **kwargs):
         deals = LimitedDeal.objects.all()
+        serializer = LimitedDealSerializer(deals, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class LimitedDealDetailView(APIView):
+    def get(self, request, deal_id, *args, **kwargs):
+        try:
+            deal = LimitedDeal.objects.get(id=deal_id)
+        except LimitedDeal.DoesNotExist:
+            return Response({"error": "LimitedDeal not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = LimitedDealSerializer(deal)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def delete(self, request, deal_id, *args, **kwargs):
+        try:
+            deal = LimitedDeal.objects.get(id=deal_id)
+        except LimitedDeal.DoesNotExist:
+            return Response({"error": "LimitedDeal not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        deal.delete()
+        return Response({"message": "LimitedDeal deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+
+
+class FooterSectionListView(APIView):
+    def get(self, request, *args, **kwargs):
         footers = FooterSection.objects.all()
+        serializer = FooterSectionSerializer(footers, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-        ads_serialized = AdvertisementSerializer(ads, many=True).data
-        deals_serialized = LimitedDealSerializer(deals, many=True).data
-        footers_serialized = FooterSectionSerializer(footers, many=True).data
+class FooterSectionDetailView(APIView):
+    def get(self, request, footer_id, *args, **kwargs):
+        try:
+            footer = FooterSection.objects.get(id=footer_id)
+        except FooterSection.DoesNotExist:
+            return Response({"error": "FooterSection not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        return Response({
-            "advertisements": ads_serialized,
-            "limited_deals": deals_serialized,
-            "footer_sections": footers_serialized
-        }, status=200)
+        serializer = FooterSectionSerializer(footer)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
 
+    def delete(self, request, footer_id, *args, **kwargs):
+        try:
+            footer = FooterSection.objects.get(id=footer_id)
+        except FooterSection.DoesNotExist:
+            return Response({"error": "FooterSection not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        footer.delete()
+        return Response({"message": "FooterSection deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+class ReferAndEarnListView(APIView):
+    def get(self, request, *args, **kwargs):
+        refs = ReferAndEarn.objects.all()
+        serializer = ReferAndEarnSerializer(refs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class ReferAndEarnDetailView(APIView):
+    def get(self, request, ref_id, *args, **kwargs):
+        try:
+            ref = ReferAndEarn.objects.get(id=ref_id)
+        except ReferAndEarn.DoesNotExist:
+            return Response({"error": "ReferAndEarn not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ReferAndEarnSerializer(ref)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+    def delete(self, request, ref_id, *args, **kwargs):
+        try:
+            ref = ReferAndEarn.objects.get(id=ref_id)
+        except ReferAndEarn.DoesNotExist:
+            return Response({"error": "ReferAndEarn not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        ref.delete()
+        return Response({"message": "ReferAndEarn entry deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+
+
+    def patch(self, request, ref_id, *args, **kwargs):
+        try:
+            ref = ReferAndEarn.objects.get(id=ref_id)
+        except ReferAndEarn.DoesNotExist:
+            return Response({"error": "ReferAndEarn not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ReferAndEarnSerializer(ref, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -493,89 +917,296 @@ class ExploreSectionCreateView(APIView):
     authentication_classes = [JWTAuthentication]
     parser_classes = [MultiPartParser, FormParser]
 
+
+
+
     def post(self, request, *args, **kwargs):
         data = request.data
 
+        # 1. SIGHT DATA
         sight_data = {
             'title': data.get('sight[title]'),
             'description': data.get('sight[description]'),
             'season_description': data.get('sight[season_description]'),
-            'image': data.get('sight[image]')
         }
 
-        experience_data = []
-        index = 0
-        while f'experiences[{index}][description]' in data:
-            exp = {
-                'description': data.get(f'experiences[{index}][description]'),
-                'image': data.get(f'experiences[{index}][image]')
-            }
-            experience_data.append(exp)
+        sight_images = []
+        index = 1
+        while f'sight_image_{index}' in request.FILES:
+            sight_images.append(request.FILES[f'sight_image_{index}'])
             index += 1
 
+        # 2. EXPERIENCE DATA
+        experience_data = []
+        exp_index = 0
+        while f'experiences[{exp_index}][description]' in data:
+            exp = {
+                'description': data.get(f'experiences[{exp_index}][description]'),
+                'header': data.get(f'experiences[{exp_index}][header]'),
+                'sub_header': data.get(f'experiences[{exp_index}][sub_header]'),
+                'images': []
+            }
+
+            img_index = 0
+            while f'experiences[{exp_index}][images][{img_index}]' in request.FILES:
+                exp['images'].append(request.FILES[f'experiences[{exp_index}][images][{img_index}]'])
+                img_index += 1
+
+            experience_data.append(exp)
+            exp_index += 1
+
+        # 3. MULTIPLE SEASON DATA (max 3)
+        seasons = []
+        season_index = 0
+        while f'season[{season_index}][from_date]' in data and season_index < 3:
+            season_data = {
+                'from_date': data.get(f'season[{season_index}][from_date]'),
+                'to_date': data.get(f'season[{season_index}][to_date]'),
+                'header': data.get(f'season[{season_index}][header]'),
+                'icon1': data.get(f'season[{season_index}][icon1]'),
+                'icon1_description': data.get(f'season[{season_index}][icon1_description]'),
+                'icon2': data.get(f'season[{season_index}][icon2]'),
+                'icon2_description': data.get(f'season[{season_index}][icon2_description]') or "",
+                'icon3': data.get(f'season[{season_index}][icon3]'),
+                'icon3_description': data.get(f'season[{season_index}][icon3_description]') or "",
+            }
+            seasons.append(season_data)
+            season_index += 1
+
+        # 4. SAVE DATA
         sight_serializer = SightSerializer(data=sight_data)
         if sight_serializer.is_valid():
             sight_instance = sight_serializer.save()
 
+            for img in sight_images:
+                SightImage.objects.create(sight=sight_instance, image=img)
+
             for exp in experience_data:
-                exp_serializer = ExperienceSerializer(data=exp)
+                exp_data = {
+                    'description': exp['description'],
+                    'header': exp['header'],
+                    'sub_header': exp['sub_header'],
+                }
+                exp_serializer = ExperienceSerializer(data=exp_data)
                 if exp_serializer.is_valid():
-                    exp_serializer.save(sight=sight_instance)
+                    experience_instance = exp_serializer.save(sight=sight_instance)
+                    for image in exp['images']:
+                        ExperienceImage.objects.create(experience=experience_instance, image=image)
                 else:
                     return Response({"error": exp_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-            return Response({"message": "Sight and experiences created successfully!"}, status=status.HTTP_201_CREATED)
+            for season_data in seasons:
+                season_data['sight'] = sight_instance.id
+                season_serializer = SeasonTimeSerializer(data=season_data)
+                if season_serializer.is_valid():
+                    season_serializer.save(sight=sight_instance)
+                else:
+                    return Response({"error": season_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response({"message": "Sight, images, experiences, and up to 3 seasons created successfully!"}, status=status.HTTP_201_CREATED)
 
         return Response({"error": sight_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
 
-    def patch(self, request, *args, **kwargs):
-        print('is working')
-        sight_id = kwargs.get('pk')   
+
+
+
+
+    # def put(self, request, *args, **kwargs):
+    #     data = request.data
+    #     sight_id = kwargs.get("pk")
+
+    #     try:
+    #         sight_instance = Sight.objects.get(id=sight_id)
+    #     except Sight.DoesNotExist:
+    #         return Response({"error": "Sight not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    #     # --- 1. Update Sight Fields if Present ---
+    #     update_data = {}
+    #     if data.get('sight[title]'): update_data['title'] = data.get('sight[title]')
+    #     if data.get('sight[description]'): update_data['description'] = data.get('sight[description]')
+    #     if data.get('sight[season_description]'): update_data['season_description'] = data.get('sight[season_description]')
+
+    #     sight_serializer = SightSerializer(sight_instance, data=update_data, partial=True)
+    #     if sight_serializer.is_valid():
+    #         sight_serializer.save()
+    #     else:
+    #         return Response({"error": sight_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+    #     # --- 2. Update Existing Sight Images if Present ---
+    #     image_index = 0
+    #     while True:
+    #         image_id_key = f'sight_image[{image_index}][id]'  # e.g. sight_image[0][id]
+    #         image_file_key = f'sight_image[{image_index}][file]'  # e.g. sight_image[0][file]
+    #         if image_id_key in data and image_file_key in request.FILES:
+    #             try:
+    #                 img_id = int(data.get(image_id_key))
+    #                 sight_image_instance = SightImage.objects.get(id=img_id, sight=sight_instance)
+    #                 sight_image_instance.image = request.FILES[image_file_key]
+    #                 sight_image_instance.save()
+    #             except (SightImage.DoesNotExist, ValueError):
+    #                 # Image not found or invalid ID, ignore or handle error
+    #                 pass
+    #             image_index += 1
+    #         else:
+    #             break
+
+    #     # --- 3. Add New Experience(s) if Provided ---
+    #     exp_index = 0
+    #     while f'experiences[{exp_index}][description]' in data:
+    #         exp_data = {
+    #             'description': data.get(f'experiences[{exp_index}][description]'),
+    #             'header': data.get(f'experiences[{exp_index}][header]'),
+    #             'sub_header': data.get(f'experiences[{exp_index}][sub_header]')
+    #         }
+    #         exp_serializer = ExperienceSerializer(data=exp_data)
+    #         if exp_serializer.is_valid():
+    #             experience_instance = exp_serializer.save(sight=sight_instance)
+
+    #             # Attach new images to this experience
+    #             img_index = 0
+    #             while f'experiences[{exp_index}][images][{img_index}]' in request.FILES:
+    #                 ExperienceImage.objects.create(
+    #                     experience=experience_instance,
+    #                     image=request.FILES[f'experiences[{exp_index}][images][{img_index}]']
+    #                 )
+    #                 img_index += 1
+    #         else:
+    #             return Response({"error": exp_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+    #         exp_index += 1
+
+    #     # --- 4. Update Existing Season Entries if Provided ---
+    #     season_index = 0
+    #     while f'season[{season_index}][id]' in data and season_index < 3:
+    #         try:
+    #             season_id = int(data.get(f'season[{season_index}][id]'))
+    #             season_instance = SeasonTime.objects.get(id=season_id, sight=sight_instance)
+    #             season_data = {
+    #                 'from_date': data.get(f'season[{season_index}][from_date]'),
+    #                 'to_date': data.get(f'season[{season_index}][to_date]'),
+    #                 'header': data.get(f'season[{season_index}][header]'),
+    #                 'icon1': data.get(f'season[{season_index}][icon1]'),
+    #                 'icon1_description': data.get(f'season[{season_index}][icon1_description]') or "",
+    #                 'icon2': data.get(f'season[{season_index}][icon2]'),
+    #                 'icon2_description': data.get(f'season[{season_index}][icon2_description]') or "",
+    #                 'icon3': data.get(f'season[{season_index}][icon3]'),
+    #                 'icon3_description': data.get(f'season[{season_index}][icon3_description]') or "",
+    #             }
+    #             season_serializer = SeasonTimeSerializer(season_instance, data=season_data, partial=True)
+    #             if season_serializer.is_valid():
+    #                 season_serializer.save()
+    #             else:
+    #                 return Response({"error": season_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+    #         except (SeasonTime.DoesNotExist, ValueError):
+    #             # Season not found or invalid ID, ignore or handle error
+    #             pass
+    #         season_index += 1
+
+    #     return Response({"message": "Sight section updated successfully with partial data!"}, status=status.HTTP_200_OK)
+
+
+
+    def put(self, request, *args, **kwargs):
+        data = request.data
+        sight_id = kwargs.get("pk")
+
         try:
-            sight_instance = Sight.objects.get(pk=sight_id)
+            sight_instance = Sight.objects.get(id=sight_id)
         except Sight.DoesNotExist:
             return Response({"error": "Sight not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        data = request.data
+        # --- 1. Update Sight Fields if Present ---
+        update_data = {}
+        if data.get('sight[title]'): update_data['title'] = data.get('sight[title]')
+        if data.get('sight[description]'): update_data['description'] = data.get('sight[description]')
+        if data.get('sight[season_description]'): update_data['season_description'] = data.get('sight[season_description]')
 
-        sight_data = {
-            'title': data.get('sight[title]'),
-            'description': data.get('sight[description]'),
-            'season_description': data.get('sight[season_description]'),
-            'image': data.get('sight[image]')
-        }
-        sight_data = {key: value for key, value in sight_data.items() if value is not None}
-
-        sight_serializer = SightSerializer(sight_instance, data=sight_data, partial=True)
+        sight_serializer = SightSerializer(sight_instance, data=update_data, partial=True)
         if sight_serializer.is_valid():
             sight_serializer.save()
         else:
             return Response({"error": sight_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-        experience_data = []
-        index = 0
-        while f'experiences[{index}][description]' in data:
-            exp = {
-                'description': data.get(f'experiences[{index}][description]'),
-                'image': data.get(f'experiences[{index}][image]')
-            }
-            experience_data.append(exp)
-            index += 1
+        # --- 2. Update Existing Sight Images if Present ---
+        image_index = 0
+        while True:
+            image_id_key = f'sight_image[{image_index}][id]'
+            image_file_key = f'sight_image[{image_index}][file]'
+            if image_id_key in data and image_file_key in request.FILES:
+                try:
+                    img_id = int(data.get(image_id_key))
+                    sight_image_instance = SightImage.objects.get(id=img_id, sight=sight_instance)
+                    sight_image_instance.image = request.FILES[image_file_key]
+                    sight_image_instance.save()
+                except (SightImage.DoesNotExist, ValueError):
+                    pass
+                image_index += 1
+            else:
+                break
 
-        if experience_data:
-            
+        # --- 3. Update Existing Experiences if Provided ---
+        exp_index = 0
+        while f'experiences[{exp_index}][id]' in data:
+            try:
+                exp_id = int(data.get(f'experiences[{exp_index}][id]'))
+                experience_instance = Experience.objects.get(id=exp_id, sight=sight_instance)
 
-            for exp in experience_data:
-                exp_serializer = ExperienceSerializer(data=exp)
+                exp_data = {
+                    'description': data.get(f'experiences[{exp_index}][description]'),
+                    'header': data.get(f'experiences[{exp_index}][header]'),
+                    'sub_header': data.get(f'experiences[{exp_index}][sub_header]')
+                }
+
+                exp_serializer = ExperienceSerializer(experience_instance, data=exp_data, partial=True)
                 if exp_serializer.is_valid():
-                    exp_serializer.save(sight=sight_instance)
+                    experience_instance = exp_serializer.save()
+
+                    # Add new images if provided
+                    img_index = 0
+                    while f'experiences[{exp_index}][images][{img_index}]' in request.FILES:
+                        ExperienceImage.objects.create(
+                            experience=experience_instance,
+                            image=request.FILES[f'experiences[{exp_index}][images][{img_index}]']
+                        )
+                        img_index += 1
                 else:
                     return Response({"error": exp_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response({"message": "Sight updated successfully."}, status=status.HTTP_200_OK)
+            except (Experience.DoesNotExist, ValueError):
+                pass
+            exp_index += 1
+
+        # --- 4. Update Existing Season Entries if Provided ---
+        season_index = 0
+        while f'season[{season_index}][id]' in data and season_index < 3:
+            try:
+                season_id = int(data.get(f'season[{season_index}][id]'))
+                season_instance = SeasonTime.objects.get(id=season_id, sight=sight_instance)
+                season_data = {
+                    'from_date': data.get(f'season[{season_index}][from_date]'),
+                    'to_date': data.get(f'season[{season_index}][to_date]'),
+                    'header': data.get(f'season[{season_index}][header]'),
+                    'icon1': data.get(f'season[{season_index}][icon1]'),
+                    'icon1_description': data.get(f'season[{season_index}][icon1_description]') or "",
+                    'icon2': data.get(f'season[{season_index}][icon2]'),
+                    'icon2_description': data.get(f'season[{season_index}][icon2_description]') or "",
+                    'icon3': data.get(f'season[{season_index}][icon3]'),
+                    'icon3_description': data.get(f'season[{season_index}][icon3_description]') or "",
+                }
+                season_serializer = SeasonTimeSerializer(season_instance, data=season_data, partial=True)
+                if season_serializer.is_valid():
+                    season_serializer.save()
+                else:
+                    return Response({"error": season_serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+            except (SeasonTime.DoesNotExist, ValueError):
+                pass
+            season_index += 1
+
+        return Response({"message": "Sight section updated successfully with partial data!"}, status=status.HTTP_200_OK)
+
+
 
 
 
@@ -606,7 +1237,20 @@ class ExploreSectionListView(APIView):
         serializer = SightListSerializer(sights, many=True)
         return Response({"message": "Explore section fetched successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
 
+# EXPLORE DETAIL
+class ExploreSectionDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
+    def get(self, request, sight_id, *args, **kwargs):
+        try:
+            print('explroe details is workig')
+            sight = Sight.objects.get(id=sight_id)
+        except Sight.DoesNotExist:
+            return Response({"error": "Sight not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = SightListSerializer(sight)
+        return Response({"message": "Explore section detail fetched successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
 
 
 
@@ -778,18 +1422,36 @@ class AdminPackageSubCategoryAPIView(APIView):
             return Response({"message": "Package SubCategory created successfully!", "data": serializer.data}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    
     def get(self, request, pk=None):
         if pk:
             subcategory = self.get_object(pk)
             if not subcategory:
                 return Response({"error": "SubCategory not found."}, status=status.HTTP_404_NOT_FOUND)
-
             serializer = PackageSubCategorySerializer(subcategory)
             return Response({"subcategory": serializer.data}, status=status.HTTP_200_OK)
 
-        subcategories = PackageSubCategory.objects.all()
+        # Filter by category_id if provided
+        category_id = request.query_params.get('category_id')
+        if category_id:
+            subcategories = PackageSubCategory.objects.filter(category__id=category_id)
+        else:
+            subcategories = PackageSubCategory.objects.all()
+
         serializer = PackageSubCategorySerializer(subcategories, many=True)
         return Response({"subcategories": serializer.data}, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+
+
 
     def put(self, request, pk):
         if not request.user.is_staff:
@@ -834,7 +1496,9 @@ class AdminVendorOverview(APIView):
    
 
     def get(self, request):
-        vendors = Vendor.objects.all()
+        # vendors = Vendor.objects.all()
+        vendors = Vendor.objects.all().order_by('-created_at')
+
         today = timezone.now().date()
 
         data = []
@@ -1104,6 +1768,147 @@ class RecentApprovedBookingsAPIView(APIView):
         return Response(serializer.data)
 
 
+class CombinedBookingsAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        # Fetch bookings
+        bus_bookings = BusBooking.objects.all()
+        package_bookings = PackageBooking.objects.all()
+
+        # Annotate for distinguishing type (optional)
+        for booking in bus_bookings:
+            booking.booking_type = 'bus'
+        for booking in package_bookings:
+            booking.booking_type = 'package'
+        
+        # Combine and sort by created_at desc
+        combined_bookings = sorted(
+            chain(bus_bookings, package_bookings),
+            key=attrgetter('created_at'),
+            reverse=True
+        )
+
+        # Serialize each object based on type
+        data = []
+        for booking in combined_bookings:
+            if booking.booking_type == 'bus':
+                serializer = BusBookingSerializer(booking)
+                serialized_data = serializer.data
+                serialized_data['booking_type'] = 'bus'
+                data.append(serialized_data)
+            elif booking.booking_type == 'package':
+                serializer = PackageBookingSerializer(booking)
+                serialized_data = serializer.data
+                serialized_data['booking_type'] = 'package'
+                data.append(serialized_data)
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class PaymentDetailsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        bus_bookings = BusBooking.objects.select_related('bus__vendor').all()
+        package_bookings = PackageBooking.objects.select_related('package__vendor').all()
+
+        data = []
+
+        # Bus Booking Data
+        for booking in bus_bookings:
+            data.append({
+                'id': booking.booking_id,
+                'booking_type': 'Bus Booking',
+                'vendor_name': booking.bus.vendor.full_name,
+                'bus_or_package': booking.bus.bus_name,
+                'total_amount': booking.total_amount,
+                'advance_amount': booking.advance_amount,
+                'payment_status': booking.payment_status,
+            })
+
+        # Package Booking Data
+        for booking in package_bookings:
+            data.append({
+                'id': booking.booking_id,
+                'booking_type': 'Package Booking',
+                'vendor_name': booking.package.vendor.full_name,
+                'bus_or_package': booking.package.places,
+                'total_amount': booking.total_amount,
+                'advance_amount': booking.advance_amount,
+                'payment_status': booking.payment_status,
+            })
+
+        serializer = PaymentDetailsSerializer(data, many=True)
+        return Response(serializer.data)
+
+
+class SingleBookingDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, booking_type, booking_id):
+        if booking_type == 'bus':
+            try:
+                booking = BusBooking.objects.get(id=booking_id)
+                serializer = BusBookingSerializer(booking)
+                data = serializer.data
+                data['booking_type'] = 'bus'
+                return Response(data, status=status.HTTP_200_OK)
+            except BusBooking.DoesNotExist:
+                return Response({'detail': 'Bus Booking not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        elif booking_type == 'package':
+            try:
+                booking = PackageBooking.objects.get(id=booking_id)
+                serializer = PackageBookingSerializer(booking)
+                data = serializer.data
+                data['booking_type'] = 'package'
+                return Response(data, status=status.HTTP_200_OK)
+            except PackageBooking.DoesNotExist:
+                return Response({'detail': 'Package Booking not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        else:
+            return Response({'detail': 'Invalid booking type.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SinglePaymentDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, booking_type, booking_id):
+        if booking_type == 'bus':
+            try:
+                booking = BusBooking.objects.select_related('bus__vendor').get(id=booking_id)
+                data = {
+                    'id': booking.booking_id,
+                    'booking_type': 'Bus Booking',
+                    'vendor_name': booking.bus.vendor.full_name,
+                    'bus_or_package': booking.bus.bus_name,
+                    'total_amount': booking.total_amount,
+                    'advance_amount': booking.advance_amount,
+                    'payment_status': booking.payment_status,
+                }
+                serializer = PaymentDetailsSerializer(data)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except BusBooking.DoesNotExist:
+                return Response({'detail': 'Bus Booking not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        elif booking_type == 'package':
+            try:
+                booking = PackageBooking.objects.select_related('package__vendor').get(id=booking_id)
+                data = {
+                    'id': booking.booking_id,
+                    'booking_type': 'Package Booking',
+                    'vendor_name': booking.package.vendor.full_name,
+                    'bus_or_package': booking.package.places,
+                    'total_amount': booking.total_amount,
+                    'advance_amount': booking.advance_amount,
+                    'payment_status': booking.payment_status,
+                }
+                serializer = PaymentDetailsSerializer(data)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except PackageBooking.DoesNotExist:
+                return Response({'detail': 'Package Booking not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        else:
+            return Response({'detail': 'Invalid booking type.'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -1179,7 +1984,7 @@ class BusAdminAPIView(APIView):
                             status=status.HTTP_403_FORBIDDEN)
 
         buses = Bus.objects.all()
-        serializer = BusAdminSerializer(buses, many=True, context={'request': request})
+        serializer = BusAdminSerializerADMINBUSDETAILS(buses, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -1196,9 +2001,25 @@ class SingleBusDetailAPIView(APIView):
         except Bus.DoesNotExist:
             return Response({'detail': 'Bus not found.'}, status=status.HTTP_404_NOT_FOUND)
         
-        serializer = BusDetailSerializerADMIN(bus, context={'request': request})
+        serializer = BusAdminSerializerADMINBUSDETAILS(bus, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+
+
+
+# class AdminPackageListView(APIView):
+#     authentication_classes = [JWTAuthentication]
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+#         sub_category_id = request.query_params.get('sub_category_id')
+#         if not sub_category_id:
+#             return Response({"detail": "Sub category ID is required."}, status=400)
+
+#         packages = Package.objects.filter(sub_category_id=sub_category_id).prefetch_related('buses__features', 'buses__vendor')
+#         # serializer = PackageListSerializer(packages, many=True)
+#         serializer = AdminPackageListSerializer(packages, many=True)
+#         return Response(serializer.data)
 
 
 
@@ -1208,12 +2029,16 @@ class AdminPackageListView(APIView):
 
     def get(self, request):
         sub_category_id = request.query_params.get('sub_category_id')
-        if not sub_category_id:
-            return Response({"detail": "Sub category ID is required."}, status=400)
 
-        packages = Package.objects.filter(sub_category_id=sub_category_id).prefetch_related('buses__features', 'buses__vendor')
-        serializer = PackageListSerializer(packages, many=True)
-        return Response(serializer.data)
+        if sub_category_id:
+            packages = Package.objects.filter(sub_category_id=sub_category_id)
+        else:
+            packages = Package.objects.all()
+
+        packages = packages.prefetch_related('buses__features', 'buses__vendor')
+        serializer = AdminPackageListSerializer(packages, many=True)
+        return Response(serializer.data, status=200)
+
 
 
 
@@ -1228,10 +2053,291 @@ class AdminPackageDetailView(APIView):
         except Package.DoesNotExist:
             return Response({"detail": "Package not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = PackageDetailSerializer(package, context={'request': request})
+        serializer = AdminPackageDetailSerializer(package, context={'request': request})
         return Response(serializer.data)
 
 
+
+
+
+
+
+
+
+class AdminCreateUserAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = AdminUserCreateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+class ToggleUserActiveStatusAPIView(APIView):
+    def post(self, request, user_id):
+        user = get_object_or_404(User, id=user_id)
+
+        user.is_active = not user.is_active  # Toggle the value
+        user.save()
+
+        status_msg = "User is now active." if user.is_active else "User has been blocked."
+
+        return Response({
+            "user_id": user.id,
+            "is_active": user.is_active,
+            "message": status_msg
+        }, status=status.HTTP_200_OK)
+
+
+
+
+
+
+class AllUsersPDFAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        users = User.objects.filter(role=User.USER)
+        booked_user_ids = set(
+            list(BusBooking.objects.values_list('user_id', flat=True)) +
+            list(PackageBooking.objects.values_list('user_id', flat=True))
+        )
+        booked_users = User.objects.filter(id__in=booked_user_ids, role=User.USER)
+        active_users = users.filter(is_active=True)
+        inactive_users = users.filter(is_active=False)
+
+        context = {
+            "total_users": users.count(),
+            "booked_users_count": booked_users.count(),
+            "active_users_count": active_users.count(),
+            "inactive_users_count": inactive_users.count(),
+            "users": users
+        }
+
+        # Render HTML to a string using a Django template
+        html_string = render_to_string("users_report.html", context)
+
+        # Create a file-like buffer
+        result = io.BytesIO()
+        pdf = pisa.pisaDocument(io.BytesIO(html_string.encode("UTF-8")), result)
+
+        if not pdf.err:
+            response = HttpResponse(result.getvalue(), content_type='application/pdf')
+            response['Content-Disposition'] = 'attachment; filename="users_report.pdf"'
+            return response
+        else:
+            return Response({"error": "PDF generation failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+
+class ToggleVendorStatusView(APIView):
+    permission_classes = [IsAdminUser]   
+
+    def post(self, request, vendor_id):
+        vendor = get_object_or_404(User, id=vendor_id, role=User.VENDOR)
+        vendor.is_active = not vendor.is_active
+        vendor.save()
+        return Response({
+            'vendor_id': vendor.id,
+            'name': vendor.name,
+            'is_active': vendor.is_active,
+            'message': 'Vendor status updated successfully.'
+        }, status=status.HTTP_200_OK)
+
+
+class BusReviewListView(APIView):
+    def get(self, request):
+        reviews = BusReview.objects.all().order_by('-created_at')
+        serializer = BusReviewSerializer(reviews, many=True)
+        return Response({"message": "Bus reviews fetched successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+
+
+class PackageReviewListView(APIView):
+    def get(self, request):
+        reviews = PackageReview.objects.all().order_by('-created_at')
+        serializer = PackageReviewSerializer(reviews, many=True)
+        return Response({"message": "Package reviews fetched successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+
+
+
+
+
+class AppReviewListView(APIView):
+    def get(self, request):
+        reviews = AppReview.objects.all().order_by('-created_at')
+        serializer = AppReviewSerializer(reviews, many=True)
+        return Response({"message": "App reviews fetched successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+
+
+class AllReviewsListView(APIView):
+    def get(self, request):
+        bus_reviews = BusReview.objects.all().order_by('-created_at')
+        package_reviews = PackageReview.objects.all().order_by('-created_at')
+        app_reviews = AppReview.objects.all().order_by('-created_at')
+
+        bus_serializer = BusReviewSerializer(bus_reviews, many=True)
+        package_serializer = PackageReviewSerializer(package_reviews, many=True)
+        app_serializer = AppReviewSerializer(app_reviews, many=True)
+
+        return Response({
+            "message": "All reviews fetched successfully!",
+            "bus_reviews": bus_serializer.data,
+            "package_reviews": package_serializer.data,
+            "app_reviews": app_serializer.data,
+        }, status=status.HTTP_200_OK)
+    
+
+
+
+
+
+class RecentReviewsAPIView(APIView):
+    def get(self, request):
+        bus_reviews = BusReview.objects.select_related('user', 'bus').all()
+        package_reviews = PackageReview.objects.select_related('user', 'package').all()
+        app_reviews = AppReview.objects.select_related('user').all()
+
+        # Annotate each review with a type and related name (for frontend display)
+        def annotate_reviews(queryset, type_label, get_related_name):
+            for review in queryset:
+                review.type = type_label
+                review.related_name = get_related_name(review)
+                yield review
+
+        combined_reviews = list(chain(
+            annotate_reviews(bus_reviews, "bus", lambda r: r.bus.bus_name),
+            annotate_reviews(package_reviews, "package", lambda r: str(r.package)),
+            annotate_reviews(app_reviews, "app", lambda r: "App Feedback")
+        ))
+
+        # Sort by created_at descending
+        sorted_reviews = sorted(combined_reviews, key=attrgetter('created_at'), reverse=True)
+
+        # Serialize manually using UnifiedReviewSerializer
+        serialized = UnifiedReviewSerializer([
+            {
+                "user": review.user.name,
+                "rating": review.rating,
+                "comment": review.comment,
+                "created_at": review.created_at,
+                "type": review.type,
+                "related_name": review.related_name
+            }
+            for review in sorted_reviews
+        ], many=True)
+
+        return Response(serialized.data, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+class TogglePopularStatusAPIView(APIView):
+    def post(self, request, bus_id):
+        try:
+            bus = Bus.objects.get(id=bus_id)
+            bus.is_popular = not bus.is_popular  # Toggle status
+            bus.save()
+            return Response({
+                "message": "Popular status updated successfully.",
+                "bus_id": bus.id,
+                "is_popular": bus.is_popular
+            }, status=status.HTTP_200_OK)
+        except Bus.DoesNotExist:
+            return Response({"error": "Bus not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+
+class AdminBusDeleteView(APIView):
+    permission_classes = [IsAdminUser]
+    authentication_classes = [JWTAuthentication]
+
+    def delete(self, request, pk):
+        try:
+            bus = Bus.objects.get(pk=pk)
+            bus.delete()
+            return Response({'message': 'Bus deleted successfully'}, status=status.HTTP_200_OK)
+        except Bus.DoesNotExist:
+            return Response({'error': 'Bus not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+class AdminPackageDeleteView(APIView):
+    permission_classes = [IsAdminUser]
+    authentication_classes = [JWTAuthentication]
+
+    def delete(self, request, pk):
+        try:
+            package = Package.objects.get(pk=pk)
+            package.delete()
+            return Response({'message': 'Package deleted successfully'}, status=status.HTTP_200_OK)
+        except Package.DoesNotExist:
+            return Response({'error': 'Package not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+class AmenityListCreateAPIView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        amenities = Amenity.objects.all()
+        serializer = AmenitySerializer(amenities, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = AmenitySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AmenityRetrieveUpdateDeleteAPIView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get_object(self, pk):
+        return get_object_or_404(Amenity, pk=pk)
+
+    def get(self, request, pk):
+        amenity = self.get_object(pk)
+        serializer = AmenitySerializer(amenity)
+        return Response(serializer.data)
+
+    def put(self, request, pk):
+        amenity = self.get_object(pk)
+        serializer = AmenitySerializer(amenity, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        amenity = self.get_object(pk)
+        amenity.delete()
+        return Response(
+        {"message": "Amenity deleted successfully."},
+        status=status.HTTP_200_OK
+    )
 
 
 

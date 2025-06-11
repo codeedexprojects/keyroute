@@ -6,13 +6,31 @@ from .models import Favourite,Wallet
 from admin_panel.utils import send_otp
 from vendors.models import Bus, Package
 from .models import ReferralRewardTransaction
+from admin_panel.models import Experience,Sight
+from admin_panel.models import *
+import calendar
+from vendors.models import *
+from bookings.serializers import *
 
 User = get_user_model()
 
 class ReferralCodeSerializer(serializers.ModelSerializer):
+    price = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['referral_code']
+        fields = ['referral_code', 'price','image']
+
+    def get_price(self, obj):
+        refer_and_earn_obj = ReferAndEarn.objects.first()
+        return refer_and_earn_obj.price if refer_and_earn_obj else None
+    
+    def get_image(self, obj):
+        refer_and_earn_obj = ReferAndEarn.objects.first()
+        if refer_and_earn_obj and refer_and_earn_obj.image:
+            return refer_and_earn_obj.image.url
+        return None
 
 class LoginSerializer(serializers.Serializer):
     mobile = serializers.CharField(max_length=15)
@@ -80,12 +98,23 @@ class UserCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user = User.objects.create(**validated_data)
-        
         referrer = self.context.get('referrer')
         if referrer:
-            Wallet.objects.create(user=user, referred_by=referrer)
-        
+            Wallet.objects.create(
+                user=user, 
+                referred_by=referrer.mobile,
+                referral_used=True
+            )
+        else:
+            Wallet.objects.create(user=user)
         return user
+
+
+# OTP Session model (Add this to your models.py)
+class OTPSessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OTPSession
+        fields = ['id', 'mobile', 'session_id', 'is_new_user', 'name', 'referral_code']
         
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -117,25 +146,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+    
 
-# class ReviewSerializer(serializers.ModelSerializer):
-#     user_name = serializers.SerializerMethodField(read_only=True)
-    
-#     class Meta:
-#         model = Review
-#         fields = ['id', 'user', 'rating', 'comment', 'created_at', 'user_name']
-#         read_only_fields = ['id', 'created_at', 'user_name']
-#         extra_kwargs = {
-#             'user': {'write_only': True, 'required': False},
-#         }
-        
-#     def get_user_name(self, obj):
-#         return obj.user.name if obj.user.name else obj.user.mobile
-    
-#     def create(self, validated_data):
-#         user = self.context['request'].user
-#         validated_data['user'] = user
-#         return Review.objects.create(**validated_data)
+class BusFeatureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusFeature
+        fields = ['id', 'name']    
+
+class AmenitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Amenity
+        fields = ['id', 'name', 'icon']
+
 
 class FavouriteSerializer(serializers.ModelSerializer):
     bus_details = serializers.SerializerMethodField(read_only=True)
@@ -150,13 +172,12 @@ class FavouriteSerializer(serializers.ModelSerializer):
 
     def get_bus_details(self, obj):
         if obj.bus:
-            from vendors.serializers import BusSerializer
-            return BusSerializer(obj.bus).data
+            return BusListingSerializer(obj.bus).data
         return None
         
     def get_package_details(self, obj):
         if obj.package:
-            from vendors.serializers import PackageSerializer
+            from bookings.serializers import PackageSerializer
             return PackageSerializer(obj.package).data
         return None
 
@@ -181,6 +202,7 @@ class FavouriteSerializer(serializers.ModelSerializer):
             favourite, created = Favourite.objects.get_or_create(user=user, package=package)
         return favourite
     
+    
 class WalletSerializer(serializers.ModelSerializer):
     class Meta:
         model = Wallet
@@ -188,31 +210,105 @@ class WalletSerializer(serializers.ModelSerializer):
 
 
 class OngoingReferralSerializer(serializers.ModelSerializer):
-    
+    referred_user_name = serializers.SerializerMethodField()
+
     class Meta:
         model = ReferralRewardTransaction
         fields = [
-            'id', 
-            'booking_type', 
-            'booking_id', 
-            'reward_amount', 
+            'id',
+            'booking_type',
+            'booking_id',
+            'reward_amount',
             'status',
             'created_at',
             'referrer',
-            'referred_user'
+            'referred_user_name'
         ]
 
+    def get_referred_user_name(self, obj):
+        return getattr(obj.referred_user, 'name', None)
+
+
 class ReferralHistorySerializer(serializers.ModelSerializer):
-    
+    referred_user_name = serializers.SerializerMethodField()
+
     class Meta:
         model = ReferralRewardTransaction
         fields = [
-            'id', 
-            'booking_type', 
-            'booking_id', 
-            'reward_amount', 
+            'id',
+            'booking_type',
+            'booking_id',
+            'reward_amount',
             'status',
             'created_at',
             'referrer',
-            'referred_user'
+            'referred_user_name'
         ]
+
+    def get_referred_user_name(self, obj):
+        return getattr(obj.referred_user, 'name', None)
+
+
+class ExperienceImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExperienceImage
+        fields = ['id', 'image']
+
+class ExperienceSerializer(serializers.ModelSerializer):
+    images = ExperienceImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Experience
+        fields = ['id', 'sight', 'header', 'sub_header', 'description', 'images']
+
+
+class SeasonTimeSerializer(serializers.ModelSerializer):
+    from_date = serializers.SerializerMethodField()
+    to_date = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SeasonTime
+        fields = '__all__'
+
+    def get_from_date(self, obj):
+        return calendar.month_name[obj.from_date.month]
+
+    def get_to_date(self, obj):
+        return calendar.month_name[obj.to_date.month]
+
+
+class SightImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SightImage
+        fields = ['id', 'image']
+
+
+class SightDetailSerializer(serializers.ModelSerializer):
+    images = SightImageSerializer(many=True, read_only=True)
+    experiences = ExperienceSerializer(many=True, read_only=True)
+    seasons = SeasonTimeSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Sight
+        fields = ['id', 'title', 'description', 'season_description', 'images', 'experiences', 'seasons']
+
+
+class SightSerializer(serializers.ModelSerializer):
+    images = SightImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Sight
+        fields = '__all__'
+
+
+class LimitedDealImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LimitedDealImage
+        fields = ['id', 'image']
+
+class LimitedDealSerializer(serializers.ModelSerializer):
+    images = LimitedDealImageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = LimitedDeal
+        fields = ['id', 'title', 'created_at', 'terms_and_conditions', 'offer', 'subtitle', 'images']

@@ -3,7 +3,7 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.utils import timezone
 import string
 import random
-
+from .utils import generate_referral_code
 
 # Create your models here.
 class UserManager(BaseUserManager):
@@ -11,13 +11,13 @@ class UserManager(BaseUserManager):
         if not mobile and not email:
             raise ValueError("Users must have a mobile number or email")
 
-        extra_fields.setdefault("role", "user")  # Default role to 'user' if not provided
+        extra_fields.setdefault("role", "user")
         user = self.model(mobile=mobile, email=self.normalize_email(email), **extra_fields)
 
         if password:
-            user.set_password(password)  # Vendors/Admins use passwords
+            user.set_password(password)
         else:
-            user.set_unusable_password()  # Normal users using OTP
+            user.set_unusable_password()
 
         user.save(using=self._db)
         return user
@@ -34,9 +34,32 @@ class UserManager(BaseUserManager):
         return self.create_user(mobile=mobile, email=email, password=password, **extra_fields)
     
 
-def generate_referral_code(length=7):
-    characters = string.ascii_letters + string.digits
-    return ''.join(random.choices(characters, k=length))
+class OTPSession(models.Model):
+    """
+    Model to store OTP session data instead of using cache
+    """
+    mobile = models.CharField(max_length=15)
+    session_id = models.CharField(max_length=100, unique=True)
+    is_new_user = models.BooleanField(default=False)
+    name = models.CharField(max_length=150, null=True, blank=True)
+    referral_code = models.CharField(max_length=10, null=True, blank=True)
+    referrer = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True, related_name='referred_otp_sessions')
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    
+    class Meta:
+        # Optional index to improve lookup performance
+        indexes = [
+            models.Index(fields=['mobile']),
+            models.Index(fields=['session_id']),
+        ]
+    
+    def __str__(self):
+        return f"OTP Session for {self.mobile} - {self.session_id}"
+        
+    def is_expired(self):
+        """Check if the OTP session has expired"""
+        return timezone.now() > self.expires_at
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -66,8 +89,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     objects = UserManager()
 
-    USERNAME_FIELD = "mobile"  # Default login with mobile
-    REQUIRED_FIELDS = []  # No required fields
+    USERNAME_FIELD = "mobile"
+    REQUIRED_FIELDS = []
 
     def save(self, *args, **kwargs):
         if not self.referral_code:
@@ -110,7 +133,8 @@ class Vendor(models.Model):
 
 class Advertisement(models.Model):
     title = models.CharField(max_length=255)
-    description = models.TextField(null=True, blank=True)
+    subtitle = models.CharField(max_length=255, null=True, blank=True) 
+    type = models.CharField(max_length=255, null=True, blank=True) 
     image = models.ImageField(upload_to="advertisements/")
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -120,8 +144,11 @@ class Advertisement(models.Model):
 
 class LimitedDeal(models.Model):
     title = models.CharField(max_length=255)
-    description = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    terms_and_conditions = models.TextField(null=True, blank=True)
+    offer = models.CharField(max_length=100, null=True, blank=True)
+    subtitle = models.CharField(max_length=255, blank=True, null=True) 
+
 
     def __str__(self):
         return f"Limited Deal - {self.title}"
@@ -135,22 +162,47 @@ class LimitedDealImage(models.Model):
         return f"Image for {self.deal.title}"
 
 
-class FooterSection(models.Model):
-    title = models.CharField(max_length=255)
-    description = models.TextField(null=True, blank=True)
-    image = models.ImageField(upload_to="footer_sections/")
+
+class ReferAndEarn(models.Model):
+    image = models.ImageField(upload_to="refer_and_earn/")
+    price = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Footer Section - {self.title}"
+        return f"Refer and Earn - ₹{self.price}"
 
+
+
+
+
+
+
+class FooterSection(models.Model):
+    main_image  = models.ImageField(upload_to="footer_sections/")
+    package = models.ForeignKey('vendors.Package', on_delete=models.CASCADE, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # def __str__(self):
+    #     return f"Footer Section - {self.package.id}"
+
+    def __str__(self):
+        return f"Footer Section - Package {self.package.id}" if self.package else "Footer Section - No Package"
+
+
+
+class FooterImage(models.Model):
+    footer_section = models.ForeignKey(FooterSection, on_delete=models.CASCADE, related_name='extra_images')
+    image = models.ImageField(upload_to="footer_sections/extra/")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Extra Image for Footer Section - {self.footer_section.id}"
 
  
 
 
 class Sight(models.Model):
     title = models.CharField(max_length=255)
-    image = models.ImageField(upload_to='sight_images/', null=True, blank=True)
     description = models.TextField()
     season_description = models.TextField()
 
@@ -158,9 +210,17 @@ class Sight(models.Model):
         return self.title
 
 
+class SightImage(models.Model):
+    sight = models.ForeignKey(Sight, related_name='images', on_delete=models.CASCADE)
+    image = models.ImageField(upload_to='sight_images/')
+
+    def __str__(self):
+        return f"Image for {self.sight.title}"
+
 class Experience(models.Model):
     sight = models.ForeignKey(Sight, related_name='experiences', on_delete=models.CASCADE)
-    image = models.ImageField(upload_to='experiences/')
+    header = models.CharField(max_length=255, blank=True, null=True)
+    sub_header = models.CharField(max_length=255, blank=True, null=True)
     description = models.TextField()
 
     def __str__(self):
@@ -168,6 +228,35 @@ class Experience(models.Model):
 
 
 
+class ExperienceImage(models.Model):
+    experience = models.ForeignKey(Experience, related_name='images', on_delete=models.CASCADE)
+    image = models.ImageField(upload_to='experiences/')
+
+    def __str__(self):
+        return f"Image for {self.experience}"
+
+
+
+
+
+class SeasonTime(models.Model):
+    sight = models.ForeignKey(Sight, related_name='seasons', on_delete=models.CASCADE)
+    from_date = models.DateField()
+    to_date = models.DateField()
+
+    header = models.CharField(max_length=255, blank=True, null=True)
+
+    icon1 = models.ImageField(upload_to='season_icons/', null=True, blank=True)
+    icon1_description = models.CharField(max_length=255, blank=True)
+
+    icon2 = models.ImageField(upload_to='season_icons/', null=True, blank=True)
+    icon2_description = models.CharField(max_length=255, blank=True)
+
+    icon3 = models.ImageField(upload_to='season_icons/', null=True, blank=True)
+    icon3_description = models.CharField(max_length=255, blank=True)
+
+    def __str__(self):
+        return f"Season from {self.from_date} to {self.to_date} for {self.sight.title}"
 
 
 
@@ -190,6 +279,8 @@ class AdminCommission(models.Model):
     advance_amount = models.DecimalField(max_digits=10, decimal_places=2)
     commission_percentage = models.DecimalField(max_digits=5, decimal_places=2)
     revenue_to_admin = models.DecimalField(max_digits=10, decimal_places=2)
+    original_revenue = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    referral_deduction = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

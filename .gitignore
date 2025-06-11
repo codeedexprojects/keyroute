@@ -28,10 +28,15 @@ __pycache__/
 Thumbs.db
 
 env
+venv
 
+keyroute/settings.py
 
-media
+*settings.py
 
 
 firbase/*.json
         
+
+media
+

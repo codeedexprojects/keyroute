@@ -3,6 +3,9 @@ from vendors.models import Package, Bus
 from django.core.validators import FileExtensionValidator, MinValueValidator
 from django.contrib.auth import get_user_model
 from datetime import date
+import random
+import datetime
+from admin_panel.models import *
 
 User = get_user_model()
 
@@ -19,29 +22,31 @@ class BaseBooking(models.Model):
         ('declined', 'Declined'),
     )
     TRIP_STATUS_CHOICES = (
-        ('not_started', 'Not Started'),
+        ('not_started','Not Started'),
         ('ongoing', 'Ongoing'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
     )
     
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    start_date = models.DateField()
+    start_date = models.DateField(null=True,blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     advance_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
-    
+    # Add this to BaseBooking
+    payout_status = models.BooleanField(default=False)
+    payout = models.ForeignKey('PayoutHistory', on_delete=models.SET_NULL, null=True, blank=True)
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
     booking_status = models.CharField(max_length=20, choices=BOOKING_STATUS_CHOICES, default='pending') 
     trip_status = models.CharField(max_length=20, choices=TRIP_STATUS_CHOICES, default='not_started')
 
     created_at = models.DateTimeField(auto_now_add=True)
     cancelation_reason = models.CharField(max_length=250,null=True,blank=True)
-    total_travelers = models.PositiveIntegerField(default=1)
+    total_travelers = models.PositiveIntegerField(default=0)
     male  = models.PositiveIntegerField(default=1)
     female  = models.PositiveIntegerField(default=1)
     children  = models.PositiveIntegerField(default=1)
-    from_location = models.CharField(max_length=150)
-    to_location = models.CharField(max_length=150)
+    from_location = models.CharField(max_length=255, null=True, blank=True)
+    to_location = models.CharField(max_length=255, null=True, blank=True)
     
     class Meta:
         abstract = True
@@ -50,19 +55,40 @@ class BaseBooking(models.Model):
     def balance_amount(self):
         return self.total_amount - self.advance_amount
     
+    def generate_unique_booking_id(self):
+        while True:
+            booking_id = random.randint(10000, 99999)
+            if not self.__class__.objects.filter(booking_id=booking_id).exists():
+                return booking_id
+
+    def save(self, *args, **kwargs):
+        if not self.booking_id:
+            self.booking_id = self.generate_unique_booking_id()
+        super().save(*args, **kwargs)
+    
 
 class BusBooking(BaseBooking):
+    booking_id = models.PositiveIntegerField(unique=True, editable=False)
     bus = models.ForeignKey(Bus, on_delete=models.CASCADE, related_name='bookings')
     one_way = models.BooleanField(default=True)
+    from_lat = models.FloatField()
+    from_lon = models.FloatField()
+    to_lat = models.FloatField(null=True, blank=True)
+    to_lon = models.FloatField(null=True, blank=True)
+    return_date = models.DateField(null=True,blank=True)
+    pick_up_time = models.TimeField(null=True,blank=True)
     
     def __str__(self):
-        return f"Bus Booking #{self.id} - {self.from_location} to {self.to_location} ({self.start_date})"
+        return f"Bus Booking #{self.booking_id} - {self.from_location} to {self.to_location} ({self.start_date})"
 
 class PackageBooking(BaseBooking):
+    booking_id = models.PositiveIntegerField(unique=True, editable=False)
+    rooms = models.IntegerField(default=1)
     package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='bookings')
     
     def __str__(self):
-        return f"Package Booking #{self.id} - {self.package.places} ({self.created_at})"
+        return f"Package Booking #{self.booking_id} - {self.package.places} ({self.created_at})"
+
 
 class Travelers(models.Model):
     """Model for individual travelers associated with a booking"""
@@ -82,7 +108,7 @@ class Travelers(models.Model):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100, blank=True, null=True)
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True, null=True)
-    age = models.PositiveBigIntegerField(default=1)
+    age = models.PositiveBigIntegerField(null=True,blank=True)
     dob = models.DateField(null=True, blank=True)
     
     # Contact information
@@ -104,7 +130,7 @@ class Travelers(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
-        booking_id = self.bus_booking.id if self.bus_booking else self.package_booking.id
+        booking_id = self.bus_booking.booking_id if self.bus_booking else self.package_booking.booking_id
         booking_type = "Bus" if self.bus_booking else "Package"
         return f"{self.first_name} {self.last_name or ''} - {booking_type} #{booking_id}"
     
@@ -136,6 +162,7 @@ class Travelers(models.Model):
 class BusDriverDetail(models.Model):
     bus_booking = models.OneToOneField('BusBooking', on_delete=models.CASCADE, related_name='driver_detail')
     name = models.CharField(max_length=150)
+    email = models.EmailField(max_length=255, null=True, blank=True) 
     place = models.CharField(max_length=150)
     phone_number = models.CharField(max_length=15)
     driver_image = models.ImageField(upload_to='driver_images/')
@@ -150,6 +177,7 @@ class BusDriverDetail(models.Model):
 class PackageDriverDetail(models.Model):
     package_booking = models.OneToOneField(PackageBooking, on_delete=models.CASCADE, related_name='driver_detail')
     name = models.CharField(max_length=150)
+    email = models.EmailField(max_length=255, null=True, blank=True) 
     place = models.CharField(max_length=150)
     phone_number = models.CharField(max_length=15)
     driver_image = models.ImageField(upload_to='driver_images/')
@@ -159,3 +187,97 @@ class PackageDriverDetail(models.Model):
 
     def __str__(self):
         return self.name
+    
+
+class UserBusSearch(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="bus_search")
+    one_way = models.BooleanField(default=True)
+    from_lat = models.FloatField(null=False, blank=False)
+    from_lon = models.FloatField(null=False, blank=False)
+    to_lat = models.FloatField(null=True, blank=True)
+    to_lon = models.FloatField(null=True, blank=True)
+    seat = models.IntegerField(null=True, blank=True)
+    ac = models.BooleanField(default=False)
+    pick_up_date = models.DateField(null=True, blank=True)
+    pick_up_time = models.TimeField(null=True, blank=True)
+    return_date = models.DateField(null=True, blank=True)
+    search = models.CharField(max_length=255, null=True, blank=True)
+    pushback = models.BooleanField(default=False)
+    from_location = models.CharField(max_length=255, null=True, blank=True)
+    to_location = models.CharField(max_length=255, null=True, blank=True)
+
+
+
+
+class PayoutHistory(models.Model):
+    PAYOUT_MODES = (
+        ('bank_transfer', 'Bank Transfer'),
+        ('upi', 'UPI'),
+        ('other', 'Other'),
+    )
+
+    admin = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE)
+    payout_date = models.DateTimeField(auto_now_add=True)
+    payout_mode = models.CharField(max_length=20, choices=PAYOUT_MODES)
+    payout_reference = models.CharField(max_length=100, blank=True, null=True)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    admin_commission = models.DecimalField(max_digits=12, decimal_places=2)
+    net_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    note = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Payout #{self.id} to {self.vendor.full_name}"
+
+class PayoutBooking(models.Model):
+    payout = models.ForeignKey(PayoutHistory, on_delete=models.CASCADE, related_name='bookings')
+    booking_type = models.CharField(max_length=10, choices=[('bus', 'Bus'), ('package', 'Package')])
+    booking_id = models.PositiveIntegerField()
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    commission = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.booking_type} booking #{self.booking_id}"
+    
+
+
+
+
+
+
+class WalletTransaction(models.Model):
+    TRANSACTION_TYPES = [
+        ('applied', 'Applied to Booking'),
+        ('removed', 'Removed from Booking'),
+        ('refund', 'Refunded'),
+        ('added', 'Added to Wallet'),
+        ('deducted', 'Deducted from Wallet'),
+    ]
+    
+    BOOKING_TYPES = [
+        ('bus', 'Bus Booking'),
+        ('package', 'Package Booking'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wallet_transactions')
+    booking_id = models.CharField(max_length=100)
+    booking_type = models.CharField(max_length=20, choices=BOOKING_TYPES)
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    balance_before = models.DecimalField(max_digits=10, decimal_places=2)
+    balance_after = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+    reference_id = models.CharField(max_length=100, blank=True, null=True)  # For tracking related transactions
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'booking_id', 'booking_type']),
+            models.Index(fields=['user', 'transaction_type']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.name} - {self.transaction_type} - ₹{self.amount} - {self.booking_type} ({self.booking_id})"

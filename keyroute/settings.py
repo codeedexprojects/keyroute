@@ -27,12 +27,16 @@ pymysql.install_as_MySQLdb()
 # Load environment variables from .env file
 load_dotenv()
 
+GOOGLE_MAPS_API_KEY = "AIzaSyCnNixdBmNb0cOCet3HofxffjMSKOsAm4w"
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-z-9l67w3%e0myi15k%dpjv5c61z3-*)&7$f6mtflm7*+$g$1+&'
+
+GOOGLE_DISTANCE_MATRIX_API_KEY = 'AIzaSyCnNixdBmNb0cOCet3HofxffjMSKOsAm4w'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -125,12 +129,12 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
 
 
 
@@ -143,19 +147,19 @@ CORS_ALLOW_CREDENTIALS = True
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'keyroute$database',
-        'USER': 'keyroute',
-        'PASSWORD': 'admin@123',
-        'HOST': 'keyroute.mysql.pythonanywhere-services.com',
-        'PORT': '3306',
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        }
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'keyroute$database',
+#         'USER': 'keyroute',
+#         'PASSWORD': 'admin@123',
+#         'HOST': 'keyroute.mysql.pythonanywhere-services.com',
+#         'PORT': '3306',
+#         'OPTIONS': {
+#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+#         }
+#     }
+# }
 
 
 
