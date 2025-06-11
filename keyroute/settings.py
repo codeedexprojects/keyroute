@@ -27,7 +27,7 @@ pymysql.install_as_MySQLdb()
 # Load environment variables from .env file
 load_dotenv()
 
-GOOGLE_MAPS_API_KEY = "AIzaSyCnNixdBmNb0cOCet3HofxffjMSKOsAm4w"
+GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
 
 
 import firebase_admin
@@ -54,9 +54,9 @@ if not firebase_admin._apps:
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-z-9l67w3%e0myi15k%dpjv5c61z3-*)&7$f6mtflm7*+$g$1+&'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
-GOOGLE_DISTANCE_MATRIX_API_KEY = 'AIzaSyCnNixdBmNb0cOCet3HofxffjMSKOsAm4w'
+GOOGLE_DISTANCE_MATRIX_API_KEY = os.getenv('GOOGLE_DISTANCE_MATRIX_API_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -90,8 +90,8 @@ EMAIL_BACKEND =  "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587 
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = "praveen.codeedex@gmail.com "
-EMAIL_HOST_PASSWORD = "fbmq ueku gkav mygc"
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER').strip()
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
