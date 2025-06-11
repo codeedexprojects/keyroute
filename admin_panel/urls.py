@@ -1,5 +1,9 @@
 from django.urls import path
 from admin_panel.views import *
+from rest_framework_simplejwt.views import (
+    TokenRefreshView,
+)
+from bookings.views import UnpaidBookingsAPI,CreatePayoutAPI,PayoutHistoryAPI,PayoutDetailAPI
 
 urlpatterns = [
     path('api/admin/login/', AdminLoginAPIView.as_view(), name='admin-login'),
@@ -22,6 +26,8 @@ urlpatterns = [
     # USERS LIST
     path('api/admin/users/', AllUsersAPIView.as_view(), name='all-users'),
     path('api/admin/users/<int:user_id>/', AllUsersAPIView.as_view(), name='single-user'),
+    #USER PDF
+    path('api/admin/users/pdf/', AllUsersPDFAPIView.as_view(), name='users-pdf'),
 
     # VENODR CREATING AND LISING
     path('api/admin/create-vendor/', AdminCreateVendorAPIView.as_view(), name='admin-create-vendor'),
@@ -30,12 +36,15 @@ urlpatterns = [
     # VENDOR SINGLE DATA
     path('api/admin/vendors/<int:vendor_id>/', AdminVendorDetailAPIView.as_view(), name='admin-vendor-detail'),
 
+    # VENDOR  STATUS
+    path('api/admin/toggle-vendor-status/<int:vendor_id>/', ToggleVendorStatusView.as_view(), name='toggle-vendor-status'), 
+
     # SINGLE VENDOR BUS LIST
     path('api/admin/vendors/<int:vendor_id>/buses/', AdminVendorBusListAPIView.as_view()),
 
     
-
-    # PACKAGE LISTING AND SINGLE DETAILS
+    # noted
+    # PACKAGE LISTING by vendor id  AND SINGLE DETAILS
     path('api/admin/vendor/<int:vendor_id>/packages/', AdminVendorPackageListAPIView.as_view()),
     path('api/admin/vendor/package/<int:package_id>/', AdminPackageDetailAPIView.as_view()),
 
@@ -44,18 +53,46 @@ urlpatterns = [
     path('api/admin/categories/', PackageCategoryListAPIView.as_view()),
 
     # NORMAL USER CREATING
-    path('api/admin/create-user/', AdminCreateUserView.as_view(), name='admin-create-user'),
+    # path('api/admin/create-user/', AdminCreateUserView.as_view(), name='admin-create-user'),
 
     #Advertisement CREATING AND LISTING
-    path('api/admin/sections/', AllSectionsCreateView.as_view(), name='create-sections'),
+    # path('api/admin/sections/', AllSectionsCreateView.as_view(), name='create-sections'),
+    # path('api/admin/advertisement/<int:ad_id>/', AdvertisementDetailView.as_view(), name='advertisement-detail'),
 
-    # EXPLORE
-    path('api/admin/explore/crete/', ExploreSectionCreateView.as_view(), name='create-explore-section'),
+    # ADV , LIMITED DEAL,FOOTER, REFER LISTING ----------------------------------------
+    path('api/admin/advertisement/', AdvertisementListView.as_view()),
+    path('api/admin/advertisement/<int:ad_id>/', AdvertisementDetailView.as_view()),
+    path('api/admin/limited-deals/', LimitedDealListView.as_view()),
+    path('api/admin/limited-deals/<int:deal_id>/', LimitedDealDetailView.as_view()),
+    path('api/admin/footer-sections/', FooterSectionListView.as_view()),
+    path('api/admin/footer-sections/<int:footer_id>/', FooterSectionDetailView.as_view()),
+    path('api/admin/refer-and-earn/', ReferAndEarnListView.as_view()),
+    path('api/admin/refer-and-earn/<int:ref_id>/', ReferAndEarnDetailView.as_view()),
+
+# -----------------------------------------------------------
+
+
+
+    # CREATING
+
+    path('api/admin/create/advertisement/', AdvertisementCreateView.as_view(), name='create_advertisement'),
+    path('api/admin/create/limited-deal/', LimitedDealCreateView.as_view(), name='create_limited_deal'),
+    path('api/admin/create/footer-section/', FooterSectionCreateView.as_view(), name='create_footer_section'),
+    path('api/admin/create/refer-and-earn/', ReferAndEarnCreateView.as_view(), name='create_refer_and_earn'),
+
+# -----------------------------
+
+    # EXPLORE create and edit
+    path('api/admin/explore/create/', ExploreSectionCreateView.as_view(), name='create-explore-section'),
     # edit
     path('api/admin/explore/<int:pk>/', ExploreSectionCreateView.as_view(), name='create-explore-section'),
 
     # EXPLORE LISTING
-    path('explore/list/', ExploreSectionListView.as_view(), name='explore-list'),
+    path('api/admin/explore/list/', ExploreSectionListView.as_view(), name='explore-list'),
+    # SINGLE EXPLORING
+    path('api/admin/explore/single/<int:sight_id>/', ExploreSectionDetailView.as_view(), name='explore-detail'),
+
+
 
 
     #ALL BOOKINGS
@@ -98,12 +135,21 @@ urlpatterns = [
     
     path('api/admin/reviews/', ListAllReviewsAPIView.as_view(), name='list-all-reviews'),
 
+    path('api/admin/combined-bookings/', CombinedBookingsAPIView.as_view(), name='combined-bookings'),
+
+    path('api/admin/payment-details/', PaymentDetailsAPIView.as_view(), name='payment-details'),
+
+    path('api/admin/booking-details/<str:booking_type>/<int:booking_id>/', SingleBookingDetailAPIView.as_view(), name='single-booking-detail'),
+    path('api/admin/payment-details/<str:booking_type>/<int:booking_id>/', SinglePaymentDetailAPIView.as_view(), name='single-payment-detail'),
 
 
     path('api/admin/buses/', BusAdminAPIView.as_view(), name='admin-bus-api'),
     # SINGLE BUS 
     # path('api/admin/bus/<int:bus_id>/', AdminBusDetailAPIView.as_view()),
     path('api/admin/bus/<int:bus_id>/', SingleBusDetailAPIView.as_view(), name='bus-detail'),
+
+    # USER CREATION
+    path('api/admin/create-user/', AdminCreateUserAPIView.as_view(), name='admin-create-user'),
 
 
     # PACKAGE LISTING
@@ -112,7 +158,44 @@ urlpatterns = [
 
 
 
+    path('api/admin/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'), 
+    path('api/admin/users/<int:user_id>/toggle-status/', ToggleUserActiveStatusAPIView.as_view(), name='toggle-user-status'),
 
+
+
+
+    path('api/admin/reviews/bus/', BusReviewListView.as_view(), name='bus-review-list'),
+    path('api/admin/reviews/package/', PackageReviewListView.as_view(), name='package-review-list'),
+    path('api/admin/reviews/app/', AppReviewListView.as_view(), name='app-review-list'),
+    path('api/admin/reviews/all/', AllReviewsListView.as_view(), name='all-review-list'),
+
+
+    # DASHBOARD RECENT REVIEW
+    path('api/admin/recent-reviews/', RecentReviewsAPIView.as_view(), name='recent-reviews'),
+
+
+
+    # bus popular
+    path('api/admin/bus/<int:bus_id>/toggle-popular/', TogglePopularStatusAPIView.as_view(), name='toggle-popular'),
+
+    # BUS DELETING
+    path('api/admin/bus/delete/<int:pk>/', AdminBusDeleteView.as_view(), name='admin-bus-delete'),
+
+    # PACKAGE DELETE
+    path('api/admin/package/delete/<int:pk>/', AdminPackageDeleteView.as_view(), name='admin-package-delete'),
+
+
+
+
+
+    path('api/admin/payout/unpaid-bookings/', UnpaidBookingsAPI.as_view(), name='unpaid-bookings'),
+    path('api/admin/payout/create/', CreatePayoutAPI.as_view(), name='create-payout'),
+    path('api/admin/payout/history/', PayoutHistoryAPI.as_view(), name='payout-history'),
+    path('api/admin/payout/history/<int:payout_id>/', PayoutDetailAPI.as_view(), name='payout-detail'),
+
+
+    path('api/admin/amenities/', AmenityListCreateAPIView.as_view(), name='amenity-list-create'),
+    path('api/admin/amenities/<int:pk>/', AmenityRetrieveUpdateDeleteAPIView.as_view(), name='amenity-detail'),
 
 
 

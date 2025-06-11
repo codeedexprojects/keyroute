@@ -5,7 +5,7 @@ from vendors.serializers import *
 from .models import AdminCommissionSlab, AdminCommission
 from bookings.models import *
 from .models import *
-from reviews.models import BusReview
+from reviews.models import BusReview,PackageReview,AppReview
 class VendorSerializer1(serializers.ModelSerializer):
     class Meta:
         model = Vendor
@@ -65,12 +65,22 @@ class AdminVendorSerializer(serializers.ModelSerializer):
         validated_data['user'] = user
         return Vendor.objects.create(**validated_data)
 
+class VendorBusyDateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VendorBusyDate
+        fields = ['date', 'from_time', 'to_time', 'reason']
+
+
 
 
 class VendorFullSerializer(serializers.ModelSerializer):
     user_id = serializers.IntegerField(source='user.id')
     buses = BusSerializer(source='bus_set', many=True, read_only=True)
     packages = PackageSerializer(source='package_set', many=True, read_only=True)
+    # busy_dates = VendorBusyDateSerializer(source='busy_dates', many=True, read_only=True)
+    busy_dates = VendorBusyDateSerializer(many=True, read_only=True)
+
+    
 
     bus_count = serializers.SerializerMethodField()
     package_count = serializers.SerializerMethodField()
@@ -94,7 +104,8 @@ class VendorFullSerializer(serializers.ModelSerializer):
             'package_count',
             'buses',
             'ongoing_buses',
-            'packages'
+            'packages',
+            'busy_dates', 
         ]
 
     def get_bus_count(self, obj):
@@ -108,7 +119,28 @@ class VendorFullSerializer(serializers.ModelSerializer):
         return BusSerializer(ongoing_buses, many=True).data
 
 
+    def get_available_packages(self, obj):
+        available_packages = obj.package_set.filter(status='available')
+        data = []
 
+        for package in available_packages:
+            data.append({
+                'package_name': f"{package.sub_category.name} - {package.places}",
+                'travels_name': obj.travels_name,
+                'bus_numbers': [bus.bus_number for bus in package.buses.all()],
+                'location': package.bus_location,
+                'days': package.days,
+                'day_plans': [
+                    {
+                        'day_number': day.day_number,
+                        'description': day.description,
+                        'night': day.night
+                    }
+                    for day in package.day_plans.all()
+                ]
+            })
+
+        return data
 
 
 
@@ -139,6 +171,7 @@ class BusDetailSerializer(serializers.ModelSerializer):
 # ADMIN SIDE VENDOR PACKAGE LISING
 class AdminPackageListSerializer(serializers.ModelSerializer):
     sub_category_name = serializers.CharField(source='sub_category.name', read_only=True)
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
@@ -146,11 +179,18 @@ class AdminPackageListSerializer(serializers.ModelSerializer):
             'id',
             'places',
             'days',
-            'nights',
             'ac_available',
-            'guide_included',
+            'guide_included', 
             'sub_category_name',
+            'image'
         ]
+
+    def get_image(self, obj):
+        first_image = obj.package_images.first()
+        if first_image and first_image.image:
+            request = self.context.get('request')
+            return request.build_absolute_uri(first_image.image.url) if request else first_image.image.url
+        return None
 
 
 
@@ -226,15 +266,18 @@ class DayPlanSerializer(serializers.ModelSerializer):
 class AdminPackageDetailSerializer(serializers.ModelSerializer):
     sub_category = PackageSubCategorySerializer(read_only=True)
     day_plans = DayPlanSerializer(many=True, read_only=True)
+    travels_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
         fields = [
             'id',
             'sub_category',
+            'extra_charge_per_km',
+            'price_per_person',
+            'travels_name', 
             'places',
             'days',
-            'nights',
             'ac_available',
             'guide_included',
             'header_image',
@@ -242,6 +285,12 @@ class AdminPackageDetailSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at'
         ]
+
+
+    def get_travels_name(self, obj):
+      
+        travels_names = obj.buses.select_related('vendor').values_list('vendor__travels_name', flat=True).distinct()
+        return list(travels_names)
 
 # -------------------------------- END---------------
 
@@ -309,26 +358,23 @@ class UserSerializer(serializers.ModelSerializer):
 class AdvertisementSerializer(serializers.ModelSerializer):
     class Meta:
         model = Advertisement
-        fields = ['title', 'description', 'image']
+        fields = ['id','title', 'type','subtitle', 'image']
 
 
 class LimitedDealImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = LimitedDealImage
-        fields = ['image']
+        fields = ['id','image']
 
 
 class LimitedDealSerializer(serializers.ModelSerializer):
-    # images = serializers.ListField(
-    #     child=serializers.ImageField(),
-    #     write_only=True,
-    #     required=False 
-    # )
+   
     images = LimitedDealImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = LimitedDeal
-        fields = ['title', 'description', 'images']
+        fields = ['id','title', 'offer','terms_and_conditions', 'images','subtitle']
+
 
     def create(self, validated_data):
         images = validated_data.pop('images', [])   
@@ -339,37 +385,79 @@ class LimitedDealSerializer(serializers.ModelSerializer):
 
         return limited_deal
 
+class ReferAndEarnSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReferAndEarn
+        fields = ['id', 'image', 'price', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+class FooterImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FooterImage
+        fields = ['id', 'image', 'uploaded_at']
 
 class FooterSectionSerializer(serializers.ModelSerializer):
+    extra_images = FooterImageSerializer(many=True, read_only=True) 
+    # package = PackageSerializer() 
+    package = serializers.PrimaryKeyRelatedField(queryset=Package.objects.all())
     class Meta:
         model = FooterSection
-        fields = ['title', 'description', 'image']
+
+        fields = ['id', 'package', 'main_image','extra_images','package']
 
 
 # --------------------------------------------------------
+class SightImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SightImage
+        fields = ['id', 'image']
 
+
+class ExperienceImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExperienceImage
+        fields = ['id', 'image']
 
 
 class ExperienceSerializer(serializers.ModelSerializer):
+    images = ExperienceImageSerializer(many=True, read_only=True)
+
     class Meta:
         model = Experience
-        fields = ['image', 'description',]
+        fields = ['id','images', 'description','header','sub_header']
 
 
 class SightSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Sight
-        fields = ['title', 'description', 'season_description','image']
+        fields = ['id','title', 'description', 'season_description']
 
+class SeasonTimeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SeasonTime
+        fields = '__all__'
 
+class SeasonTimeSerializer2(serializers.ModelSerializer):
+    class Meta:
+        model = SeasonTime
+        fields = ['id', 'from_date', 'to_date', 'description',
+                  'icon1', 'icon1_description',
+                  'icon2', 'icon2_description',
+                  'icon3', 'icon3_description']
 
 class SightListSerializer(serializers.ModelSerializer):
     experiences = ExperienceSerializer(many=True, read_only=True)
+    seasons = SeasonTimeSerializer(many=True, read_only=True)
+
+    images = SightImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = Sight
-        fields = ['id', 'title', 'description', 'season_description', 'experiences','image']
+        fields = ['id', 'title', 'description', 'experiences','seasons','images']
+
+
 
 
 
@@ -559,150 +647,201 @@ class BookingDisplaySerializer(serializers.Serializer):
         return f"Traveler {obj.id}"
 
 
+from rest_framework import serializers
+from bookings.models import BusBooking, PackageBooking, Travelers, BusDriverDetail, PackageDriverDetail
 
-
-
-
-
-
-class BusTravelImageSerializer(serializers.ModelSerializer):
+# Travelers Serializer
+class TravelerSerializer(serializers.ModelSerializer):
     class Meta:
-        model = BusTravelImage
-        fields = ['image']
+        model = Travelers
+        fields = '__all__'
+
+# Bus Driver Detail Serializer
+class BusDriverDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusDriverDetail
+        fields = '__all__'
+
+# Package Driver Detail Serializer
+class PackageDriverDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageDriverDetail
+        fields = '__all__'
+
+# BusBooking Serializer
+class BusBookingSerializer(serializers.ModelSerializer):
+    travelers = TravelerSerializer(many=True, read_only=True)
+    driver_detail = BusDriverDetailSerializer(read_only=True)
+    balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = BusBooking
+        fields = '__all__'
+
+# PackageBooking Serializer
+class PackageBookingSerializer(serializers.ModelSerializer):
+    travelers = TravelerSerializer(many=True, read_only=True)
+    driver_detail = PackageDriverDetailSerializer(read_only=True)
+    balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = PackageBooking
+        fields = '__all__'
 
 
-class BusFeatureSerializer(serializers.ModelSerializer):
+
+class PaymentDetailsSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    booking_type = serializers.CharField()
+    vendor_name = serializers.CharField()
+    bus_or_package = serializers.CharField()
+    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    advance_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    balance_amount = serializers.SerializerMethodField()
+    payment_status = serializers.CharField()
+
+    def get_balance_amount(self, obj):
+        total_amount = obj.get('total_amount') or 0
+        advance_amount = obj.get('advance_amount') or 0
+        return total_amount - advance_amount
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class AmenitySerializerADMINBUSDETAILS(serializers.ModelSerializer):
+    class Meta:
+        model = Amenity
+        fields = ['id', 'name']
+
+
+class BusFeatureSerializerADMINBUSDETAILS(serializers.ModelSerializer):
     class Meta:
         model = BusFeature
-        fields = ['id', 'name']  
+        fields = ['id', 'name']
 
 
-class BusAdminSerializer(serializers.ModelSerializer):
-    travels_name = serializers.CharField(source='vendor.full_name')   
-    images = BusTravelImageSerializer(source='travel_images', many=True, read_only=True)
-    bus_type = serializers.SerializerMethodField()
+class BusImageSerializerADMINBUSDETAILS(serializers.ModelSerializer):
+    class Meta:
+        model = BusImage
+        fields = ['id', 'bus_view_image']
+
+
+class BusTravelImageSerializerADMINBUSDETAILS(serializers.ModelSerializer):
+    class Meta:
+        model = BusTravelImage
+        fields = ['id', 'image']
+
+
+class BusAdminSerializerADMINBUSDETAILS(serializers.ModelSerializer):
+    amenities = AmenitySerializerADMINBUSDETAILS(many=True, read_only=True)
+    features = BusFeatureSerializerADMINBUSDETAILS(many=True, read_only=True)
+    images = BusImageSerializerADMINBUSDETAILS(many=True, read_only=True)
+    # travel_images = BusTravelImageSerializer(many=True, read_only=True)
+    average_rating = serializers.FloatField(read_only=True)
+    total_reviews = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = Bus
         fields = [
-            'id',
-            'travels_name',
-            'bus_number',
-            'capacity',
-            'vehicle_rc_number',
-            'status',
-            'bus_type',
+            'id', 'vendor', 'bus_name', 'bus_number', 'capacity',
+            'vehicle_description', 'vehicle_rc_number', 'travels_logo',
+            'rc_certificate', 'license', 'contract_carriage_permit',
+            'passenger_insurance', 'vehicle_insurance',
+            'amenities', 'features', 'base_price', 'price_per_km',
+            'minimum_fare', 'status', 'location', 'latitude', 'longitude',
+            'bus_type', 'is_popular', 'average_rating', 'total_reviews',
             'images',
         ]
 
 
-    def get_bus_type(self, obj):
-        return {feature.id: feature.name for feature in obj.features.all()}
 
 
 
-class AmenitySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Amenity
-        fields = ['id', 'name']  # customize as needed
 
-
-
-class BusDetailSerializerADMIN(serializers.ModelSerializer):
-    vendor_name = serializers.CharField(source='vendor.full_name')
-    bus_type = BusFeatureSerializer(source='features', many=True)
-    amenities = AmenitySerializer(many=True)
-    travels_logo = serializers.ImageField()
-    travel_images = BusTravelImageSerializer(many=True)
-    average_rating = serializers.FloatField(read_only=True)
-    total_reviews = serializers.IntegerField(read_only=True)
-
+class AdminUserCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
 
     class Meta:
-        model = Bus
-        fields = [
-            'id',
-            'vendor_name',
-            'bus_name',
-            'bus_number',
-            'capacity',
-            'vehicle_description',
-            'vehicle_rc_number',
-            'travels_logo',
-            'travel_images',
-            'rc_certificate',
-            'license',
-            'contract_carriage_permit',
-            'passenger_insurance',
-            'vehicle_insurance',
-            'base_price',
-            'price_per_km',
-            'minimum_fare',
-            'status',
-            'bus_type',
-            'amenities',
-            'average_rating',
-            'total_reviews',
-        ]
-
-
-class BusShortSerializer(serializers.ModelSerializer):
-    vendor_name = serializers.CharField(source='vendor.full_name')
-    features = BusFeatureSerializer(many=True)
-
-    class Meta:
-        model = Bus
-        fields = ['vendor_name', 'bus_number', 'features']
+        model = User
+        fields = ['name', 'mobile', 'email', 'password', 'role']
 
 
 
-class PackageListSerializer(serializers.ModelSerializer):
-    buses = BusShortSerializer(many=True)
-    duration = serializers.SerializerMethodField()
-    image = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Package
-        fields = [
-            'id',
-            'places',
-            'duration',
-            'price_per_person',
-            'image',
-            'buses'
-        ]
-
-    def get_duration(self, obj):
-        return f"{obj.days} Days / {obj.nights} Nights"
-    
-    def get_image(self, obj):
-        first_image = obj.package_images.first()
-        if first_image and first_image.image:
-            return first_image.image.url   
-        return None
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Email already exists.")
+        return value
     
 
+    def create(self, validated_data):
+        password = validated_data.pop('password')
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
 
-class PackageDetailSerializer(serializers.ModelSerializer):
-    vendor_name = serializers.CharField(source='vendor.full_name')
-    buses = serializers.SerializerMethodField()
-    header_image = serializers.SerializerMethodField()
-    day_plans = DayPlanSerializer(many=True)
 
+
+
+
+class BusReviewSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Package
-        fields = [
-            'id', 'vendor_name', 'buses', 'places', 'days', 'nights',
-            'ac_available', 'guide_included', 'price_per_person',
-            'header_image', 'day_plans'
-        ]
+        model = BusReview
+        fields = ['id', 'user', 'bus', 'rating', 'comment', 'created_at']
 
-    def get_buses(self, obj):
-        return [bus.bus_number for bus in obj.buses.all()]
+class PackageReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageReview
+        fields = ['id', 'user', 'package', 'rating', 'comment', 'created_at']
 
-    def get_header_image(self, obj):
-        request = self.context.get('request')
-        return request.build_absolute_uri(obj.header_image.url) if obj.header_image else None
+class AppReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AppReview
+        fields = ['id', 'user', 'rating', 'comment', 'created_at']
+
+
+
+
+
+class UnifiedReviewSerializer(serializers.Serializer):
+    user = serializers.CharField()
+    rating = serializers.FloatField()
+    comment = serializers.CharField(allow_blank=True, allow_null=True)
+    created_at = serializers.DateTimeField()
+    type = serializers.CharField()
+    related_name = serializers.CharField()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
