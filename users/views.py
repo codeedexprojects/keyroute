@@ -562,7 +562,7 @@ class FirebaseGoogleAuthView(APIView):
             email = decoded_token.get('email')
             name = decoded_token.get('name', '')
             picture = decoded_token.get('picture')
-            phone_number = decoded_token.get('phone_number')  # May be None
+            phone_number = decoded_token.get('phone_number')
             
             if not email:
                 return Response({
