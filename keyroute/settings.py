@@ -129,12 +129,12 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
 
 
@@ -163,19 +163,19 @@ DATABASES = {
 
 
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'keyroute_db',  # database name created in Step 1
-#         'USER': 'keyroute',
-#         'PASSWORD': 'admin123',
-#         'HOST': 'keyroute-db.cp86aus24g28.ap-south-1.rds.amazonaws.com',
-#         'PORT': '3306',
-#         'OPTIONS': {
-#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
-#         },
-#     }
-# }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'keyroute_db',  # database name created in Step 1
+        'USER': 'keyroute',
+        'PASSWORD': 'admin123',
+        'HOST': 'keyroute-db.cp86aus24g28.ap-south-1.rds.amazonaws.com',
+        'PORT': '3306',
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
+        },
+    }
+}
 
 # }
 # DATABASES['default']['CONN_MAX_AGE'] = 600  # Keep connections alive for 10 minutes
@@ -235,6 +235,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+
 import firebase_admin
 from firebase_admin import credentials
 import os
@@ -254,3 +255,4 @@ if not firebase_admin._apps:
             print(f"Firebase key file not found at: {FIREBASE_KEY_PATH}")
     except Exception as e:
         print(f"Error initializing Firebase: {e}")
+
