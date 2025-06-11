@@ -230,3 +230,23 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+import firebase_admin
+from firebase_admin import credentials
+import os
+
+# Define BASE_DIR if not already defined
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+if not firebase_admin._apps:
+    try:
+        FIREBASE_KEY_PATH = os.path.join(BASE_DIR, 'firbase', 'keyroutproject-firebase-adminsdk-fbsvc-ea737454d9.json')
+        
+        if os.path.exists(FIREBASE_KEY_PATH):
+            cred = credentials.Certificate(FIREBASE_KEY_PATH)
+            firebase_admin.initialize_app(cred)
+            print("Firebase initialized successfully")
+        else:
+            print(f"Firebase key file not found at: {FIREBASE_KEY_PATH}")
+    except Exception as e:
+        print(f"Error initializing Firebase: {e}")
