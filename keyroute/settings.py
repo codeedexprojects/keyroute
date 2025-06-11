@@ -240,9 +240,12 @@ import firebase_admin
 from firebase_admin import credentials
 import os
 
+# Define BASE_DIR if not already defined
+BASE_DIR = os.path.dirname(os.path.abspath(_file_))
+
 if not firebase_admin._apps:
     try:
-        FIREBASE_KEY_PATH = os.path.join(BASE_DIR, 'keyroutproject-firebase-adminsdk-fbsvc-ea737454d9.json')
+        FIREBASE_KEY_PATH = os.path.join(BASE_DIR, 'firbase', 'keyroutproject-firebase-adminsdk-fbsvc-ea737454d9.json')
         
         if os.path.exists(FIREBASE_KEY_PATH):
             cred = credentials.Certificate(FIREBASE_KEY_PATH)
@@ -251,3 +254,4 @@ if not firebase_admin._apps:
         else:
             print(f"Firebase key file not found at: {FIREBASE_KEY_PATH}")
     except Exception as e:
+        print(f"Error initializing Firebase: {e}")
