@@ -471,10 +471,6 @@ class PackageSubCategoryAPIView(APIView):
 
 
 
-
-
-
-
 # PACKAGE CRUD
 class PackageAPIView(APIView):
     parser_classes = [MultiPartParser, JSONParser]  
@@ -1128,25 +1124,6 @@ class CreatePackageAndDayPlanAPIView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -3151,7 +3128,8 @@ class AcceptedBusBookingListView(APIView):
             vendor = request.user.vendor   
             
             accepted_bus_bookings = BusBooking.objects.filter(
-                booking_status='accepted',   
+                booking_status='accepted',
+                trip_status='ongoing',
                 bus__vendor=vendor
             ).order_by('-created_at')
 
@@ -3351,7 +3329,8 @@ class AcceptedPackageBookingListView(APIView):
         try:
             vendor = request.user.vendor   
             accepted_bookings = PackageBooking.objects.filter(
-                booking_status='accepted',   
+                booking_status='accepted',
+                trip_status='ongoing',  
                 package__vendor=vendor   
             )
             
@@ -3810,6 +3789,13 @@ class UnifiedBookingDetailView(APIView):
 
 
 
+
+
+
+
+
+
+
 class PreAcceptPackageBookingDetailView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
@@ -3986,6 +3972,13 @@ class VendorTransactionHistoryAPIView(APIView):
 
         serializer = BaseBookingSerializer(transactions, many=True)
         return Response(serializer.data, status=200)
+
+
+
+
+
+
+
 
 
 

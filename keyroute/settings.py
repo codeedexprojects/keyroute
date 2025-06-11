@@ -27,16 +27,36 @@ pymysql.install_as_MySQLdb()
 # Load environment variables from .env file
 load_dotenv()
 
-GOOGLE_MAPS_API_KEY = "AIzaSyCnNixdBmNb0cOCet3HofxffjMSKOsAm4w"
+GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
+
+
+import firebase_admin
+from firebase_admin import credentials
+import os
+
+# Firebase initialization
+if not firebase_admin._apps:
+    try:
+        # Replace with your actual path to the Firebase service account key
+        FIREBASE_KEY_PATH = os.path.join(BASE_DIR, 'keyrouteuser-firebase-adminsdk-fbsvc-2b142f3163.json')
+        
+        if os.path.exists(FIREBASE_KEY_PATH):
+            cred = credentials.Certificate(FIREBASE_KEY_PATH)
+            firebase_admin.initialize_app(cred)
+            print("Firebase initialized successfully")
+        else:
+            print(f"Firebase key file not found at: {FIREBASE_KEY_PATH}")
+    except Exception as e:
+        print(f"Firebase initialization error: {e}")
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-z-9l67w3%e0myi15k%dpjv5c61z3-*)&7$f6mtflm7*+$g$1+&'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
-GOOGLE_DISTANCE_MATRIX_API_KEY = 'AIzaSyCnNixdBmNb0cOCet3HofxffjMSKOsAm4w'
+GOOGLE_DISTANCE_MATRIX_API_KEY = os.getenv('GOOGLE_DISTANCE_MATRIX_API_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -70,8 +90,8 @@ EMAIL_BACKEND =  "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587 
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = "praveen.codeedex@gmail.com "
-EMAIL_HOST_PASSWORD = "fbmq ueku gkav mygc"
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER').strip()
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -129,12 +149,12 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
 
 
@@ -163,19 +183,19 @@ DATABASES = {
 
 
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'keyroute_db',  # database name created in Step 1
-#         'USER': 'keyroute',
-#         'PASSWORD': 'admin123',
-#         'HOST': 'keyroute-db.cp86aus24g28.ap-south-1.rds.amazonaws.com',
-#         'PORT': '3306',
-#         'OPTIONS': {
-#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
-#         },
-#     }
-# }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'keyroute_db',  # database name created in Step 1
+        'USER': 'keyroute',
+        'PASSWORD': 'admin123',
+        'HOST': 'keyroute-db.cp86aus24g28.ap-south-1.rds.amazonaws.com',
+        'PORT': '3306',
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
+        },
+    }
+}
 
 # }
 # DATABASES['default']['CONN_MAX_AGE'] = 600  # Keep connections alive for 10 minutes
@@ -234,3 +254,25 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+import firebase_admin
+from firebase_admin import credentials
+import os
+
+# Define BASE_DIR if not already defined
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+if not firebase_admin._apps:
+    try:
+        FIREBASE_KEY_PATH = os.path.join(BASE_DIR, 'firbase', 'keyroutproject-firebase-adminsdk-fbsvc-ea737454d9.json')
+        
+        if os.path.exists(FIREBASE_KEY_PATH):
+            cred = credentials.Certificate(FIREBASE_KEY_PATH)
+            firebase_admin.initialize_app(cred)
+            print("Firebase initialized successfully")
+        else:
+            print(f"Firebase key file not found at: {FIREBASE_KEY_PATH}")
+    except Exception as e:
+        print(f"Error initializing Firebase: {e}")
+
