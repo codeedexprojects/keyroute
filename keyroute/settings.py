@@ -241,7 +241,7 @@ from firebase_admin import credentials
 import os
 
 # Define BASE_DIR if not already defined
-BASE_DIR = os.path.dirname(os.path.abspath(_file_))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if not firebase_admin._apps:
     try:
@@ -255,3 +255,4 @@ if not firebase_admin._apps:
             print(f"Firebase key file not found at: {FIREBASE_KEY_PATH}")
     except Exception as e:
         print(f"Error initializing Firebase: {e}")
+
