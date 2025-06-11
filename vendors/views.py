@@ -471,10 +471,6 @@ class PackageSubCategoryAPIView(APIView):
 
 
 
-
-
-
-
 # PACKAGE CRUD
 class PackageAPIView(APIView):
     parser_classes = [MultiPartParser, JSONParser]  
@@ -1128,25 +1124,6 @@ class CreatePackageAndDayPlanAPIView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
