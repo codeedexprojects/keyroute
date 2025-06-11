@@ -206,6 +206,9 @@ urlpatterns = [
    
 
     path('api/vendor/booking/complete/', CompleteTripAPIView.as_view(), name='complete_trip'),
+
+
+    path('api/vendor/verify-rc/', VehicleRCVerificationView.as_view(), name='verify-rc'),
 ]
 
 
