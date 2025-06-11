@@ -38,7 +38,7 @@ import os
 if not firebase_admin._apps:
     try:
         # Replace with your actual path to the Firebase service account key
-        FIREBASE_KEY_PATH = os.path.join(BASE_DIR, 'keyroutproject-firebase-adminsdk-fbsvc-ea737454d9.json')
+        FIREBASE_KEY_PATH = os.path.join(BASE_DIR, 'keyrouteuser-firebase-adminsdk-fbsvc-2b142f3163.json')
         
         if os.path.exists(FIREBASE_KEY_PATH):
             cred = credentials.Certificate(FIREBASE_KEY_PATH)
