@@ -212,4 +212,4 @@ urlpatterns = [
     path('api/vendor/verify-rc/', VehicleRCVerificationView.as_view(), name='verify-rc'),
 
 
-
+]
