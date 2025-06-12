@@ -27,36 +27,16 @@ pymysql.install_as_MySQLdb()
 # Load environment variables from .env file
 load_dotenv()
 
-GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
-
-
-import firebase_admin
-from firebase_admin import credentials
-import os
-
-# Firebase initialization
-if not firebase_admin._apps:
-    try:
-        # Replace with your actual path to the Firebase service account key
-        FIREBASE_KEY_PATH = os.path.join(BASE_DIR, 'keyrouteuser-firebase-adminsdk-fbsvc-2b142f3163.json')
-        
-        if os.path.exists(FIREBASE_KEY_PATH):
-            cred = credentials.Certificate(FIREBASE_KEY_PATH)
-            firebase_admin.initialize_app(cred)
-            print("Firebase initialized successfully")
-        else:
-            print(f"Firebase key file not found at: {FIREBASE_KEY_PATH}")
-    except Exception as e:
-        print(f"Firebase initialization error: {e}")
+GOOGLE_MAPS_API_KEY = "AIzaSyCnNixdBmNb0cOCet3HofxffjMSKOsAm4w"
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+SECRET_KEY = 'django-insecure-z-9l67w3%e0myi15k%dpjv5c61z3-*)&7$f6mtflm7*+$g$1+&'
 
-GOOGLE_DISTANCE_MATRIX_API_KEY = os.getenv('GOOGLE_DISTANCE_MATRIX_API_KEY')
+GOOGLE_DISTANCE_MATRIX_API_KEY = 'AIzaSyCnNixdBmNb0cOCet3HofxffjMSKOsAm4w'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -186,7 +166,7 @@ CORS_ALLOW_CREDENTIALS = True
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'keyroute_db',  # database name created in Step 1
+        'NAME': 'keyroute_db',  
         'USER': 'keyroute',
         'PASSWORD': 'admin123',
         'HOST': 'keyroute-db.cp86aus24g28.ap-south-1.rds.amazonaws.com',
