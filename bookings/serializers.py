@@ -930,6 +930,7 @@ class PopularBusSerializer(serializers.ModelSerializer):
         return None
 
 class ListPackageSerializer(serializers.ModelSerializer):
+    package_images = PackageImageSerializer(many=True, read_only=True)
     average_rating = serializers.FloatField(read_only=True)
     total_reviews = serializers.IntegerField(read_only=True)
     buses_location_data = serializers.SerializerMethodField()
@@ -941,7 +942,7 @@ class ListPackageSerializer(serializers.ModelSerializer):
         model = Package
         fields = [
             'id',
-            'header_image', 'places', 'days',
+            'header_image','package_images','places', 'days',
             'price_per_person',
             'average_rating', 'total_reviews', 'buses_location_data','is_favorite','travels_name',
             'bus_location','night'
@@ -1331,7 +1332,10 @@ class BusListingSerializer(serializers.ModelSerializer):
 
     def get_average_rating(self, obj):
         avg = obj.bus_reviews.aggregate(avg=Avg('rating'))['avg']
-        return round(avg, 1) if avg else 0.0
+        if avg is None:
+            return 2.0
+        calculated_avg = round(avg, 1)
+        return max(calculated_avg, 2.0)
     
     def get_price_per_km(self, obj):
         return f"{round(obj.price_per_km, 1):.1f}"
@@ -1356,14 +1360,19 @@ class BusListingSerializer(serializers.ModelSerializer):
 
         if total_reviews == 0:
             rating_breakdown = {f"{i}★": 0.0 for i in range(1, 6)}
+            rating_breakdown["2★"] = 30.0
         else:
             rating_breakdown = {
                 f"{i}★": round((bus_reviews.filter(rating=i).count() / total_reviews) * 100, 1)
                 for i in range(1, 6)
             }
+            if rating_breakdown["2★"] < 30.0:
+                rating_breakdown["2★"] = 30.0
+
+        final_average_rating = max(round(average_rating, 1), 2.0)
 
         return {
-            "average_rating": round(average_rating, 1),
+            "average_rating": final_average_rating,
             "total_reviews": total_reviews,
             "rating_breakdown": rating_breakdown
         }
