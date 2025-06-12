@@ -471,10 +471,6 @@ class PackageSubCategoryAPIView(APIView):
 
 
 
-
-
-
-
 # PACKAGE CRUD
 class PackageAPIView(APIView):
     parser_classes = [MultiPartParser, JSONParser]  
@@ -1128,25 +1124,6 @@ class CreatePackageAndDayPlanAPIView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -4019,3 +3996,60 @@ class VendorTransactionHistoryAPIView(APIView):
 
 
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+import requests
+
+def get_access_token():
+    url = "https://production.deepvue.tech/v1/authorize"
+    payload = {
+        'client_id': '2732a5119a',
+        'client_secret': '26fbe96efaf24488b16ef65acdb869ea'
+    }
+
+    try:
+        response = requests.post(url, data=payload)
+        response.raise_for_status()
+        data = response.json()
+        return data.get("access_token")
+    except requests.exceptions.RequestException as e:
+        print("Error fetching access token:", e)
+        return None
+
+class VehicleRCVerificationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        rc_number = request.data.get("rc_number")
+        if not rc_number:
+            return Response({"error": "RC number is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        access_token = get_access_token()
+        if not access_token:
+            return Response({"error": "Failed to retrieve access token"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        url = f"https://production.deepvue.tech/v1/verification/rc-advanced?rc_number={rc_number}"
+
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'x-api-key': '26fbe96efaf24488b16ef65acdb869ea',
+            'Content-Type': 'application/json'
+        }
+
+        try:
+            response = requests.get(url, headers=headers)
+
+            if response.status_code == 200:
+                data = response.json()
+                return Response(data, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    "error": "Verification failed",
+                    "status_code": response.status_code,
+                    "details": response.text
+                }, status=response.status_code)
+
+        except requests.exceptions.RequestException as e:
+            return Response({"error": "Request failed", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

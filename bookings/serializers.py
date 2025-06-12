@@ -369,7 +369,7 @@ class SingleBusBookingSerializer(serializers.ModelSerializer):
         fields = [
             'booking_id', 'from_location', 'advance_amount','pick_up_time','to_location', 'start_date', 
             'end_date', 'total_travelers', 'total_amount', 'price_per_km',
-            'paid_amount', 'bus_name', 'booking_type','one_way','trip_status'
+            'paid_amount', 'bus_name', 'booking_type','one_way','trip_status','balance_amount'
         ]
 
     def get_price_per_km(self, obj):
@@ -438,7 +438,7 @@ class SinglePackageBookingSerilizer(serializers.ModelSerializer):
             'start_date', 'end_date', 'total_travelers',
             'total_amount', 'paid_amount', 'bus_name',
             'booking_type', 'male', 'female', 'children',
-            'day_wise_plan','trip_status'
+            'day_wise_plan','trip_status','balance_amount'
         ]
 
     def get_end_date(self, obj):
