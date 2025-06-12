@@ -83,6 +83,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     profile_image = models.ImageField(upload_to='profile_images/', null=True, blank=True)
     referral_code = models.CharField(max_length=7, unique=True, null=True, blank=True)
+    
+    firebase_uid = models.CharField(max_length=128, unique=True, null=True, blank=True)
 
     created_at = models.DateTimeField(default=timezone.now)
     city = models.CharField(max_length=255, null=True, blank=True)
@@ -102,7 +104,22 @@ class User(AbstractBaseUser, PermissionsMixin):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.mobile if self.mobile else (self.email if self.email else "Unnamed User")
+        if self.mobile:
+            return self.mobile
+        elif self.email:
+            return self.email
+        else:
+            return "Unnamed User"
+
+    class Meta:
+        # Add constraint to ensure unique email when not null
+        constraints = [
+            models.UniqueConstraint(
+                fields=['email'],
+                condition=models.Q(email__isnull=False),
+                name='unique_email_when_not_null'
+            )
+        ]
 
 
 

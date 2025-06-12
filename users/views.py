@@ -530,3 +530,163 @@ class GetLocationAPIView(APIView):
             })
 
         return Response({'locations': data})
+    
+
+
+
+import firebase_admin
+from firebase_admin import auth, credentials
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import login
+import requests
+
+class FirebaseGoogleAuthView(APIView):
+    def post(self, request):
+        firebase_token = request.data.get('firebase_token')
+        referral_code = request.data.get('referral_code')
+        
+        if not firebase_token:
+            return Response({
+                "error": "Firebase token is required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Verify the Firebase ID token
+            decoded_token = auth.verify_id_token(firebase_token)
+            
+            # Extract user information from Firebase token
+            firebase_uid = decoded_token['uid']
+            email = decoded_token.get('email')
+            name = decoded_token.get('name', '')
+            picture = decoded_token.get('picture')
+            phone_number = decoded_token.get('phone_number')
+            
+            if not email:
+                return Response({
+                    "error": "Email is required from Google account"
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Check if user already exists
+            user = None
+            is_new_user = False
+            
+            # First try to find by email
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                # If phone number exists, try to find by mobile
+                if phone_number:
+                    try:
+                        user = User.objects.get(mobile=phone_number)
+                        # Update the user with Google info
+                        user.email = email
+                        user.name = name or user.name
+                        user.is_google_user = True
+                        user.firebase_uid = firebase_uid
+                        user.save()
+                    except User.DoesNotExist:
+                        pass
+            
+            # If user doesn't exist, create new user
+            if not user:
+                is_new_user = True
+                
+                # Validate referral code if provided
+                referrer = None
+                if referral_code:
+                    try:
+                        referrer = User.objects.get(referral_code=referral_code)
+                        # Check if user is trying to refer themselves (by email)
+                        if email == referrer.email:
+                            return Response({
+                                "error": "You cannot refer yourself"
+                            }, status=status.HTTP_400_BAD_REQUEST)
+                    except User.DoesNotExist:
+                        return Response({
+                            "error": "Invalid referral code"
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Create new user
+                user_data = {
+                    'email': email,
+                    'name': name,
+                    'mobile': phone_number,
+                    'is_google_user': True,
+                    'firebase_uid': firebase_uid,
+                }
+                
+                serializer = GoogleUserCreateSerializer(
+                    data=user_data,
+                    context={"referrer": referrer}
+                )
+                
+                if serializer.is_valid():
+                    user = serializer.save()
+                else:
+                    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Download and save profile image if available
+                if picture:
+                    try:
+                        self.save_profile_image_from_url(user, picture)
+                    except Exception as e:
+                        print(f"Failed to save profile image: {str(e)}")
+            
+            # Generate JWT tokens
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+            
+            # Login user
+            login(request, user)
+            
+            return Response({
+                "message": "Google authentication successful",
+                "is_new_user": is_new_user,
+                "access_token": access_token,
+                "refresh_token": str(refresh),
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "mobile": user.mobile,
+                    "name": user.name,
+                    "role": user.role,
+                    "profile_image": user.profile_image.url if user.profile_image else None,
+                    "referral_code": user.referral_code,
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except auth.InvalidIdTokenError:
+            return Response({
+                "error": "Invalid Firebase token"
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        except Exception as e:
+            print(f"Firebase auth error: {str(e)}")
+            return Response({
+                "error": "Authentication failed"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def save_profile_image_from_url(self, user, image_url):
+        """Download and save profile image from Google"""
+        try:
+            import os
+            from django.core.files.base import ContentFile
+            from django.core.files.storage import default_storage
+            
+            response = requests.get(image_url, timeout=10)
+            if response.status_code == 200:
+                # Create filename
+                file_extension = 'jpg'  # Google images are usually jpg
+                filename = f'profile_images/google_{user.id}_{user.firebase_uid[:8]}.{file_extension}'
+                
+                # Save image
+                user.profile_image.save(
+                    filename,
+                    ContentFile(response.content),
+                    save=True
+                )
+        except Exception as e:
+            print(f"Error saving profile image: {str(e)}")
+            raise e
