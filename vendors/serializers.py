@@ -926,11 +926,12 @@ class PackageReadSerializer(serializers.ModelSerializer):
     buses = BusSerializer2(many=True, read_only=True)
     nights = serializers.SerializerMethodField()
     category = serializers.SerializerMethodField()
+    sub_category_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
         fields = [
-            'id', 'sub_category', 'category',
+            'id','sub_category', 'sub_category_name', 'category',
             'header_image', 'places', 'days', 'nights',
             'ac_available', 'guide_included', 'buses', 'day_plans',
             'created_at', 'updated_at', 'bus_location',
@@ -942,6 +943,9 @@ class PackageReadSerializer(serializers.ModelSerializer):
 
     def get_category(self, obj):
         return obj.sub_category.category.name
+    
+    def get_sub_category_name(self, obj):
+        return obj.sub_category.name
 
 
 
@@ -1187,7 +1191,7 @@ class BusBookingBasicSerializer(serializers.ModelSerializer):
     class Meta:
         model = BusBooking
         fields = ['booking_id','bus_number', 'from_location', 'to_location', 'total_amount','commission_amount','trip_type','total_members',
-            'one_member_name','created_date','earnings']
+            'one_member_name','created_date','earnings','balance_amount']
 
 
 
@@ -1563,7 +1567,7 @@ class PackageBookingListSerializer(serializers.ModelSerializer):
     class Meta:
         model = PackageBooking
         fields = ['booking_id', 'start_date', 'total_amount', 'advance_amount', 'payment_status', 'booking_status', 
-                  'from_location', 'to_location', 'created_at', 'total_travelers', 'male', 'female', 'children', 
+                  'from_location', 'to_location', 'created_at', 'total_travelers', 'male', 'female', 'children','balance_amount',
                   'cancelation_reason']
 
 

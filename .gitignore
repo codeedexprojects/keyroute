@@ -31,7 +31,7 @@ env
 venv
 
 keyroute/settings.py
-
+keyrouteuser-firebase-adminsdk-fbsvc-2b142f3163.json
 *settings.py
 
 
@@ -40,4 +40,11 @@ firbase/*.json
 
 media
 
+<<<<<<< HEAD
+keyroutproject-firebase-adminsdk-fbsvc-ea737454d9.json
 *.json
+=======
+keyrouteuser-firebase-adminsdk-fbsvc-2b142f3163.json
+
+.env
+>>>>>>> 613023b (test)
