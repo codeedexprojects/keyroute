@@ -37,6 +37,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import *
 from admin_panel.models import OTPSession
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 User = get_user_model()
 
@@ -690,3 +691,23 @@ class FirebaseGoogleAuthView(APIView):
         except Exception as e:
             print(f"Error saving profile image: {str(e)}")
             raise e
+        
+
+
+
+class DeleteUserAccountView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def delete(self, request):
+        user = request.user
+        user.delete()  # Deletes associated Vendor automatically if vendor
+        return Response({"message": "User account deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+
+
+
+
+
+    
