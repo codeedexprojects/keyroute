@@ -4,7 +4,7 @@ from .views import (UserLogoutView, UserProfileAPIView,  AuthenticationView,
                     GetWalletView,OngoingReferralsView,ReferralHistoryView,
                     SightDetailView,ExperienceView,ExperienceDetailView,RemoveFavouriteAPIView,SeasonTimeDetailView,
                     SeasonTimeView,SightView,GreetingAPIView,ResendOTPView,
-                    SimilarExperienceView,LimitedDealListAPIView,GetLocationAPIView,FirebaseGoogleAuthView)
+                    SimilarExperienceView,LimitedDealListAPIView,GetLocationAPIView,FirebaseGoogleAuthView,DeleteUserAccountView)
 
 urlpatterns = [
     path('auth/', AuthenticationView.as_view(), name='authentication'),
@@ -45,5 +45,7 @@ urlpatterns = [
 
     path('limited-deals/', LimitedDealListAPIView.as_view(), name='limited-deal-list'),
 
-    path('get-locations/',GetLocationAPIView.as_view(),name="get-locations")
+    path('get-locations/',GetLocationAPIView.as_view(),name="get-locations"),
+
+    path('user/delete-account/', DeleteUserAccountView.as_view(), name='delete-user-account'),
 ]
