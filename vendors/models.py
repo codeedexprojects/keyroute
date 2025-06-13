@@ -262,20 +262,19 @@ class ActivityImage(models.Model):
 
 class VendorBankDetail(models.Model):
     vendor = models.OneToOneField(Vendor, on_delete=models.CASCADE, related_name="bank_detail")
+    
+    holder_name = models.CharField(max_length=100, blank=False, null=False)
+    payout_mode = models.CharField(max_length=50,blank=False, null=False)
+    phone_number = models.CharField(max_length=15, blank=False, null=False)
+    ifsc_code = models.CharField(max_length=20,blank=False, null=False)
+    email_id = models.EmailField(blank=False, null=False)
+    account_number = models.CharField(max_length=50,blank=False, null=False)
 
-    account_number = models.CharField(max_length=50)
-    ifsc_code = models.CharField(max_length=20)
-    payout_amount = models.DecimalField(max_digits=12, decimal_places=2)
-    payout_mode = models.CharField(max_length=50)
-
-    phone_number = models.CharField(max_length=15, blank=True, null=True)
-    email_id = models.EmailField(blank=True, null=True)
+    payout_amount = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
     customer_id = models.CharField(max_length=100, blank=True, null=True)
     pay_id = models.CharField(max_length=100, blank=True, null=True)
     payout_narration = models.TextField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
-    holder_name = models.CharField(max_length=100, blank=True, null=True)
-
 
     def __str__(self):
         return f"{self.vendor.full_name} - {self.account_number}"
