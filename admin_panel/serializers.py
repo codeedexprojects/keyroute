@@ -506,7 +506,7 @@ class AdminBaseBookingSerializer(serializers.ModelSerializer):
         abstract = True
         fields = ['id', 'user', 'start_date', 'total_amount', 'advance_amount', 
                  'payment_status', 'booking_status', 'trip_status', 'created_at', 
-                 'balance_amount', 'cancelation_reason', 'total_travelers', 
+                 'balance_amount', 'cancellation_reason', 'total_travelers', 
                  'male', 'female', 'children', 'from_location', 'to_location']
         read_only_fields = ['id', 'created_at', 'balance_amount']
         extra_kwargs = {

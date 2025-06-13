@@ -1254,7 +1254,7 @@ class BusBookingDetailSerializer222(serializers.ModelSerializer):
             'id', 'user', 'bus', 'from_location', 'to_location',
             'start_date', 'total_amount', 'advance_amount',
             'balance_amount', 'payment_status', 'one_way',
-            'travelers','trip_status','booking_status','cancelation_reason','created_at',
+            'travelers','trip_status','booking_status','cancellation_reason','created_at',
             'payment_date', 'base_price',
             'payment_type', 'paid_advance_only'
         ]
@@ -1350,7 +1350,7 @@ class PackageBookingDetailSerializer222(serializers.ModelSerializer):
         model = PackageBooking
         fields = [
             'id', 'user', 'package_name', 'start_date', 'total_amount', 'advance_amount', 'balance_amount',
-            'payment_status',  'created_at', 'cancelation_reason',
+            'payment_status',  'created_at', 'cancellation_reason',
             'total_travelers', 'from_location', 'to_location', 'travelers','main_traveler_name','booking_status','bus_numbers','trip_status',
             'base_price', 'payment_type', 'paid_advance_only','payment_date'
         ]
@@ -1419,7 +1419,7 @@ class CombinedBookingSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField()
     members_count = serializers.SerializerMethodField()
     phone_number = serializers.SerializerMethodField() 
-    cancelation_reason = serializers.CharField()
+    cancellation_reason = serializers.CharField()
 
     def get_type(self, obj):
         return "bus" if isinstance(obj, BusBooking) else "package"
@@ -1523,7 +1523,7 @@ class AcceptedBusBookingSerializer(serializers.ModelSerializer):
         model = BusBooking
         fields = ['id', 'start_date', 'total_amount', 'advance_amount', 'balance_amount','payment_status', 'booking_status', 
                   'from_location', 'to_location', 'created_at', 'total_travelers', 'male', 'female', 'children', 
-                  'cancelation_reason', 'driver_detail','traveler'] 
+                  'cancellation_reason', 'driver_detail','traveler'] 
         
 
     def get_traveler(self, obj):
@@ -1551,7 +1551,7 @@ class AcceptedPackageBookingSerializer(serializers.ModelSerializer):
         model = PackageBooking
         fields = ['id', 'start_date', 'total_amount', 'advance_amount', 'balance_amount','payment_status', 'booking_status', 
                   'from_location', 'to_location', 'created_at', 'total_travelers', 'male', 'female', 'children', 
-                  'cancelation_reason', 'driver_detail','traveler']
+                  'cancellation_reason', 'driver_detail','traveler']
         
     def get_traveler(self, obj):
         traveler = obj.travelers.first()
@@ -1568,7 +1568,7 @@ class PackageBookingListSerializer(serializers.ModelSerializer):
         model = PackageBooking
         fields = ['booking_id', 'start_date', 'total_amount', 'advance_amount', 'payment_status', 'booking_status', 
                   'from_location', 'to_location', 'created_at', 'total_travelers', 'male', 'female', 'children','balance_amount',
-                  'cancelation_reason']
+                  'cancellation_reason']
 
 
 
