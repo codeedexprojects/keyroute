@@ -39,27 +39,20 @@ class WalletTransactionService:
     @staticmethod
     @transaction.atomic
     def apply_wallet_to_booking(user, booking_id, booking_type, wallet_amount, description=None):
-        """Apply wallet amount to a booking and create transaction record"""
         try:
-            # Get user's wallet
             wallet = Wallet.objects.select_for_update().get(user=user)
-            
-            # Validate wallet balance
+
             if wallet.balance < wallet_amount:
                 raise ValueError("Insufficient wallet balance")
-            
-            # Create reference ID for tracking
+
             reference_id = str(uuid.uuid4())[:8]
-            
-            # Record balance before transaction
             balance_before = wallet.balance
-            
-            # Deduct from wallet
+
             wallet.balance -= wallet_amount
+            wallet.wallet_used = True
             balance_after = wallet.balance
             wallet.save()
-            
-            # Create transaction record
+
             wallet_transaction = WalletTransaction.objects.create(
                 user=user,
                 booking_id=booking_id,
@@ -72,11 +65,9 @@ class WalletTransactionService:
                 reference_id=reference_id,
                 is_active=True
             )
-            
-            logger.info(f"Applied wallet ₹{wallet_amount} to {booking_type} booking {booking_id} for user {user.id}")
-            
+
             return wallet_transaction, wallet
-            
+
         except Exception as e:
             logger.error(f"Error applying wallet to booking: {str(e)}")
             raise e
@@ -84,9 +75,7 @@ class WalletTransactionService:
     @staticmethod
     @transaction.atomic
     def remove_wallet_from_booking(user, booking_id, booking_type, description=None):
-        """Remove wallet amount from a booking and restore to wallet - Updates existing transaction"""
         try:
-            # Get the active wallet transaction for this booking
             wallet_transaction = WalletTransaction.objects.select_for_update().get(
                 booking_id=booking_id,
                 booking_type=booking_type,
@@ -94,34 +83,23 @@ class WalletTransactionService:
                 transaction_type='applied',
                 is_active=True
             )
-            
-            # Get user's wallet
+
             wallet = Wallet.objects.select_for_update().get(user=user)
-            
-            # Get the wallet amount from the transaction record
             wallet_amount_restored = wallet_transaction.amount
-            
-            # Restore wallet balance
+
             wallet.balance += wallet_amount_restored
+            wallet.wallet_used = False
             wallet.save()
-            
-            # Update the existing transaction record
+
             wallet_transaction.is_active = False
             wallet_transaction.transaction_type = 'removed'
-            wallet_transaction.balance_after = wallet.balance  # Update balance_after to current wallet balance
-            if description:
-                wallet_transaction.description = description
-            else:
-                wallet_transaction.description = f"Removed from {booking_type} booking {booking_id}"
-            
-            # Update the timestamp to show when it was removed
+            wallet_transaction.balance_after = wallet.balance
+            wallet_transaction.description = description or f"Removed from {booking_type} booking {booking_id}"
             wallet_transaction.updated_at = timezone.now()
             wallet_transaction.save()
-            
-            logger.info(f"Removed wallet ₹{wallet_amount_restored} from {booking_type} booking {booking_id} for user {user.id}")
-            
+
             return wallet_transaction, wallet, wallet_amount_restored
-            
+
         except WalletTransaction.DoesNotExist:
             raise ValueError("No active wallet transaction found for this booking")
         except Exception as e:

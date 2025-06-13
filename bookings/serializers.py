@@ -1,6 +1,6 @@
 
 from rest_framework import serializers
-from .models import BusBooking, PackageBooking, Travelers, UserBusSearch, PackageDriverDetail,PayoutHistory
+from .models import BusBooking, PackageBooking, Travelers, UserBusSearch, PackageDriverDetail,PayoutHistory,BusDriverDetail
 from vendors.models import Package, Bus
 from admin_panel.utils import get_admin_commission_from_db, get_advance_amount_from_db
 from admin_panel.models import AdminCommission
@@ -50,7 +50,7 @@ class BaseBookingSerializer(serializers.ModelSerializer):
         abstract = True
         fields = ['booking_id', 'user', 'start_date','total_amount', 'advance_amount', 
                  'payment_status', 'booking_status', 'trip_status', 'created_at', 
-                 'balance_amount', 'cancelation_reason', 'total_travelers', 
+                 'balance_amount', 'cancellation_reason', 'total_travelers', 
                  'male', 'female', 'children', 'from_location', 'to_location']
         read_only_fields = ['id', 'created_at', 'balance_amount']
         extra_kwargs = {
@@ -1519,6 +1519,12 @@ class BusListResponseSerializer(serializers.Serializer):
 class PackageDriverDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = PackageDriverDetail
+        fields = '__all__'
+
+
+class BusDriverDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusDriverDetail
         fields = '__all__'
 
 
