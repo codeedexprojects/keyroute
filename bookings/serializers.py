@@ -1,6 +1,6 @@
 
 from rest_framework import serializers
-from .models import BusBooking, PackageBooking, Travelers, UserBusSearch, PackageDriverDetail,PayoutHistory
+from .models import BusBooking, PackageBooking, Travelers, UserBusSearch, PackageDriverDetail,PayoutHistory,BusDriverDetail
 from vendors.models import Package, Bus
 from admin_panel.utils import get_admin_commission_from_db, get_advance_amount_from_db
 from admin_panel.models import AdminCommission
@@ -50,7 +50,7 @@ class BaseBookingSerializer(serializers.ModelSerializer):
         abstract = True
         fields = ['booking_id', 'user', 'start_date','total_amount', 'advance_amount', 
                  'payment_status', 'booking_status', 'trip_status', 'created_at', 
-                 'balance_amount', 'cancelation_reason', 'total_travelers', 
+                 'balance_amount', 'cancellation_reason', 'total_travelers', 
                  'male', 'female', 'children', 'from_location', 'to_location']
         read_only_fields = ['id', 'created_at', 'balance_amount']
         extra_kwargs = {
@@ -650,7 +650,7 @@ class PackageFilterSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = PackageBooking
-        fields = ['booking_id','package_name','total_travelers','start_date','total_amount','from_location',
+        fields = ['booking_id','booking_status','package_name','total_travelers','start_date','total_amount','from_location',
                   'to_location','created_at','average_rating', 'total_reviews','package_images','capacity','package_bus_name','package_id','package_bus_id','travels_name']
 
     def get_package_name(self, obj):
@@ -699,7 +699,7 @@ class BusFilterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BusBooking
-        fields = ['booking_id','bus_name','total_travelers','start_date','total_amount','from_location',
+        fields = ['booking_id','booking_status','bus_name','total_travelers','start_date','total_amount','from_location',
                   'to_location','created_at','average_rating', 'total_reviews','bus_images','capacity','bus_id','travels_name']
 
     def get_bus_name(self, obj):
@@ -1519,6 +1519,12 @@ class BusListResponseSerializer(serializers.Serializer):
 class PackageDriverDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = PackageDriverDetail
+        fields = '__all__'
+
+
+class BusDriverDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusDriverDetail
         fields = '__all__'
 
 
