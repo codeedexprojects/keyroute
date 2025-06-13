@@ -40,7 +40,7 @@ class BaseBooking(models.Model):
     trip_status = models.CharField(max_length=20, choices=TRIP_STATUS_CHOICES, default='not_started')
 
     created_at = models.DateTimeField(auto_now_add=True)
-    cancelation_reason = models.CharField(max_length=250,null=True,blank=True)
+    cancellation_reason = models.CharField(max_length=250,null=True,blank=True)
     total_travelers = models.PositiveIntegerField(default=0)
     male  = models.PositiveIntegerField(default=1)
     female  = models.PositiveIntegerField(default=1)
