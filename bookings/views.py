@@ -683,12 +683,8 @@ class UserBookingsByStatus(APIView):
 
     def get(self, request, status_filter):
         user = request.user
-        if status_filter == 'requested':
-            package_bookings = PackageBooking.objects.filter(booking_status='pending', user=user)
-            bus_bookings = BusBooking.objects.filter(booking_status='pending', user=user)
-        else:
-            package_bookings = PackageBooking.objects.filter(trip_status=status_filter, user=user)
-            bus_bookings = BusBooking.objects.filter(trip_status=status_filter, user=user)
+        package_bookings = PackageBooking.objects.filter(trip_status=status_filter, user=user)
+        bus_bookings = BusBooking.objects.filter(trip_status=status_filter, user=user)
 
         package_serializer = PackageFilterSerializer(package_bookings, many=True,context={'request': request})
         bus_serializer = BusFilterSerializer(bus_bookings, many=True,context={'request': request})

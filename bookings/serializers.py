@@ -650,7 +650,7 @@ class PackageFilterSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = PackageBooking
-        fields = ['booking_id','package_name','total_travelers','start_date','total_amount','from_location',
+        fields = ['booking_id','booking_status','package_name','total_travelers','start_date','total_amount','from_location',
                   'to_location','created_at','average_rating', 'total_reviews','package_images','capacity','package_bus_name','package_id','package_bus_id','travels_name']
 
     def get_package_name(self, obj):
@@ -699,7 +699,7 @@ class BusFilterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BusBooking
-        fields = ['booking_id','bus_name','total_travelers','start_date','total_amount','from_location',
+        fields = ['booking_id','booking_status','bus_name','total_travelers','start_date','total_amount','from_location',
                   'to_location','created_at','average_rating', 'total_reviews','bus_images','capacity','bus_id','travels_name']
 
     def get_bus_name(self, obj):
