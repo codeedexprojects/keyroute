@@ -237,7 +237,7 @@ class BusSerializer(serializers.ModelSerializer):
             'capacity', 'vehicle_description', 'vehicle_rc_number', 'travels_logo',
             'rc_certificate', 'license', 'contract_carriage_permit', 'passenger_insurance',
             'vehicle_insurance', 'bus_view_images', 'amenities', 'base_price', 'price_per_km','location','is_favorite','bus_type','longitude','latitude','base_price_km','is_popular',
-            'bus_view_images_upload', 'bus_travel_images_upload'
+            'bus_view_images_upload', 'bus_travel_images_upload','night_allowance'
         ]
 
     def get_features(self, obj):
