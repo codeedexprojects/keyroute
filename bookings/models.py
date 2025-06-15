@@ -32,19 +32,17 @@ class BaseBooking(models.Model):
     start_date = models.DateField(null=True,blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     advance_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
-    # Add this to BaseBooking
     payout_status = models.BooleanField(default=False)
     payout = models.ForeignKey('PayoutHistory', on_delete=models.SET_NULL, null=True, blank=True)
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
     booking_status = models.CharField(max_length=20, choices=BOOKING_STATUS_CHOICES, default='pending') 
     trip_status = models.CharField(max_length=20, choices=TRIP_STATUS_CHOICES, default='not_started')
-
     created_at = models.DateTimeField(auto_now_add=True)
     cancellation_reason = models.CharField(max_length=250,null=True,blank=True)
     total_travelers = models.PositiveIntegerField(default=0)
-    male  = models.PositiveIntegerField(default=1)
-    female  = models.PositiveIntegerField(default=1)
-    children  = models.PositiveIntegerField(default=1)
+    male = models.PositiveIntegerField(default=1)
+    female = models.PositiveIntegerField(default=1)
+    children = models.PositiveIntegerField(default=1)
     from_location = models.CharField(max_length=255, null=True, blank=True)
     to_location = models.CharField(max_length=255, null=True, blank=True)
     
@@ -65,7 +63,7 @@ class BaseBooking(models.Model):
         if not self.booking_id:
             self.booking_id = self.generate_unique_booking_id()
         super().save(*args, **kwargs)
-    
+
 
 class BusBooking(BaseBooking):
     booking_id = models.PositiveIntegerField(unique=True, editable=False)
@@ -77,9 +75,17 @@ class BusBooking(BaseBooking):
     to_lon = models.FloatField(null=True, blank=True)
     return_date = models.DateField(null=True,blank=True)
     pick_up_time = models.TimeField(null=True,blank=True)
+    end_date = models.DateField(null=True, blank=True, help_text="End date of the trip")
+    night_allowance_total = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    base_price_days = models.PositiveIntegerField(default=0, help_text="Number of additional days charged at base price")
     
     def __str__(self):
         return f"Bus Booking #{self.booking_id} - {self.from_location} to {self.to_location} ({self.start_date})"
+
+    def save(self, *args, **kwargs):
+        if self.bus and not self.total_travelers:
+            self.total_travelers = self.bus.capacity
+        super().save(*args, **kwargs)
 
 class PackageBooking(BaseBooking):
     booking_id = models.PositiveIntegerField(unique=True, editable=False)
