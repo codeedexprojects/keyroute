@@ -55,6 +55,7 @@ if not firebase_admin._apps:
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+SECRET_KEY = 'django-insecure-z-9l67w3%e0myi15k%dpjv5c61z3-*)&7$f6mtflm7*+$g$1+&'
 
 GOOGLE_DISTANCE_MATRIX_API_KEY = os.getenv('GOOGLE_DISTANCE_MATRIX_API_KEY')
 
