@@ -32,8 +32,8 @@ from geopy.distance import geodesic
 from .utils import *
 from admin_panel.models import FooterSection,Advertisement
 from admin_panel.utils import get_admin_commission_from_db,get_advance_amount_from_db
-from .models import PackageDriverDetail
-from .serializers import PackageDriverDetailSerializer
+from .models import PackageDriverDetail,BusDriverDetail
+from .serializers import PackageDriverDetailSerializer,BusDriverDetailSerializer
 from django.db.models import Avg
 
 
@@ -518,35 +518,73 @@ class BusBookingListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        bookings = BusBooking.objects.filter(user=request.user)
+        bookings = BusBooking.objects.filter(user=request.user).order_by('-created_at')
         serializer = BusBookingSerializer(bookings, many=True, context={'request': request})
         return Response(serializer.data)
 
     def post(self, request):
         serializer = BusBookingSerializer(data=request.data, context={'request': request})
+        
         if serializer.is_valid():
-            bus = serializer.validated_data['bus']
-            vendor = bus.vendor
-            user = request.user
-            user_search = UserBusSearch(user=user)
-            booking_date = user_search.pick_up_date
-
-            if is_vendor_busy(vendor, booking_date):
-                return Response({"error": "Vendor is busy on the selected date."}, status=status.HTTP_400_BAD_REQUEST)
-
-            booking = serializer.save(user=request.user)
-
-
-            bus_name = booking.bus.name if hasattr(booking.bus, 'name') else "Bus"
-            route_info = f"from {booking.bus.from_location} to {booking.bus.to_location}" if hasattr(booking.bus, 'from_location') and hasattr(booking.bus, 'to_location') else ""
-
-            send_notification(
-                user=request.user,
-                message=f"Your bus booking for {bus_name} {route_info} has been confirmed! Booking ID: {booking.booking_id}"
-            )
-
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            try:
+                user = request.user
+                bus = serializer.validated_data['bus']
+                
+                # Get user search data for date validation
+                try:
+                    user_search = UserBusSearch.objects.get(user=user)
+                except UserBusSearch.DoesNotExist:
+                    return Response(
+                        {"error": "Bus search data not found. Please search for buses first."}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Determine trip dates
+                start_date = user_search.pick_up_date
+                end_date = user_search.return_date if not user_search.one_way else start_date
+                start_time = user_search.pick_up_time
+                
+                if not start_date:
+                    return Response(
+                        {"error": "Pickup date is required."}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Check if bus is busy during the trip duration
+                is_busy, busy_message = is_bus_busy(
+                    bus, start_date, end_date, start_time, None
+                )
+                
+                if is_busy:
+                    return Response(
+                        {"error": f"Bus is not available: {busy_message}"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Create booking
+                booking = serializer.save(user=user)
+                
+                # Send notification
+                bus_name = booking.bus.bus_name if booking.bus.bus_name else "Bus"
+                route_info = f"from {booking.from_location} to {booking.to_location}"
+                
+                send_notification(
+                    user=user,
+                    message=f"Your bus booking for {bus_name} {route_info} has been confirmed! "
+                           f"Booking ID: {booking.booking_id}"
+                )
+                
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+                
+            except Exception as e:
+                logger.error(f"Error creating bus booking: {str(e)}")
+                return Response(
+                    {"error": "An error occurred while creating the booking. Please try again."}, 
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
 
 class BusBookingDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -756,69 +794,96 @@ class VendorPackageBookingByStatusAPI(APIView):
 
 class CancelBookingView(APIView):
     permission_classes = [IsAuthenticated]
-    
+
     def post(self, request):
-        id = request.data.get('booking_id')
+        booking_id = request.data.get('booking_id')
         booking_type = request.data.get('booking_type')
         cancellation_reason = request.data.get('cancellation_reason')
-        
-        if not booking_type or not id:
+
+        if not booking_id or not booking_type:
             return Response(
-                {"error": "Both booking_type and booking_id are required"}, 
+                {"error": "Both booking_type and booking_id are required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            
+
         if booking_type not in ['bus', 'package']:
             return Response(
-                {"error": "booking_type must be either 'bus' or 'package'"}, 
+                {"error": "booking_type must be either 'bus' or 'package'"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             if booking_type == 'bus':
-                booking = BusBooking.objects.get(booking_id=id)
-                serializer_class = BusBookingSerializer
-            else:
-                booking = PackageBooking.objects.get(booking_id=id)
-                serializer_class = PackageBookingSerializer
-                
-            if booking.user != request.user:
-                return Response(
-                    {"error": "You do not have permission to cancel this booking"}, 
-                    status=status.HTTP_403_FORBIDDEN
-                )
-                
-            if booking.payment_status == 'cancelled':
-                return Response(
-                    {"error": "This booking is already cancelled"}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-                
-            booking.payment_status = 'cancelled'
-            booking.trip_status = 'cancelled'
-            booking.cancelation_reason = cancellation_reason
-            booking.save()
+                return self._cancel_bus_booking(request, booking_id, cancellation_reason)
 
-            send_notification(
-                user=request.user,
-                message=f"Your booking with ID {id} has been successfully canceled."
-            )
+            elif booking_type == 'package':
+                return self._cancel_package_booking(request, booking_id, cancellation_reason)
 
-            
-            serializer = serializer_class(booking)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-            
-        except (BusBooking.DoesNotExist, PackageBooking.DoesNotExist):
-            return Response(
-                {"error": f"{booking_type.capitalize()} booking with id {id} does not exist"}, 
-                status=status.HTTP_404_NOT_FOUND
-            )
         except Exception as e:
+            import traceback
+            print("Traceback error:\n", traceback.format_exc())
             return Response(
-                {"error": str(e)}, 
+                {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        
+
+    def _cancel_bus_booking(self, request, booking_id, reason):
+        try:
+            booking = BusBooking.objects.get(booking_id=booking_id)
+
+            if booking.user != request.user:
+                return Response({"error": "You do not have permission to cancel this booking"},
+                                status=status.HTTP_403_FORBIDDEN)
+
+            if booking.payment_status == 'cancelled':
+                return Response({"error": "This booking is already cancelled"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            booking.payment_status = 'cancelled'
+            booking.trip_status = 'cancelled'
+            booking.cancellation_reason = reason 
+            booking.save()
+
+            send_notification(user=request.user,
+                              message=f"Your bus booking with ID {booking_id} has been successfully canceled.")
+
+            serializer = BusBookingSerializer(booking, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except BusBooking.DoesNotExist:
+            return Response(
+                {"error": f"Bus booking with id {booking_id} does not exist"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    def _cancel_package_booking(self, request, booking_id, reason):
+        try:
+            booking = PackageBooking.objects.get(booking_id=booking_id)
+
+            if booking.user != request.user:
+                return Response({"error": "You do not have permission to cancel this booking"},
+                                status=status.HTTP_403_FORBIDDEN)
+
+            if booking.payment_status == 'cancelled':
+                return Response({"error": "This booking is already cancelled"},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+            booking.payment_status = 'cancelled'
+            booking.trip_status = 'cancelled'
+            booking.cancellation_reason = reason 
+            booking.save()
+
+            send_notification(user=request.user,
+                              message=f"Your package booking with ID {booking_id} has been successfully canceled.")
+
+            serializer = PackageBookingSerializer(booking, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except PackageBooking.DoesNotExist:
+            return Response(
+                {"error": f"Package booking with id {booking_id} does not exist"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         
 
@@ -969,7 +1034,13 @@ class BookingFilterByDate(APIView):
 
 class PackageCategoryListAPIView(APIView):
     def get(self, request):
-        categories = PackageCategory.objects.all()
+        search_query = request.query_params.get('search', '')
+        
+        if search_query:
+            categories = PackageCategory.objects.filter(name__icontains=search_query)
+        else:
+            categories = PackageCategory.objects.all()
+
         serializer = PackageCategorySerializer(categories, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -1035,6 +1106,21 @@ class PackageDriverDetailListAPIView(APIView):
         serializer = PackageDriverDetailSerializer(drivers)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
+
+class BusDriverDetailListAPIView(APIView):
+    def get(self, request, booking_id):
+        try:
+            booking = BusBooking.objects.get(booking_id=booking_id)
+        except BusBooking.DoesNotExist:
+            return Response(
+                {"error": f"No booking found with booking_id '{booking_id}'."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        drivers = BusDriverDetail.objects.filter(bus_booking=booking).first()
+        serializer = BusDriverDetailSerializer(drivers)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 class UserBusSearchCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -1701,37 +1787,33 @@ class GetWalletBalanceAPIView(APIView):
     def get(self, request):
         try:
             wallet = Wallet.objects.get(user=request.user)
-            
-            # Check if wallet is currently being used (has active applied transactions)
-            wallet_used = WalletTransactionService.is_wallet_currently_used(request.user)
-            
-            # Get recent transactions (all transactions, not just active ones)
+
+            wallet_used = wallet.wallet_used
+
             recent_transactions = WalletTransactionService.get_user_wallet_transactions(
                 user=request.user, 
                 limit=10
             )
-            
-            transactions_data = []
-            for txn in recent_transactions:
-                transactions_data.append({
-                    "id": txn.id,
-                    "booking_id": txn.booking_id,
-                    "booking_type": txn.booking_type,
-                    "transaction_type": txn.transaction_type,
-                    "amount": float(txn.amount),
-                    "balance_before": float(txn.balance_before),
-                    "balance_after": float(txn.balance_after),
-                    "description": txn.description,
-                    "created_at": txn.created_at.isoformat(),
-                    "is_active": txn.is_active
-                })
-            
+
+            transactions_data = [{
+                "id": txn.id,
+                "booking_id": txn.booking_id,
+                "booking_type": txn.booking_type,
+                "transaction_type": txn.transaction_type,
+                "amount": float(txn.amount),
+                "balance_before": float(txn.balance_before),
+                "balance_after": float(txn.balance_after),
+                "description": txn.description,
+                "created_at": txn.created_at.isoformat(),
+                "is_active": txn.is_active
+            } for txn in recent_transactions]
+
             return Response({
                 "balance": float(wallet.balance),
                 "wallet_used": wallet_used,
                 "recent_transactions": transactions_data
             }, status=status.HTTP_200_OK)
-            
+
         except Wallet.DoesNotExist:
             return Response({
                 "balance": 0.00,
