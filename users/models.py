@@ -33,6 +33,7 @@ class Wallet(models.Model):
     balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     referred_by = models.CharField(max_length=20, blank=True, null=True)
     referral_used = models.BooleanField(default=False)
+    wallet_used = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.user.name}'s Wallet"

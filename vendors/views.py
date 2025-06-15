@@ -3385,19 +3385,19 @@ class DeclineBusBookingView(APIView):
             if bus_booking.booking_status != 'pending':
                 return Response({"error": "Booking is already accepted or declined."}, status=status.HTTP_400_BAD_REQUEST)
 
-            cancelation_reason = request.data.get('cancelation_reason')
+            cancellation_reason = request.data.get('cancellation_reason')
 
-            if not cancelation_reason:
+            if not cancellation_reason:
                 return Response({"error": "Cancellation reason is required."}, status=status.HTTP_400_BAD_REQUEST)
 
             bus_booking.booking_status = 'declined'
             bus_booking.trip_status = 'cancelled'
-            bus_booking.cancelation_reason = cancelation_reason
+            bus_booking.cancellation_reason = cancellation_reason
             bus_booking.save()
 
             return Response({
                 "message": "Bus booking has been declined successfully.",
-                "cancelation_reason": cancelation_reason
+                "cancellation_reason": cancellation_reason
             }, status=status.HTTP_200_OK)
 
         except BusBooking.DoesNotExist:
@@ -3424,18 +3424,18 @@ class DeclinePackageBookingView(APIView):
             if package_booking.booking_status != 'pending':
                 return Response({"error": "Booking is already accepted or declined."}, status=status.HTTP_400_BAD_REQUEST)
 
-            reason = request.data.get('cancelation_reason', '').strip()
+            reason = request.data.get('cancellation_reason', '').strip()
             if not reason:
                 return Response({"error": "Cancelation reason is required."}, status=status.HTTP_400_BAD_REQUEST)
 
             package_booking.booking_status = 'declined'
             package_booking.trip_status = 'cancelled'
-            package_booking.cancelation_reason = reason
+            package_booking.cancellation_reason = reason
             package_booking.save()
 
             return Response({
                 "message": "Package booking declined successfully.",
-                "cancelation_reason": reason
+                "cancellation_reason": reason
             }, status=status.HTTP_200_OK)
 
         except PackageBooking.DoesNotExist:
