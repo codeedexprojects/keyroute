@@ -518,35 +518,73 @@ class BusBookingListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        bookings = BusBooking.objects.filter(user=request.user)
+        bookings = BusBooking.objects.filter(user=request.user).order_by('-created_at')
         serializer = BusBookingSerializer(bookings, many=True, context={'request': request})
         return Response(serializer.data)
 
     def post(self, request):
         serializer = BusBookingSerializer(data=request.data, context={'request': request})
+        
         if serializer.is_valid():
-            bus = serializer.validated_data['bus']
-            vendor = bus.vendor
-            user = request.user
-            user_search = UserBusSearch(user=user)
-            booking_date = user_search.pick_up_date
-
-            if is_vendor_busy(vendor, booking_date):
-                return Response({"error": "Vendor is busy on the selected date."}, status=status.HTTP_400_BAD_REQUEST)
-
-            booking = serializer.save(user=request.user)
-
-
-            bus_name = booking.bus.name if hasattr(booking.bus, 'name') else "Bus"
-            route_info = f"from {booking.bus.from_location} to {booking.bus.to_location}" if hasattr(booking.bus, 'from_location') and hasattr(booking.bus, 'to_location') else ""
-
-            send_notification(
-                user=request.user,
-                message=f"Your bus booking for {bus_name} {route_info} has been confirmed! Booking ID: {booking.booking_id}"
-            )
-
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            try:
+                user = request.user
+                bus = serializer.validated_data['bus']
+                
+                # Get user search data for date validation
+                try:
+                    user_search = UserBusSearch.objects.get(user=user)
+                except UserBusSearch.DoesNotExist:
+                    return Response(
+                        {"error": "Bus search data not found. Please search for buses first."}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Determine trip dates
+                start_date = user_search.pick_up_date
+                end_date = user_search.return_date if not user_search.one_way else start_date
+                start_time = user_search.pick_up_time
+                
+                if not start_date:
+                    return Response(
+                        {"error": "Pickup date is required."}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Check if bus is busy during the trip duration
+                is_busy, busy_message = is_bus_busy(
+                    bus, start_date, end_date, start_time, None
+                )
+                
+                if is_busy:
+                    return Response(
+                        {"error": f"Bus is not available: {busy_message}"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Create booking
+                booking = serializer.save(user=user)
+                
+                # Send notification
+                bus_name = booking.bus.bus_name if booking.bus.bus_name else "Bus"
+                route_info = f"from {booking.from_location} to {booking.to_location}"
+                
+                send_notification(
+                    user=user,
+                    message=f"Your bus booking for {bus_name} {route_info} has been confirmed! "
+                           f"Booking ID: {booking.booking_id}"
+                )
+                
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+                
+            except Exception as e:
+                logger.error(f"Error creating bus booking: {str(e)}")
+                return Response(
+                    {"error": "An error occurred while creating the booking. Please try again."}, 
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
 
 class BusBookingDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
