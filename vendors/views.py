@@ -3385,19 +3385,19 @@ class DeclineBusBookingView(APIView):
             if bus_booking.booking_status != 'pending':
                 return Response({"error": "Booking is already accepted or declined."}, status=status.HTTP_400_BAD_REQUEST)
 
-            cancelation_reason = request.data.get('cancelation_reason')
+            cancellation_reason = request.data.get('cancellation_reason')
 
-            if not cancelation_reason:
+            if not cancellation_reason:
                 return Response({"error": "Cancellation reason is required."}, status=status.HTTP_400_BAD_REQUEST)
 
             bus_booking.booking_status = 'declined'
             bus_booking.trip_status = 'cancelled'
-            bus_booking.cancelation_reason = cancelation_reason
+            bus_booking.cancellation_reason = cancellation_reason
             bus_booking.save()
 
             return Response({
                 "message": "Bus booking has been declined successfully.",
-                "cancelation_reason": cancelation_reason
+                "cancellation_reason": cancellation_reason
             }, status=status.HTTP_200_OK)
 
         except BusBooking.DoesNotExist:
@@ -3424,18 +3424,18 @@ class DeclinePackageBookingView(APIView):
             if package_booking.booking_status != 'pending':
                 return Response({"error": "Booking is already accepted or declined."}, status=status.HTTP_400_BAD_REQUEST)
 
-            reason = request.data.get('cancelation_reason', '').strip()
+            reason = request.data.get('cancellation_reason', '').strip()
             if not reason:
                 return Response({"error": "Cancelation reason is required."}, status=status.HTTP_400_BAD_REQUEST)
 
             package_booking.booking_status = 'declined'
             package_booking.trip_status = 'cancelled'
-            package_booking.cancelation_reason = reason
+            package_booking.cancellation_reason = reason
             package_booking.save()
 
             return Response({
                 "message": "Package booking declined successfully.",
-                "cancelation_reason": reason
+                "cancellation_reason": reason
             }, status=status.HTTP_200_OK)
 
         except PackageBooking.DoesNotExist:
@@ -4035,3 +4035,60 @@ class DeleteVendorAccountView(APIView):
 
 
 
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+import requests
+
+def get_access_token():
+    url = "https://production.deepvue.tech/v1/authorize"
+    payload = {
+        'client_id': '2732a5119a',
+        'client_secret': '26fbe96efaf24488b16ef65acdb869ea'
+    }
+
+    try:
+        response = requests.post(url, data=payload)
+        response.raise_for_status()
+        data = response.json()
+        return data.get("access_token")
+    except requests.exceptions.RequestException as e:
+        print("Error fetching access token:", e)
+        return None
+
+class VehicleRCVerificationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        rc_number = request.data.get("rc_number")
+        if not rc_number:
+            return Response({"error": "RC number is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        access_token = get_access_token()
+        if not access_token:
+            return Response({"error": "Failed to retrieve access token"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        url = f"https://production.deepvue.tech/v1/verification/rc-advanced?rc_number={rc_number}"
+
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'x-api-key': '26fbe96efaf24488b16ef65acdb869ea',
+            'Content-Type': 'application/json'
+        }
+
+        try:
+            response = requests.get(url, headers=headers)
+
+            if response.status_code == 200:
+                data = response.json()
+                return Response(data, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    "error": "Verification failed",
+                    "status_code": response.status_code,
+                    "details": response.text
+                }, status=response.status_code)
+
+        except requests.exceptions.RequestException as e:
+            return Response({"error": "Request failed", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

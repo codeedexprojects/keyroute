@@ -48,5 +48,4 @@ urlpatterns = [
     path('get-locations/',GetLocationAPIView.as_view(),name="get-locations"),
 
     path('user/delete-account/', DeleteUserAccountView.as_view(), name='delete-user-account'),
-    
 ]

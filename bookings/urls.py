@@ -13,7 +13,7 @@ from .views import (
     ApplyWalletToPackageBookingAPIView,
     RemoveWalletFromPackageBookingAPIView,
     GetWalletBalanceAPIView,
-    WalletTransactionHistoryAPIView
+    WalletTransactionHistoryAPIView,BusDriverDetailListAPIView
 
 )
 
@@ -52,6 +52,7 @@ urlpatterns = [
     path('popular-buses/',PopularBusApi.as_view(),name="Popular-buses"),
 
     path('package-drivers/<int:booking_id>/', PackageDriverDetailListAPIView.as_view(), name='package-drivers'),
+    path('bus-drivers/<int:booking_id>/', BusDriverDetailListAPIView.as_view(), name='Bus-drivers'),
 
     path('footer-sections/', FooterSectionListAPIView.as_view(), name='footer-section-list'),
 
