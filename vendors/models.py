@@ -70,7 +70,7 @@ class Bus(models.Model):
     base_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     base_price_km = models.PositiveIntegerField(default=100, help_text="Base price covers this many kilometers")
     price_per_km = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    night_allowance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Additional charge per night")
+    night_allowance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Additional charge per night",null=True, blank=True)
     features = models.ManyToManyField(BusFeature, related_name='buses', blank=True)
     minimum_fare = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
