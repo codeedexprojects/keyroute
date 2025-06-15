@@ -49,7 +49,6 @@ class BusFeature(models.Model):
         return self.name
 
 class Bus(models.Model):
-
     STATUS_CHOICES = (
         ('available', 'Available'),
         ('booked', 'Booked'),
@@ -69,8 +68,9 @@ class Bus(models.Model):
     vehicle_insurance = models.FileField(upload_to='insurance/')
     amenities = models.ManyToManyField(Amenity, related_name='buses', blank=True)
     base_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    base_price_km = models.IntegerField()
+    base_price_km = models.PositiveIntegerField(default=100, help_text="Base price covers this many kilometers")
     price_per_km = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    night_allowance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Additional charge per night")
     features = models.ManyToManyField(BusFeature, related_name='buses', blank=True)
     minimum_fare = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
@@ -79,7 +79,6 @@ class Bus(models.Model):
     longitude = models.FloatField()
     bus_type = models.CharField(max_length=50, blank=True, null=True)
     is_popular = models.BooleanField(default=False)
-
 
     @property
     def average_rating(self):
@@ -90,9 +89,6 @@ class Bus(models.Model):
     def total_reviews(self):
         return self.bus_reviews.count()
     
-    def __str__(self):
-        return self.bus_name
-
     def __str__(self):
         return self.bus_name
 
