@@ -444,29 +444,40 @@ class PackageBookingListCreateAPIView(APIView):
 
         if serializer.is_valid():
             package = serializer.validated_data['package']
-            vendor = package.vendor
             booking_date = serializer.validated_data['start_date']
+            total_travelers = serializer.validated_data.get('total_travelers', 0)
 
-            # Check if bus is busy during the trip duration
-            night_count = package.day_plans.filter(night=True).count()
-            total_days = package.days + night_count
-            end_date = booking_date + timedelta(days=total_days)
-            bus = package.buses.first()
-
-            is_busy, busy_message = is_bus_busy(
-                bus, booking_date, end_date,None,None
+            # Check if package is available for the given dates and travelers
+            is_available, availability_message = is_package_available(
+                package, booking_date, total_travelers
             )
             
-            if is_busy:
+            if not is_available:
                 return Response(
-                    {"error": f"Bus is not available: {busy_message}"}, 
+                    {"error": f"Package is not available: {availability_message}"}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
+            # Additional check for bus conflicts with existing package bookings
+            night_count = package.day_plans.filter(night=True).count()
+            total_days = package.days + night_count
+            end_date = booking_date + timedelta(days=total_days)
+            
+            has_conflicts, conflict_message = check_package_bus_conflicts(
+                package, booking_date, end_date
+            )
+            
+            if has_conflicts:
+                return Response(
+                    {"error": f"Booking conflicts detected: {conflict_message}"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Create the booking
             booking = serializer.save(user=request.user)
 
-
-            package_name = booking.package.name if hasattr(booking.package, 'name') else "Tour package"
+            # Send notification
+            package_name = booking.package.places if hasattr(booking.package, 'places') else "Tour package"
             send_notification(
                 user=request.user,
                 message=f"Your booking for {package_name} has been successfully created! Booking ID: {booking.booking_id}"
