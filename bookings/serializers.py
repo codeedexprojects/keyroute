@@ -465,11 +465,12 @@ class SingleBusBookingSerializer(serializers.ModelSerializer):
     price_per_km = serializers.SerializerMethodField()
     tax = serializers.SerializerMethodField()
     base_fare = serializers.SerializerMethodField()
+    refunded_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = BusBooking
         fields = [
-            'booking_id','tax' ,'base_fare','from_location', 'advance_amount','pick_up_time','to_location', 'start_date', 
+            'booking_id','tax' ,'base_fare','from_location', 'refunded_amount','advance_amount','pick_up_time','to_location', 'start_date', 
             'end_date', 'total_travelers', 'total_amount', 'price_per_km',
             'paid_amount', 'bus_name', 'booking_type','one_way','trip_status','balance_amount'
         ]
@@ -481,6 +482,9 @@ class SingleBusBookingSerializer(serializers.ModelSerializer):
         return obj.bus.price_per_km
     
     def get_tax(self,obj):
+        return 0
+    
+    def get_refunded_amount(self,obj):
         return 0
 
     def get_booking_type(self, obj):
@@ -540,11 +544,12 @@ class SinglePackageBookingSerilizer(serializers.ModelSerializer):
     day_wise_plan = serializers.SerializerMethodField()
     tax = serializers.SerializerMethodField()
     base_fare = serializers.SerializerMethodField()
+    refunded_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = PackageBooking
         fields = [
-            'booking_id','tax','base_fare','rooms','from_location','advance_amount' ,'to_location',
+            'booking_id','tax','base_fare','rooms','from_location','refunded_amount','advance_amount' ,'to_location',
             'start_date', 'end_date', 'total_travelers',
             'total_amount', 'paid_amount', 'bus_name',
             'booking_type', 'male', 'female', 'children',
@@ -556,6 +561,9 @@ class SinglePackageBookingSerilizer(serializers.ModelSerializer):
         return [bus.minimum_fare for bus in buses]
 
     def get_tax(self,obj):
+        return 0
+    
+    def get_refunded_amount(self,obj):
         return 0
 
     def get_end_date(self, obj):
