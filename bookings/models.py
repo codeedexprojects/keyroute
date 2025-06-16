@@ -78,6 +78,7 @@ class BusBooking(BaseBooking):
     end_date = models.DateField(null=True, blank=True, help_text="End date of the trip")
     night_allowance_total = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     base_price_days = models.PositiveIntegerField(default=0, help_text="Number of additional days charged at base price")
+    total_distance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Total distance including stops")
     
     def __str__(self):
         return f"Bus Booking #{self.booking_id} - {self.from_location} to {self.to_location} ({self.start_date})"
@@ -287,3 +288,41 @@ class WalletTransaction(models.Model):
     
     def __str__(self):
         return f"{self.user.name} - {self.transaction_type} - ₹{self.amount} - {self.booking_type} ({self.booking_id})"
+
+
+
+
+class BusBookingStop(models.Model):
+    """Model to store intermediate stops for bus bookings"""
+    booking = models.ForeignKey(BusBooking, on_delete=models.CASCADE, related_name='stops')
+    stop_order = models.PositiveIntegerField(help_text="Order of the stop in the journey")
+    location_name = models.CharField(max_length=255)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    estimated_arrival = models.DateTimeField(null=True, blank=True)
+    distance_from_previous = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Distance from previous point in km")
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['stop_order']
+        unique_together = ('booking', 'stop_order')
+    
+    def __str__(self):
+        return f"Stop {self.stop_order}: {self.location_name} for Booking #{self.booking.booking_id}"
+
+
+class UserBusSearchStop(models.Model):
+    """Model to store intermediate stops during search"""
+    user_search = models.ForeignKey(UserBusSearch, on_delete=models.CASCADE, related_name='search_stops')
+    stop_order = models.PositiveIntegerField(help_text="Order of the stop in the journey")
+    location_name = models.CharField(max_length=255)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['stop_order']
+        unique_together = ('user_search', 'stop_order')
+    
+    def __str__(self):
+        return f"Search Stop {self.stop_order}: {self.location_name}"
