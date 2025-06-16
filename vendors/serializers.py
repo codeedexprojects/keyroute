@@ -1196,10 +1196,19 @@ class BusBookingBasicSerializer(serializers.ModelSerializer):
 
 
     def get_commission_amount(self, obj):
-        commission = AdminCommission.objects.filter(booking_type='bus', booking_id=obj.id).first()
-        if commission:
-            return commission.revenue_to_admin
-        return None   
+        try:
+            commission = AdminCommission.objects.get(
+                booking_type='bus',
+                booking_id=obj.id
+            )
+            return {
+                "advance_amount": commission.advance_amount,
+                "commission_percentage": commission.commission_percentage,
+                "revenue_to_admin": commission.revenue_to_admin,
+                "referral_deduction": commission.referral_deduction
+            }
+        except AdminCommission.DoesNotExist:
+            return None
     
 
     def get_trip_type(self, obj):
@@ -1301,8 +1310,19 @@ class PackageBookingEarnigsSerializer(serializers.ModelSerializer):
         fields = ['id', 'package_name', 'total_amount', 'payment_status', 'commission', 'earnings','trip_type','total_members','one_member_name','created_at','from_location','to_location']
 
     def get_commission(self, obj):
-        commission = AdminCommission.objects.filter(booking_type='package', booking_id=obj.id).first()
-        return commission.revenue_to_admin if commission else 0.00   
+        try:
+            commission = AdminCommission.objects.get(
+                booking_type='package',
+                booking_id=obj.id
+            )
+            return {
+                "advance_amount": commission.advance_amount,
+                "commission_percentage": commission.commission_percentage,
+                "revenue_to_admin": commission.revenue_to_admin,
+                "referral_deduction": commission.referral_deduction
+            }
+        except AdminCommission.DoesNotExist:
+            return None
 
     def get_earnings(self, obj):
         commission = Decimal(self.get_commission(obj))   
@@ -1409,7 +1429,6 @@ class PackageBookingDetailSerializer222(serializers.ModelSerializer):
 
 class CombinedBookingSerializer(serializers.Serializer):
     booking_id = serializers.IntegerField()
-
     type = serializers.SerializerMethodField()
     name = serializers.SerializerMethodField()   
     from_location = serializers.CharField()
@@ -1425,19 +1444,18 @@ class CombinedBookingSerializer(serializers.Serializer):
         return "bus" if isinstance(obj, BusBooking) else "package"
 
     def get_name(self, obj):
-        traveler = obj.travelers.first()
+        traveler = obj.travelers.order_by('created_at').first()
         if traveler:
             return f"{traveler.first_name} {traveler.last_name or ''}".strip()
         return "No Name"
 
     def get_members_count(self, obj):
         return obj.travelers.count()
-    
+
     def get_phone_number(self, obj):
-        traveler = obj.travelers.first()
-        if traveler:
-            return traveler.mobile or ""
-        return ""
+        traveler = obj.travelers.order_by('created_at').first()
+        return traveler.mobile if traveler and traveler.mobile else ""
+
 
 
 
