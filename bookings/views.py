@@ -35,7 +35,7 @@ from admin_panel.utils import get_admin_commission_from_db,get_advance_amount_fr
 from .models import PackageDriverDetail,BusDriverDetail
 from .serializers import PackageDriverDetailSerializer,BusDriverDetailSerializer
 from django.db.models import Avg
-
+from .serializers import UserBusSearchStopSerializer
 
 
 class PackageListAPIView(APIView):
@@ -582,9 +582,15 @@ class BusBookingListCreateAPIView(APIView):
                 bus_name = booking.bus.bus_name if booking.bus.bus_name else "Bus"
                 route_info = f"from {booking.from_location} to {booking.to_location}"
                 
+                # Add stops info to notification
+                stops_info = ""
+                if booking.stops.exists():
+                    stop_names = [stop.location_name for stop in booking.stops.all()]
+                    stops_info = f" with stops at {', '.join(stop_names)}"
+                
                 send_notification(
                     user=user,
-                    message=f"Your bus booking for {bus_name} {route_info} has been confirmed! "
+                    message=f"Your bus booking for {bus_name} {route_info}{stops_info} has been confirmed! "
                            f"Booking ID: {booking.booking_id}"
                 )
                 
@@ -598,6 +604,224 @@ class BusBookingListCreateAPIView(APIView):
                 )
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AddStopsAPIView(APIView):
+    """API to add stops to user's bus search"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """Add stops to user's bus search"""
+        user = request.user
+        stops_data = request.data.get('stops', [])
+        
+        if not stops_data:
+            return Response(
+                {"error": "Stops data is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate stops data
+        for i, stop in enumerate(stops_data):
+            required_fields = ['location_name', 'latitude', 'longitude']
+            if not all(field in stop for field in required_fields):
+                return Response(
+                    {"error": f"Stop {i+1} must have location_name, latitude, and longitude"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            try:
+                float(stop['latitude'])
+                float(stop['longitude'])
+            except (ValueError, TypeError):
+                return Response(
+                    {"error": f"Stop {i+1} has invalid latitude or longitude"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        try:
+            # Get or create user bus search
+            user_search, created = UserBusSearch.objects.get_or_create(user=user)
+            
+            # Clear existing stops
+            user_search.search_stops.all().delete()
+            
+            # Add new stops
+            with transaction.atomic():
+                for i, stop_data in enumerate(stops_data):
+                    UserBusSearchStop.objects.create(
+                        user_search=user_search,
+                        stop_order=i + 1,
+                        location_name=stop_data['location_name'],
+                        latitude=float(stop_data['latitude']),
+                        longitude=float(stop_data['longitude'])
+                    )
+            
+            # Return updated stops
+            stops = user_search.search_stops.all().order_by('stop_order')
+            serializer = UserBusSearchStopSerializer(stops, many=True)
+            
+            return Response({
+                "message": "Stops added successfully",
+                "stops": serializer.data
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            logger.error(f"Error adding stops: {str(e)}")
+            return Response(
+                {"error": "An error occurred while adding stops"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def get(self, request):
+        """Get user's current stops"""
+        user = request.user
+        
+        try:
+            user_search = UserBusSearch.objects.get(user=user)
+            stops = user_search.search_stops.all().order_by('stop_order')
+            serializer = UserBusSearchStopSerializer(stops, many=True)
+            
+            return Response({
+                "stops": serializer.data
+            })
+            
+        except UserBusSearch.DoesNotExist:
+            return Response({
+                "stops": []
+            })
+    
+    def delete(self, request):
+        """Clear all stops"""
+        user = request.user
+        
+        try:
+            user_search = UserBusSearch.objects.get(user=user)
+            user_search.search_stops.all().delete()
+            
+            return Response({
+                "message": "All stops cleared successfully"
+            })
+            
+        except UserBusSearch.DoesNotExist:
+            return Response({
+                "message": "No stops found to clear"
+            })
+
+
+class BusPriceCalculationAPIView(APIView):
+    """API to calculate price with current stops"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """Calculate price for a specific bus with current stops"""
+        user = request.user
+        bus_id = request.data.get('bus_id')
+        
+        if not bus_id:
+            return Response(
+                {"error": "Bus ID is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            from vendors.models import Bus
+            bus = Bus.objects.get(id=bus_id)
+            user_search = UserBusSearch.objects.get(user=user)
+            
+            if not user_search.to_lat or not user_search.to_lon:
+                return Response(
+                    {"error": "Destination is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if not user_search.pick_up_date:
+                return Response(
+                    {"error": "Pickup date is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get stops data
+            stops_data = []
+            search_stops = user_search.search_stops.all().order_by('stop_order')
+            for stop in search_stops:
+                stops_data.append({
+                    'location_name': stop.location_name,
+                    'latitude': stop.latitude,
+                    'longitude': stop.longitude
+                })
+            
+            # Create a temporary serializer instance to use calculation methods
+            serializer = BusBookingSerializer(context={'request': request})
+            
+            start_date = user_search.pick_up_date
+            end_date = user_search.return_date if user_search.return_date else start_date
+            one_way = user_search.one_way
+            
+            # Calculate price with stops
+            price_data = serializer.calculate_trip_price(
+                bus, user_search, start_date, end_date, one_way, stops_data
+            )
+            
+            # Calculate distances for each segment
+            segments = []
+            current_lat, current_lon = user_search.from_lat, user_search.from_lon
+            current_location = user_search.from_location
+            
+            # Add segments for each stop
+            for stop in stops_data:
+                distance = serializer.calculate_distance_google_api(
+                    current_lat, current_lon, 
+                    float(stop['latitude']), float(stop['longitude'])
+                )
+                segments.append({
+                    'from': current_location,
+                    'to': stop['location_name'],
+                    'distance_km': float(distance)
+                })
+                current_lat, current_lon = float(stop['latitude']), float(stop['longitude'])
+                current_location = stop['location_name']
+            
+            # Add final segment to destination
+            final_distance = serializer.calculate_distance_google_api(
+                current_lat, current_lon, 
+                user_search.to_lat, user_search.to_lon
+            )
+            segments.append({
+                'from': current_location,
+                'to': user_search.to_location,
+                'distance_km': float(final_distance)
+            })
+            
+            return Response({
+                'bus_id': bus_id,
+                'bus_name': bus.bus_name,
+                'total_amount': float(price_data['total_amount']),
+                'trip_price': float(price_data['trip_price']),
+                'total_distance_km': float(price_data['total_distance_km']),
+                'night_allowance_total': float(price_data['night_allowance_total']),
+                'base_price_days': price_data['base_price_days'],
+                'nights': price_data['nights'],
+                'segments': segments,
+                'stops_count': len(stops_data)
+            })
+            
+        except Bus.DoesNotExist:
+            return Response(
+                {"error": "Bus not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except UserBusSearch.DoesNotExist:
+            return Response(
+                {"error": "Bus search data not found"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f"Error calculating price: {str(e)}")
+            return Response(
+                {"error": "An error occurred while calculating price"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
 
 class BusBookingDetailAPIView(APIView):
