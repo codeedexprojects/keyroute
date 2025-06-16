@@ -98,6 +98,16 @@ class BusBookingSerializer(BaseBookingSerializer):
         """
         Validate booking data
         """
+
+        user = self.context['request'].user
+
+        try:
+            bus_search = UserBusSearch.objects.get(user=user)
+            if not data.get('start_date') and bus_search.pick_up_date:
+                data['start_date'] = bus_search.pick_up_date
+        except UserBusSearch.DoesNotExist:
+            pass
+
         # Validate dates
         start_date = data.get('start_date')
         end_date = data.get('end_date')
@@ -105,7 +115,7 @@ class BusBookingSerializer(BaseBookingSerializer):
         one_way = data.get('one_way', True)
 
         if not start_date:
-            raise serializers.ValidationError("Start date is required.")
+            raise serializers.ValidationError("Start date is required. Please search for buses first.")
         
         if start_date < timezone.now().date():
             raise serializers.ValidationError("Start date cannot be in the past.")
