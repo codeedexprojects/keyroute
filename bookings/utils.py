@@ -86,38 +86,3 @@ def is_package_available(package, start_date, total_travelers, end_date=None):
     
     # No buses available
     return False, "No buses available for this package during the selected dates. Details: " + "; ".join(bus_availability_messages)
-
-
-def check_package_bus_conflicts(package, start_date, end_date, exclude_booking_id=None):
-    """
-    Check for existing package bookings that might conflict with the given date range
-    """
-    # Check existing package bookings that use the same buses
-    conflicting_bookings = PackageBooking.objects.filter(
-        package__buses__in=package.buses.all(),
-        booking_status__in=['pending', 'accepted'],
-        trip_status__in=['not_started', 'ongoing']
-    ).filter(
-        Q(start_date__lte=end_date) & 
-        Q(start_date__gte=start_date) |
-        Q(start_date__lte=start_date)
-    ).distinct()
-    
-    if exclude_booking_id:
-        conflicting_bookings = conflicting_bookings.exclude(booking_id=exclude_booking_id)
-    
-    if conflicting_bookings.exists():
-        conflict_details = []
-        for booking in conflicting_bookings:
-            # Calculate booking end date
-            night_count = booking.package.day_plans.filter(night=True).count()
-            total_days = booking.package.days + night_count
-            booking_end_date = booking.start_date + timedelta(days=total_days)
-            
-            conflict_details.append(
-                f"Booking #{booking.booking_id} ({booking.start_date} to {booking_end_date})"
-            )
-        
-        return True, "Conflicting bookings found: " + "; ".join(conflict_details)
-    
-    return False, "No conflicts found"
