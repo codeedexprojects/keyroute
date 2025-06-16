@@ -441,13 +441,27 @@ class PackageBookingListCreateAPIView(APIView):
         }
         data.update(query_data)
         serializer = PackageBookingSerializer(data=data, context={'request': request})
+
         if serializer.is_valid():
             package = serializer.validated_data['package']
             vendor = package.vendor
             booking_date = serializer.validated_data['start_date']
 
-            if is_vendor_busy(vendor, booking_date):
-                return Response({"error": "Vendor is busy on the selected date."}, status=status.HTTP_400_BAD_REQUEST)
+            # Check if bus is busy during the trip duration
+            night_count = package.day_plans.filter(night=True).count()
+            total_days = package.days + night_count
+            end_date = booking_date + timedelta(days=total_days)
+            bus = package.buses.first()
+
+            is_busy, busy_message = is_bus_busy(
+                bus, booking_date, end_date,None,None
+            )
+            
+            if is_busy:
+                return Response(
+                    {"error": f"Bus is not available: {busy_message}"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             booking = serializer.save(user=request.user)
 
