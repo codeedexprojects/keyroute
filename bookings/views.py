@@ -462,16 +462,6 @@ class PackageBookingListCreateAPIView(APIView):
             night_count = package.day_plans.filter(night=True).count()
             total_days = package.days + night_count
             end_date = booking_date + timedelta(days=total_days)
-            
-            has_conflicts, conflict_message = check_package_bus_conflicts(
-                package, booking_date, end_date
-            )
-            
-            if has_conflicts:
-                return Response(
-                    {"error": f"Booking conflicts detected: {conflict_message}"}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
 
             # Create the booking
             booking = serializer.save(user=request.user)
