@@ -556,7 +556,7 @@ class BusBookingListCreateAPIView(APIView):
                 
                 # Determine trip dates
                 start_date = user_search.pick_up_date
-                end_date = user_search.return_date if not user_search.one_way else start_date
+                end_date = user_search.return_date if user_search.return_date else start_date
                 start_time = user_search.pick_up_time
                 
                 if not start_date:

@@ -108,7 +108,7 @@ class BusBookingSerializer(BaseBookingSerializer):
     class Meta:
         model = BusBooking
         fields = BaseBookingSerializer.Meta.fields + [
-            'bus', 'bus_details', 'one_way', 'travelers', 'booking_type', 
+            'bus', 'bus_details', 'travelers', 'booking_type', 
             'partial_amount', 'return_date', 'pick_up_time', 'price', 'end_date',
             'night_allowance_total', 'base_price_days', 'total_distance', 'stops', 'stops_data'
         ]
@@ -142,7 +142,6 @@ class BusBookingSerializer(BaseBookingSerializer):
         return value
 
     def validate(self, data):
-
         user = self.context['request'].user
 
         try:
@@ -156,7 +155,6 @@ class BusBookingSerializer(BaseBookingSerializer):
         start_date = data.get('start_date')
         end_date = data.get('end_date')
         return_date = data.get('return_date')
-        one_way = data.get('one_way', True)
 
         if not start_date:
             raise serializers.ValidationError("Start date is required. Please search for buses first.")
@@ -164,17 +162,13 @@ class BusBookingSerializer(BaseBookingSerializer):
         if start_date < timezone.now().date():
             raise serializers.ValidationError("Start date cannot be in the past.")
 
-        if not one_way:
-            if not return_date:
-                raise serializers.ValidationError("Return date is required for two-way trips.")
-            if return_date <= start_date:
-                raise serializers.ValidationError("Return date must be after start date.")
+        # Set end_date - if return_date is provided, use it; otherwise use start_date for same-day trips
+        if return_date:
+            if return_date < start_date:
+                raise serializers.ValidationError("Return date cannot be before start date.")
             data['end_date'] = return_date
-        else:
-            if not end_date:
-                data['end_date'] = start_date
-            elif end_date < start_date:
-                raise serializers.ValidationError("End date cannot be before start date.")
+        elif not end_date:
+            data['end_date'] = start_date
 
         return data
 
@@ -235,30 +229,31 @@ class BusBookingSerializer(BaseBookingSerializer):
             return Decimal('10.0')
 
     def calculate_total_distance_with_stops(self, from_lat, from_lon, to_lat, to_lon, stops_data=None):
-        """Calculate total distance including all stops"""
-        if not stops_data:
-            return self.calculate_distance_google_api(from_lat, from_lon, to_lat, to_lon)
-        
-        total_distance = Decimal('0.00')
+        """Calculate total distance including all stops and return journey"""
+        one_way_distance = Decimal('0.00')
         current_lat, current_lon = from_lat, from_lon
         
         # Calculate distance to each stop
-        for stop in stops_data:
-            stop_lat = float(stop['latitude'])
-            stop_lon = float(stop['longitude'])
-            
-            segment_distance = self.calculate_distance_google_api(
-                current_lat, current_lon, stop_lat, stop_lon
-            )
-            total_distance += segment_distance
-            
-            current_lat, current_lon = stop_lat, stop_lon
+        if stops_data:
+            for stop in stops_data:
+                stop_lat = float(stop['latitude'])
+                stop_lon = float(stop['longitude'])
+                
+                segment_distance = self.calculate_distance_google_api(
+                    current_lat, current_lon, stop_lat, stop_lon
+                )
+                one_way_distance += segment_distance
+                
+                current_lat, current_lon = stop_lat, stop_lon
         
-        # Calculate distance from last stop to final destination
+        # Calculate distance from last stop (or origin if no stops) to final destination
         final_segment = self.calculate_distance_google_api(
             current_lat, current_lon, to_lat, to_lon
         )
-        total_distance += final_segment
+        one_way_distance += final_segment
+        
+        # Always calculate as round trip (multiply by 2)
+        total_distance = one_way_distance * 2
         
         return total_distance
 
@@ -270,8 +265,8 @@ class BusBookingSerializer(BaseBookingSerializer):
         delta = end_date - start_date
         return max(0, delta.days)
 
-    def calculate_trip_price(self, bus, user_search, start_date, end_date, one_way=True, stops_data=None):
-        """Centralized method to calculate trip price with stops"""
+    def calculate_trip_price(self, bus, user_search, start_date, end_date, stops_data=None):
+        """Centralized method to calculate trip price based on new logic"""
         try:
             # Validate bus pricing data
             if not bus.base_price or bus.base_price <= 0:
@@ -280,45 +275,41 @@ class BusBookingSerializer(BaseBookingSerializer):
             if not bus.price_per_km or bus.price_per_km <= 0:
                 raise serializers.ValidationError("Bus price per km is not properly configured.")
 
-            # Get total distance including stops
+            # Get total distance including stops and return journey
             total_distance_km = self.calculate_total_distance_with_stops(
                 user_search.from_lat, user_search.from_lon, 
                 user_search.to_lat, user_search.to_lon,
                 stops_data
             )
             
-            # Calculate base trip price
-            base_price = bus.base_price
-            base_price_km = bus.base_price_km  # Fixed at 100 km
-            price_per_km = bus.price_per_km
+            # Calculate trip duration in days
+            total_days = (end_date - start_date).days + 1 if end_date and start_date else 1
+            
+            # Bus pricing configuration
+            base_price_per_day = bus.base_price  # Base price per day
+            base_km_per_day = bus.base_price_km or Decimal('100')  # KM included per day (default 100)
+            price_per_km = bus.price_per_km  # Rate for extra KM
+            night_allowance = bus.night_allowance or Decimal('500')  # Driver allowance per night
             minimum_fare = bus.minimum_fare or Decimal('0.00')
-            night_allowance = bus.night_allowance or Decimal('0.00')
             
-            # Calculate distance-based price
-            if total_distance_km <= base_price_km:
-                trip_price = base_price
-            else:
-                additional_km = total_distance_km - base_price_km
-                additional_charges = additional_km * price_per_km
-                trip_price = base_price + additional_charges
+            # Calculate base fare for total days
+            base_fare = base_price_per_day * total_days
             
-            # For two-way trips, double the trip price
-            if not one_way:
-                trip_price = trip_price * 2
+            # Calculate total included KM for the trip duration
+            total_included_km = base_km_per_day * total_days
             
-            # Calculate night allowance
+            # Calculate extra KM charges
+            extra_km_charges = Decimal('0.00')
+            if total_distance_km > total_included_km:
+                extra_km = total_distance_km - total_included_km
+                extra_km_charges = extra_km * price_per_km
+            
+            # Calculate nights and driver allowance
             nights = self.calculate_nights_between_dates(start_date, end_date)
             night_allowance_total = nights * night_allowance
             
-            # Calculate additional base price for non-running days
-            total_days = (end_date - start_date).days + 1 if end_date and start_date else 1
-            running_days = 2 if not one_way else 1
-            
-            base_price_days = max(0, total_days - running_days)
-            base_price_additional = base_price_days * base_price
-            
             # Calculate total amount
-            total_amount = trip_price + night_allowance_total + base_price_additional
+            total_amount = base_fare + extra_km_charges + night_allowance_total
             
             # Ensure minimum fare is met
             if total_amount < minimum_fare:
@@ -327,11 +318,13 @@ class BusBookingSerializer(BaseBookingSerializer):
             return {
                 'total_amount': total_amount,
                 'total_distance_km': total_distance_km,
-                'trip_price': trip_price,
+                'base_fare': base_fare,
+                'extra_km_charges': extra_km_charges,
                 'night_allowance_total': night_allowance_total,
-                'base_price_days': base_price_days,
-                'base_price_additional': base_price_additional,
-                'nights': nights
+                'total_days': total_days,
+                'nights': nights,
+                'total_included_km': total_included_km,
+                'extra_km': max(Decimal('0.00'), total_distance_km - total_included_km)
             }
             
         except Exception as e:
@@ -353,7 +346,6 @@ class BusBookingSerializer(BaseBookingSerializer):
             
             start_date = user_search.pick_up_date
             end_date = user_search.return_date if user_search.return_date else start_date
-            one_way = user_search.one_way
             
             # Get stops data from user search
             stops_data = []
@@ -365,7 +357,7 @@ class BusBookingSerializer(BaseBookingSerializer):
                     'longitude': stop.longitude
                 })
             
-            price_data = self.calculate_trip_price(obj.bus, user_search, start_date, end_date, one_way, stops_data)
+            price_data = self.calculate_trip_price(obj.bus, user_search, start_date, end_date, stops_data)
             return float(price_data['total_amount'])
             
         except UserBusSearch.DoesNotExist:
@@ -417,19 +409,17 @@ class BusBookingSerializer(BaseBookingSerializer):
         # Set dates and other data from search
         start_date = bus_search.pick_up_date
         end_date = validated_data.get('end_date')
-        one_way = bus_search.one_way if bus_search.one_way is not None else True
         
-        # Set end_date based on trip type
-        if not one_way and bus_search.return_date:
+        # Set end_date - use return_date if available, otherwise use start_date
+        if bus_search.return_date:
             end_date = bus_search.return_date
         elif not end_date:
             end_date = start_date
         
-        # Update validated_data
+        # Update validated_data - removed one_way field since we always calculate as round trip
         validated_data.update({
             'start_date': start_date,
             'end_date': end_date,
-            'one_way': one_way,
             'from_location': bus_search.from_location,
             'to_location': bus_search.to_location,
             'from_lat': bus_search.from_lat,
@@ -437,26 +427,27 @@ class BusBookingSerializer(BaseBookingSerializer):
             'to_lat': bus_search.to_lat,
             'to_lon': bus_search.to_lon,
             'pick_up_time': bus_search.pick_up_time,
-            'return_date': bus_search.return_date if not one_way else None,
+            'return_date': bus_search.return_date,
             'total_travelers': bus.capacity
         })
 
         # Calculate total amount using centralized method with stops
-        price_data = self.calculate_trip_price(bus, bus_search, start_date, end_date, one_way, stops_data)
+        price_data = self.calculate_trip_price(bus, bus_search, start_date, end_date, stops_data)
         
         # Update validated_data with calculated prices
         validated_data.update({
             'total_amount': price_data['total_amount'],
             'night_allowance_total': price_data['night_allowance_total'],
-            'base_price_days': price_data['base_price_days'],
+            'base_price_days': price_data['total_days'],  # Now represents total days
             'total_distance': price_data['total_distance_km']
         })
 
         logger.info(f"Trip calculation - Total Distance: {price_data['total_distance_km']} km, "
-                   f"Trip Price: {price_data['trip_price']}, "
+                   f"Total Days: {price_data['total_days']}, "
+                   f"Base Fare: {price_data['base_fare']}, "
+                   f"Extra KM Charges: {price_data['extra_km_charges']}, "
                    f"Nights: {price_data['nights']}, "
                    f"Night Allowance: {price_data['night_allowance_total']}, "
-                   f"Base Price Days: {price_data['base_price_days']}, "
                    f"Total: {price_data['total_amount']}")
 
         # Calculate minimum advance amount required
@@ -575,13 +566,14 @@ class SingleBusBookingSerializer(serializers.ModelSerializer):
     tax = serializers.SerializerMethodField()
     base_fare = serializers.SerializerMethodField()
     refunded_amount = serializers.SerializerMethodField()
+    stops = BusBookingStopSerializer(many=True, read_only=True)
 
     class Meta:
         model = BusBooking
         fields = [
             'booking_id','tax' ,'total_distance','base_fare','from_location', 'refunded_amount','advance_amount','pick_up_time','to_location', 'start_date', 
             'end_date', 'total_travelers', 'total_amount', 'price_per_km',
-            'paid_amount', 'bus_name', 'booking_type','one_way','trip_status','balance_amount'
+            'paid_amount', 'bus_name', 'booking_type','one_way','trip_status','balance_amount','stops'
         ]
 
     def get_base_fare(self,obj):
