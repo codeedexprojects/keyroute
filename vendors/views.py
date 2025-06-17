@@ -3832,6 +3832,7 @@ class PreAcceptPackageBookingDetailView(APIView):
                     "from_location": bus_booking.from_location,
                     "to_location": bus_booking.to_location,
                     "start_date": bus_booking.start_date,
+                    "end_date":bus_booking.end_date,
                     "total_travelers": bus_booking.total_travelers,
                     "male": bus_booking.male,
                     "female": bus_booking.female,
