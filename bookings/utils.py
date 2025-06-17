@@ -14,7 +14,7 @@ def is_bus_busy(bus, start_date, end_date=None, start_time=None, end_time=None):
     existing_bookings = BusBooking.objects.filter(
         bus=bus,
         booking_status__in=['pending', 'accepted'],
-        trip_status__in=['not_started', 'ongoing']
+        trip_status__in=['ongoing']
     ).filter(
         Q(start_date__lte=end_date) & 
         Q(end_date__gte=start_date)
