@@ -85,6 +85,7 @@ class BusBookingSerializer(BaseBookingSerializer):
     bus_details = serializers.SerializerMethodField(read_only=True)
     booking_type = serializers.SerializerMethodField()
     price = serializers.SerializerMethodField()
+    bus_name = serializers.SerializerMethodField()
     end_date = serializers.DateField(required=False, help_text="End date of the trip")
     stops = BusBookingStopSerializer(many=True, read_only=True)
     
@@ -108,7 +109,7 @@ class BusBookingSerializer(BaseBookingSerializer):
     class Meta:
         model = BusBooking
         fields = BaseBookingSerializer.Meta.fields + [
-            'bus', 'bus_details', 'travelers', 'booking_type', 
+            'bus', 'bus_details','bus_name','travelers', 'booking_type', 
             'partial_amount', 'return_date', 'pick_up_time', 'price', 'end_date',
             'night_allowance_total', 'base_price_days', 'total_distance', 'stops', 'stops_data'
         ]
@@ -178,6 +179,9 @@ class BusBookingSerializer(BaseBookingSerializer):
     
     def get_booking_type(self, obj):
         return "bus"
+    
+    def get_bus_name(self,obj):
+        return obj.bus.bus_name
 
     def calculate_distance_google_api(self, from_lat, from_lon, to_lat, to_lon):
         """Calculate distance using Google Distance Matrix API"""
