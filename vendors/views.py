@@ -3851,11 +3851,15 @@ class PreAcceptPackageBookingDetailView(APIView):
             ).first()
 
             if package_booking:
+                night_count = package_booking.package.day_plans.filter(night=True).count()
+                total_days = package_booking.package.days + night_count
+                end_date = package_booking.start_date + timedelta(days=total_days)
                 data = {
                     "booking_type": "package",
                     "from_location": package_booking.from_location,
                     "to_location": package_booking.to_location,
                     "start_date": package_booking.start_date,
+                    "end_date":end_date,
                     "total_travelers": package_booking.total_travelers,
                     "male": package_booking.male,
                     "female": package_booking.female,

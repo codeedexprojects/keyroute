@@ -36,6 +36,7 @@ from .models import PackageDriverDetail,BusDriverDetail
 from .serializers import PackageDriverDetailSerializer,BusDriverDetailSerializer
 from django.db.models import Avg
 from .serializers import UserBusSearchStopSerializer
+from .utils import BusPriceCalculatorMixin
 
 
 class PackageListAPIView(APIView):
@@ -177,7 +178,7 @@ class SinglePackageListAPIView(APIView):
             return Response({"error": "No Pckages Found."}, status=404)
 
 
-class BusListAPIView(APIView):
+class BusListAPIView(BusPriceCalculatorMixin, APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -375,51 +376,60 @@ class BusListAPIView(APIView):
 
     def calculate_trip_price(self, bus, from_lat, from_lon, to_lat, to_lon, seat_count):
         """
-        Calculate trip price based on distance and bus pricing
+        Updated method to use comprehensive price calculation
         """
         try:
-            from decimal import Decimal
+            # Get user search data for dates and stops
+            user_search = UserBusSearch.objects.get(user=self.request.user)
             
-            # Calculate distance
-            distance_km = self.calculate_distance_google_api(from_lat, from_lon, to_lat, to_lon)
+            # Get stops data
+            stops_data = []
+            if hasattr(user_search, 'search_stops'):
+                search_stops = user_search.search_stops.all().order_by('stop_order')
+                for stop in search_stops:
+                    stops_data.append({
+                        'location_name': stop.location_name,
+                        'latitude': stop.latitude,
+                        'longitude': stop.longitude
+                    })
             
-            base_price = bus.base_price or Decimal('0.00')
-            base_price_km = bus.base_price_km or 0
-            price_per_km = bus.price_per_km or Decimal('0.00')
-            minimum_fare = bus.minimum_fare or Decimal('0.00')
+            # Get dates
+            start_date = user_search.pick_up_date if hasattr(user_search, 'pick_up_date') else timezone.now().date()
+            end_date = user_search.return_date if hasattr(user_search, 'return_date') and user_search.return_date else start_date
             
-            # Calculate amount based on distance
-            if distance_km <= base_price_km:
-                # Within base price range
-                total_amount = base_price
-            else:
-                # Base price + additional km charges
-                additional_km = distance_km - base_price_km
-                additional_charges = additional_km * price_per_km
-                total_amount = base_price + additional_charges
+            # Calculate comprehensive price
+            total_amount = self.calculate_comprehensive_trip_price(
+                bus, from_lat, from_lon, to_lat, to_lon,
+                start_date, end_date, stops_data
+            )
             
-            # Apply seat multiplier
-            total_amount = total_amount * seat_count
-            
-            # Ensure minimum fare is met
-            if total_amount < minimum_fare:
-                total_amount = minimum_fare
-            
+            # Apply seat multiplier if needed (though comprehensive calculation should handle capacity)
+            # For listing purposes, we might still want to show per-seat or total pricing
             return total_amount
             
         except Exception as e:
+            logging.error(f"Error calculating trip price: {str(e)}")
             return Decimal('0.00')
     
 
 
 
 class SingleBusListAPIView(APIView):
+    """
+    Updated Single Bus API View with comprehensive price calculation
+    """
     permission_classes = [AllowAny]
     
-    def get(self, request,bus_id):
-        buses = Bus.objects.get(id=bus_id)
-        serializer = BusListingSerializer(buses, many=False, context={'request': request})
-        return Response(serializer.data)
+    def get(self, request, bus_id):
+        try:
+            bus = Bus.objects.get(id=bus_id)
+            serializer = BusListingSerializer(bus, many=False, context={'request': request})
+            return Response(serializer.data)
+        except Bus.DoesNotExist:
+            return Response({"error": "Bus not found"}, status=404)
+        except Exception as e:
+            logging.error(f"Error in SingleBusListAPIView: {str(e)}")
+            return Response({"error": "Internal server error"}, status=500)
 
 class PackageBookingListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -2168,3 +2178,142 @@ class CompleteTripAPIView(APIView):
             'success': False,
             'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+
+
+class NearbyBusLocationAPIView(APIView):
+    """
+    Simple API to get buses near a location using lat/lon coordinates
+    Usage: GET /api/buses/location/?lat=17.385044&lon=78.486671&radius=30
+    """
+    
+    def get(self, request):
+        # Get coordinates from query parameters
+        lat = request.query_params.get('lat')
+        lon = request.query_params.get('lon')
+        radius = request.query_params.get('radius', 50)  # Default 30km radius
+        
+        # Validate required parameters
+        if not lat or not lon:
+            return Response({
+                "error": "Both 'lat' and 'lon' parameters are required",
+                "example": "/api/buses/location/?lat=17.385044&lon=78.486671&radius=30"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            lat = float(lat)
+            lon = float(lon)
+            radius = float(radius)
+        except ValueError:
+            return Response({
+                "error": "Invalid coordinates. Please provide valid numbers for lat, lon, and radius"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # User coordinates
+        user_coords = (lat, lon)
+        
+        # Get all buses with valid coordinates
+        buses = Bus.objects.filter(
+            latitude__isnull=False, 
+            longitude__isnull=False,
+            status='available'  # Only available buses
+        ).prefetch_related('amenities', 'features', 'bus_reviews', 'images')
+        
+        # Find nearby buses
+        nearby_buses = []
+        for bus in buses:
+            if bus.latitude is not None and bus.longitude is not None:
+                bus_coords = (bus.latitude, bus.longitude)
+                distance_km = geodesic(user_coords, bus_coords).kilometers
+                
+                if distance_km <= radius:
+                    nearby_buses.append({
+                        'bus': bus,
+                        'distance_km': round(distance_km, 2)
+                    })
+        
+        if not nearby_buses:
+            return Response({
+                "message": f"No buses found within {radius} km of your location",
+                "searched_location": {"lat": lat, "lon": lon, "radius": radius},
+                "total_buses": 0,
+                "buses": []
+            }, status=status.HTTP_200_OK)
+        
+        # Sort by distance (nearest first)
+        nearby_buses.sort(key=lambda x: x['distance_km'])
+        
+        # Serialize bus data
+        buses_data = []
+        for item in nearby_buses:
+            bus = item['bus']
+            
+            # Get bus images
+            bus_images = []
+            for image in bus.images.all():
+                bus_images.append({
+                    'id': image.id,
+                    'image': request.build_absolute_uri(image.image.url) if image.image else None,
+                    'alt_text': getattr(image, 'alt_text', ''),
+                    'is_primary': getattr(image, 'is_primary', False)
+                })
+            
+            # Get amenities
+            amenities = [
+                {
+                    'id': amenity.id,
+                    'name': amenity.name,
+                    'icon': request.build_absolute_uri(amenity.icon.url) if hasattr(amenity, 'icon') and amenity.icon else None
+                }
+                for amenity in bus.amenities.all()
+            ]
+            
+            # Get features
+            features = [
+                {
+                    'id': feature.id,
+                    'name': feature.name
+                }
+                for feature in bus.features.all()
+            ]
+            
+            bus_data = {
+                'id': bus.id,
+                'bus_name': bus.bus_name,
+                'bus_number': bus.bus_number,
+                'capacity': bus.capacity,
+                'bus_type': bus.bus_type,
+                'location': bus.location,
+                'latitude': bus.latitude,
+                'longitude': bus.longitude,
+                'distance_km': item['distance_km'],
+                'status': bus.status,
+                'is_popular': bus.is_popular,
+                'average_rating': bus.average_rating,
+                'total_reviews': bus.total_reviews,
+                'base_price': str(bus.base_price) if bus.base_price else None,
+                'price_per_km': str(bus.price_per_km) if bus.price_per_km else None,
+                'minimum_fare': str(bus.minimum_fare) if bus.minimum_fare else None,
+                'night_allowance': str(bus.night_allowance) if bus.night_allowance else None,
+                'travels_logo': request.build_absolute_uri(bus.travels_logo.url) if bus.travels_logo else None,
+                'images': bus_images,
+                'amenities': amenities,
+                'features': features
+            }
+            
+            buses_data.append(bus_data)
+        
+        response_data = {
+            "message": f"Found {len(nearby_buses)} buses within {radius} km",
+            "searched_location": {
+                "lat": lat,
+                "lon": lon,
+                "radius": radius
+            },
+            "total_buses": len(nearby_buses),
+            "buses": buses_data
+        }
+        
+        return Response(response_data, status=status.HTTP_200_OK)

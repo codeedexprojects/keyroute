@@ -40,23 +40,23 @@ class LoginSerializer(serializers.Serializer):
     def validate(self, data):
         mobile = data.get('mobile')
         if not mobile:
-            raise serializers.ValidationError({"mobile": "Mobile number is required."})
+            raise serializers.ValidationError({"error": "Mobile number is required."})
 
         try:
             user = User.objects.get(mobile=mobile)
             data['is_new_user'] = False
         except User.DoesNotExist:
-            raise serializers.ValidationError({"mobile": "User with this mobile number does not exist."})
+            raise serializers.ValidationError({"error": "User with this mobile number does not exist."})
             
         referral_code = data.get('referral_code')
         if referral_code:
             try:
                 referrer = User.objects.get(referral_code=referral_code)
                 if mobile == referrer.mobile:
-                    raise serializers.ValidationError({"referral_code": "You cannot refer yourself."})
+                    raise serializers.ValidationError({"error": "You cannot refer yourself."})
                 data['referrer'] = referrer
             except User.DoesNotExist:
-                raise serializers.ValidationError({"referral_code": "Invalid referral code."})
+                raise serializers.ValidationError({"error": "Invalid referral code."})
         
         return data
 
@@ -69,23 +69,23 @@ class SignupSerializer(serializers.Serializer):
     def validate(self, data):
         mobile = data.get('mobile')
         if not mobile:
-            raise serializers.ValidationError({"mobile": "Mobile number is required."})
+            raise serializers.ValidationError({"error": "Mobile number is required."})
 
         if User.objects.filter(mobile=mobile).exists():
-            raise serializers.ValidationError({"mobile": "User with this mobile number already exists."})
+            raise serializers.ValidationError({"error": "User with this mobile number already exists."})
         
         if not data.get('name'):
-            raise serializers.ValidationError({"name": "Name is required for new users."})
+            raise serializers.ValidationError({"error": "Name is required for new users."})
             
         referral_code = data.get('referral_code')
         if referral_code:
             try:
                 referrer = User.objects.get(referral_code=referral_code)
                 if mobile == referrer.mobile:
-                    raise serializers.ValidationError({"referral_code": "You cannot refer yourself."})
+                    raise serializers.ValidationError({"error": "You cannot refer yourself."})
                 data['referrer'] = referrer
             except User.DoesNotExist:
-                raise serializers.ValidationError({"referral_code": "Invalid referral code."})
+                raise serializers.ValidationError({"error": "Invalid referral code."})
         
         data['is_new_user'] = True
         return data
