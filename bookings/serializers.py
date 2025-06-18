@@ -24,12 +24,29 @@ from reviews.serializers import *
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from notifications.utils import send_notification
+from .models import BusBookingStop,UserBusSearchStop
+from .utils import BusPriceCalculatorMixin
 
 
 User = get_user_model()
 
 # Minimum wallet amount required for using wallet balance
 MINIMUM_WALLET_AMOUNT = Decimal('1000.00')
+
+
+class BusBookingStopSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusBookingStop
+        fields = ['id', 'stop_order', 'location_name', 'latitude', 'longitude', 
+                 'estimated_arrival', 'distance_from_previous']
+        read_only_fields = ['id', 'distance_from_previous', 'estimated_arrival']
+
+
+class UserBusSearchStopSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserBusSearchStop
+        fields = ['id', 'stop_order', 'location_name', 'latitude', 'longitude']
+        read_only_fields = ['id']
 
 class TravelerSerializer(serializers.ModelSerializer):
     class Meta:
@@ -69,7 +86,17 @@ class BusBookingSerializer(BaseBookingSerializer):
     bus_details = serializers.SerializerMethodField(read_only=True)
     booking_type = serializers.SerializerMethodField()
     price = serializers.SerializerMethodField()
+    bus_name = serializers.SerializerMethodField()
     end_date = serializers.DateField(required=False, help_text="End date of the trip")
+    stops = BusBookingStopSerializer(many=True, read_only=True)
+    
+    # Stops data for creating booking with stops
+    stops_data = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        write_only=True,
+        help_text="List of stops with location_name, latitude, longitude"
+    )
 
     # Partial payment field
     partial_amount = serializers.DecimalField(
@@ -83,46 +110,67 @@ class BusBookingSerializer(BaseBookingSerializer):
     class Meta:
         model = BusBooking
         fields = BaseBookingSerializer.Meta.fields + [
-            'bus', 'bus_details', 'one_way', 'travelers', 'booking_type', 
+            'bus', 'bus_details','bus_name','travelers', 'booking_type', 
             'partial_amount', 'return_date', 'pick_up_time', 'price', 'end_date',
-            'night_allowance_total', 'base_price_days'
+            'night_allowance_total', 'base_price_days', 'total_distance', 'stops', 'stops_data'
         ]
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
             'advance_amount': {'write_only': False, 'required': False},
             'total_amount': {'write_only': False, 'required': False},
-            'total_travelers': {'read_only': True}
+            'total_travelers': {'read_only': True},
+            'total_distance': {'read_only': True}
         }
 
+    def validate_stops_data(self, value):
+        """Validate stops data"""
+        if not value:
+            return value
+            
+        for i, stop in enumerate(value):
+            if not all(key in stop for key in ['location_name', 'latitude', 'longitude']):
+                raise serializers.ValidationError(
+                    f"Stop {i+1} must have location_name, latitude, and longitude"
+                )
+            
+            try:
+                float(stop['latitude'])
+                float(stop['longitude'])
+            except (ValueError, TypeError):
+                raise serializers.ValidationError(
+                    f"Stop {i+1} has invalid latitude or longitude"
+                )
+        
+        return value
+
     def validate(self, data):
-        """
-        Validate booking data
-        """
+        user = self.context['request'].user
+
+        try:
+            bus_search = UserBusSearch.objects.get(user=user)
+            if not data.get('start_date') and bus_search.pick_up_date:
+                data['start_date'] = bus_search.pick_up_date
+        except UserBusSearch.DoesNotExist:
+            pass
+
         # Validate dates
         start_date = data.get('start_date')
         end_date = data.get('end_date')
         return_date = data.get('return_date')
-        one_way = data.get('one_way', True)
 
         if not start_date:
-            raise serializers.ValidationError("Start date is required.")
+            raise serializers.ValidationError("Start date is required. Please search for buses first.")
         
         if start_date < timezone.now().date():
             raise serializers.ValidationError("Start date cannot be in the past.")
 
-        if not one_way:
-            if not return_date:
-                raise serializers.ValidationError("Return date is required for two-way trips.")
-            if return_date <= start_date:
-                raise serializers.ValidationError("Return date must be after start date.")
-            # For two-way trips, end_date should be return_date
+        # Set end_date - if return_date is provided, use it; otherwise use start_date for same-day trips
+        if return_date:
+            if return_date < start_date:
+                raise serializers.ValidationError("Return date cannot be before start date.")
             data['end_date'] = return_date
-        else:
-            if not end_date:
-                # For one-way trips, end_date defaults to start_date if not provided
-                data['end_date'] = start_date
-            elif end_date < start_date:
-                raise serializers.ValidationError("End date cannot be before start date.")
+        elif not end_date:
+            data['end_date'] = start_date
 
         return data
 
@@ -132,12 +180,12 @@ class BusBookingSerializer(BaseBookingSerializer):
     
     def get_booking_type(self, obj):
         return "bus"
+    
+    def get_bus_name(self,obj):
+        return obj.bus.bus_name
 
     def calculate_distance_google_api(self, from_lat, from_lon, to_lat, to_lon):
-        """
-        Calculate distance using Google Distance Matrix API
-        Returns distance in kilometers
-        """
+        """Calculate distance using Google Distance Matrix API"""
         try:
             url = "https://maps.googleapis.com/maps/api/distancematrix/json"
             params = {
@@ -167,9 +215,7 @@ class BusBookingSerializer(BaseBookingSerializer):
             return self.calculate_distance_fallback(from_lat, from_lon, to_lat, to_lon)
 
     def calculate_distance_fallback(self, from_lat, from_lon, to_lat, to_lon):
-        """
-        Fallback distance calculation using Haversine formula
-        """
+        """Fallback distance calculation using Haversine formula"""
         try:
             from math import radians, cos, sin, asin, sqrt
             
@@ -187,20 +233,166 @@ class BusBookingSerializer(BaseBookingSerializer):
             logging.error(f"Error in fallback distance calculation: {str(e)}")
             return Decimal('10.0')
 
+    def find_optimal_route(self, origin_lat, origin_lon, destination_lat, destination_lon, stops_data):
+        """
+        Find the optimal route using nearest neighbor algorithm
+        Returns the optimized order of stops to visit
+        """
+        if not stops_data:
+            return []
+        
+        # Create all points including origin and destination
+        origin = {'lat': origin_lat, 'lon': origin_lon, 'name': 'Origin', 'type': 'origin'}
+        destination = {'lat': destination_lat, 'lon': destination_lon, 'name': 'Destination', 'type': 'destination'}
+        
+        # Convert stops to point format
+        stops = []
+        for i, stop in enumerate(stops_data):
+            stops.append({
+                'lat': float(stop['latitude']),
+                'lon': float(stop['longitude']),
+                'name': stop['location_name'],
+                'type': 'stop',
+                'original_index': i
+            })
+        
+        # Find optimal route using nearest neighbor algorithm
+        optimal_route = []
+        current_point = origin
+        unvisited_stops = stops.copy()
+        
+        logging.info(f"=== ROUTE OPTIMIZATION ===")
+        logging.info(f"Origin: {origin['name']}")
+        logging.info(f"Destination: {destination['name']}")
+        logging.info(f"Stops to visit: {[s['name'] for s in stops]}")
+        
+        # Visit all stops in optimal order
+        while unvisited_stops:
+            nearest_stop = None
+            min_distance = float('inf')
+            
+            # Find nearest unvisited stop
+            for stop in unvisited_stops:
+                distance = self.calculate_distance_fallback(
+                    current_point['lat'], current_point['lon'],
+                    stop['lat'], stop['lon']
+                )
+                
+                if distance < min_distance:
+                    min_distance = distance
+                    nearest_stop = stop
+            
+            if nearest_stop:
+                optimal_route.append(nearest_stop)
+                unvisited_stops.remove(nearest_stop)
+                current_point = nearest_stop
+                logging.info(f"Next stop: {nearest_stop['name']} (distance: {min_distance} km)")
+        
+        # Create final optimized stops data in the correct order
+        optimized_stops_data = []
+        for point in optimal_route:
+            if point['type'] == 'stop':
+                original_stop = stops_data[point['original_index']]
+                optimized_stops_data.append(original_stop)
+        
+        logging.info(f"Optimized route order: {[stop['location_name'] for stop in optimized_stops_data]}")
+        
+        return optimized_stops_data
+
+    def calculate_total_distance_with_stops(self, from_lat, from_lon, to_lat, to_lon, stops_data=None):
+        """
+        Calculate total distance for round trip with optimal route:
+        - If no stops: Simple Origin -> Destination -> Origin
+        - If stops: Origin -> OptimalStops -> Destination -> Origin (reverse route)
+        """
+        
+        if not stops_data:
+            # Simple round trip without stops
+            one_way_distance = self.calculate_distance_google_api(from_lat, from_lon, to_lat, to_lon)
+            total_distance = one_way_distance * 2  # Round trip
+            
+            logging.info(f"=== SIMPLE ROUND TRIP ===")
+            logging.info(f"One way distance: {one_way_distance} km")
+            logging.info(f"Round trip total: {total_distance} km")
+            
+            return total_distance
+        
+        # Find optimal route for stops
+        optimized_stops = self.find_optimal_route(from_lat, from_lon, to_lat, to_lon, stops_data)
+        
+        # Build complete route
+        forward_route = []
+        forward_route.append({'lat': from_lat, 'lon': from_lon, 'name': 'Origin'})
+        
+        # Add optimized stops
+        for stop in optimized_stops:
+            forward_route.append({
+                'lat': float(stop['latitude']), 
+                'lon': float(stop['longitude']),
+                'name': stop['location_name']
+            })
+        
+        # Add destination
+        forward_route.append({'lat': to_lat, 'lon': to_lon, 'name': 'Destination'})
+        
+        # Calculate forward journey distance
+        forward_distance = Decimal('0.00')
+        logging.info("=== FORWARD JOURNEY (OPTIMIZED ROUTE) ===")
+        
+        for i in range(len(forward_route) - 1):
+            current_point = forward_route[i]
+            next_point = forward_route[i + 1]
+            
+            segment_distance = self.calculate_distance_google_api(
+                current_point['lat'], current_point['lon'],
+                next_point['lat'], next_point['lon']
+            )
+            
+            forward_distance += segment_distance
+            logging.info(f"Segment {i+1}: {current_point['name']} -> {next_point['name']} = {segment_distance} km")
+        
+        logging.info(f"Forward journey total: {forward_distance} km")
+        
+        # Calculate return journey (reverse the forward route)
+        return_distance = Decimal('0.00')
+        logging.info("=== RETURN JOURNEY (REVERSE ROUTE) ===")
+        
+        return_route = list(reversed(forward_route))
+        
+        for i in range(len(return_route) - 1):
+            current_point = return_route[i]
+            next_point = return_route[i + 1]
+            
+            segment_distance = self.calculate_distance_google_api(
+                current_point['lat'], current_point['lon'],
+                next_point['lat'], next_point['lon']
+            )
+            
+            return_distance += segment_distance
+            logging.info(f"Return Segment {i+1}: {current_point['name']} -> {next_point['name']} = {segment_distance} km")
+        
+        logging.info(f"Return journey total: {return_distance} km")
+        
+        # Total round trip distance
+        total_distance = forward_distance + return_distance
+        
+        logging.info(f"=== TOTAL OPTIMIZED ROUND TRIP DISTANCE: {total_distance} km ===")
+        
+        # Store the optimized route for later use in create method
+        self._optimized_stops_data = optimized_stops
+        
+        return total_distance
+
     def calculate_nights_between_dates(self, start_date, end_date):
-        """
-        Calculate number of nights between two dates
-        """
+        """Calculate number of nights between two dates"""
         if not start_date or not end_date:
             return 0
         
         delta = end_date - start_date
         return max(0, delta.days)
 
-    def calculate_trip_price(self, bus, user_search, start_date, end_date, one_way=True):
-        """
-        Centralized method to calculate trip price with all new requirements
-        """
+    def calculate_trip_price(self, bus, user_search, start_date, end_date, stops_data=None):
+        """Centralized method to calculate trip price based on optimized route"""
         try:
             # Validate bus pricing data
             if not bus.base_price or bus.base_price <= 0:
@@ -209,57 +401,67 @@ class BusBookingSerializer(BaseBookingSerializer):
             if not bus.price_per_km or bus.price_per_km <= 0:
                 raise serializers.ValidationError("Bus price per km is not properly configured.")
 
-            # Get distance
-            distance_km = self.calculate_distance_google_api(
+            # Get total distance with optimized route
+            total_distance_km = self.calculate_total_distance_with_stops(
                 user_search.from_lat, user_search.from_lon, 
-                user_search.to_lat, user_search.to_lon
+                user_search.to_lat, user_search.to_lon,
+                stops_data
             )
             
-            # Calculate base trip price
-            base_price = bus.base_price
-            base_price_km = bus.base_price_km  # Fixed at 100 km
-            price_per_km = bus.price_per_km
+            # Calculate trip duration in days
+            total_days = (end_date - start_date).days + 1 if end_date and start_date else 1
+            
+            # Bus pricing configuration
+            base_price_per_day = bus.base_price  # Base price per day
+            base_km_per_day = bus.base_price_km or Decimal('100')  # KM included per day (default 100)
+            price_per_km = bus.price_per_km  # Rate for extra KM
+            night_allowance = bus.night_allowance or Decimal('500')  # Driver allowance per night
             minimum_fare = bus.minimum_fare or Decimal('0.00')
-            night_allowance = bus.night_allowance or Decimal('0.00')
             
-            # Calculate distance-based price
-            if distance_km <= base_price_km:
-                trip_price = base_price
-            else:
-                additional_km = distance_km - base_price_km
-                additional_charges = additional_km * price_per_km
-                trip_price = base_price + additional_charges
+            # Calculate base fare for total days
+            base_fare = base_price_per_day * total_days
             
-            # For two-way trips, double the trip price
-            if not one_way:
-                trip_price = trip_price * 2
+            # Calculate total included KM for the trip duration
+            total_included_km = base_km_per_day * total_days
             
-            # Calculate night allowance
+            # Calculate extra KM charges
+            extra_km_charges = Decimal('0.00')
+            if total_distance_km > total_included_km:
+                extra_km = total_distance_km - total_included_km
+                extra_km_charges = extra_km * price_per_km
+            
+            # Calculate nights and driver allowance
             nights = self.calculate_nights_between_dates(start_date, end_date)
             night_allowance_total = nights * night_allowance
             
-            # Calculate additional base price for non-running days
-            total_days = (end_date - start_date).days + 1 if end_date and start_date else 1
-            running_days = 2 if not one_way else 1  # Two-way has 2 running days, one-way has 1
-            
-            base_price_days = max(0, total_days - running_days)
-            base_price_additional = base_price_days * base_price
-            
             # Calculate total amount
-            total_amount = trip_price + night_allowance_total + base_price_additional
+            total_amount = base_fare + extra_km_charges + night_allowance_total
             
             # Ensure minimum fare is met
             if total_amount < minimum_fare:
                 total_amount = minimum_fare
             
+            logging.info(f"=== PRICE CALCULATION SUMMARY ===")
+            logging.info(f"- Total distance (optimized): {total_distance_km} km")
+            logging.info(f"- Total days: {total_days}")
+            logging.info(f"- Base fare: {base_fare}")
+            logging.info(f"- Included KM: {total_included_km}")
+            logging.info(f"- Extra KM: {max(Decimal('0.00'), total_distance_km - total_included_km)}")
+            logging.info(f"- Extra KM charges: {extra_km_charges}")
+            logging.info(f"- Nights: {nights}")
+            logging.info(f"- Night allowance: {night_allowance_total}")
+            logging.info(f"- Total amount: {total_amount}")
+            
             return {
                 'total_amount': total_amount,
-                'distance_km': distance_km,
-                'trip_price': trip_price,
+                'total_distance_km': total_distance_km,
+                'base_fare': base_fare,
+                'extra_km_charges': extra_km_charges,
                 'night_allowance_total': night_allowance_total,
-                'base_price_days': base_price_days,
-                'base_price_additional': base_price_additional,
-                'nights': nights
+                'total_days': total_days,
+                'nights': nights,
+                'total_included_km': total_included_km,
+                'extra_km': max(Decimal('0.00'), total_distance_km - total_included_km)
             }
             
         except Exception as e:
@@ -281,9 +483,18 @@ class BusBookingSerializer(BaseBookingSerializer):
             
             start_date = user_search.pick_up_date
             end_date = user_search.return_date if user_search.return_date else start_date
-            one_way = user_search.one_way
             
-            price_data = self.calculate_trip_price(obj.bus, user_search, start_date, end_date, one_way)
+            # Get stops data from user search
+            stops_data = []
+            search_stops = user_search.search_stops.all().order_by('stop_order')
+            for stop in search_stops:
+                stops_data.append({
+                    'location_name': stop.location_name,
+                    'latitude': stop.latitude,
+                    'longitude': stop.longitude
+                })
+            
+            price_data = self.calculate_trip_price(obj.bus, user_search, start_date, end_date, stops_data)
             return float(price_data['total_amount'])
             
         except UserBusSearch.DoesNotExist:
@@ -298,6 +509,10 @@ class BusBookingSerializer(BaseBookingSerializer):
 
         user = self.context['request'].user
         bus = validated_data.get('bus')
+        stops_data = validated_data.pop('stops_data', [])
+
+        # Initialize optimized stops data
+        self._optimized_stops_data = []
 
         # Validate bus
         if not bus:
@@ -320,13 +535,23 @@ class BusBookingSerializer(BaseBookingSerializer):
             logger.error(f"No bus search data found for user {user.id}")
             raise serializers.ValidationError("Bus search data not found. Please search for buses first.")
 
+        # Get stops from user search if not provided in request
+        if not stops_data:
+            search_stops = bus_search.search_stops.all().order_by('stop_order')
+            stops_data = []
+            for stop in search_stops:
+                stops_data.append({
+                    'location_name': stop.location_name,
+                    'latitude': stop.latitude,
+                    'longitude': stop.longitude
+                })
+
         # Set dates and other data from search
         start_date = bus_search.pick_up_date
         end_date = validated_data.get('end_date')
-        one_way = bus_search.one_way if bus_search.one_way is not None else True
         
-        # Set end_date based on trip type
-        if not one_way and bus_search.return_date:
+        # Set end_date - use return_date if available, otherwise use start_date
+        if bus_search.return_date:
             end_date = bus_search.return_date
         elif not end_date:
             end_date = start_date
@@ -335,7 +560,6 @@ class BusBookingSerializer(BaseBookingSerializer):
         validated_data.update({
             'start_date': start_date,
             'end_date': end_date,
-            'one_way': one_way,
             'from_location': bus_search.from_location,
             'to_location': bus_search.to_location,
             'from_lat': bus_search.from_lat,
@@ -343,25 +567,27 @@ class BusBookingSerializer(BaseBookingSerializer):
             'to_lat': bus_search.to_lat,
             'to_lon': bus_search.to_lon,
             'pick_up_time': bus_search.pick_up_time,
-            'return_date': bus_search.return_date if not one_way else None,
-            'total_travelers': bus.capacity  # Set to bus capacity
+            'return_date': bus_search.return_date,
+            'total_travelers': bus.capacity
         })
 
-        # Calculate total amount using centralized method
-        price_data = self.calculate_trip_price(bus, bus_search, start_date, end_date, one_way)
+        # Calculate total amount using optimized route
+        price_data = self.calculate_trip_price(bus, bus_search, start_date, end_date, stops_data)
         
         # Update validated_data with calculated prices
         validated_data.update({
             'total_amount': price_data['total_amount'],
             'night_allowance_total': price_data['night_allowance_total'],
-            'base_price_days': price_data['base_price_days']
+            'base_price_days': price_data['total_days'],
+            'total_distance': price_data['total_distance_km']
         })
 
-        logger.info(f"Trip calculation - Distance: {price_data['distance_km']} km, "
-                   f"Trip Price: {price_data['trip_price']}, "
+        logger.info(f"Final Trip calculation - Total Distance: {price_data['total_distance_km']} km, "
+                   f"Total Days: {price_data['total_days']}, "
+                   f"Base Fare: {price_data['base_fare']}, "
+                   f"Extra KM Charges: {price_data['extra_km_charges']}, "
                    f"Nights: {price_data['nights']}, "
                    f"Night Allowance: {price_data['night_allowance_total']}, "
-                   f"Base Price Days: {price_data['base_price_days']}, "
                    f"Total: {price_data['total_amount']}")
 
         # Calculate minimum advance amount required
@@ -393,6 +619,47 @@ class BusBookingSerializer(BaseBookingSerializer):
         # Create booking
         booking = super().create(validated_data)
 
+        # Create stops for the booking using optimized route
+        if stops_data and hasattr(self, '_optimized_stops_data') and self._optimized_stops_data:
+            # Use the optimized stops order
+            optimized_stops = self._optimized_stops_data
+            
+            # Build the route points for distance calculation
+            route_points = []
+            route_points.append({'lat': bus_search.from_lat, 'lon': bus_search.from_lon, 'name': 'Origin'})
+            
+            for stop_data in optimized_stops:
+                route_points.append({
+                    'lat': float(stop_data['latitude']), 
+                    'lon': float(stop_data['longitude']),
+                    'name': stop_data['location_name']
+                })
+            
+            route_points.append({'lat': bus_search.to_lat, 'lon': bus_search.to_lon, 'name': 'Destination'})
+            
+            # Create stop records with distance from previous point in optimized order
+            for i, stop_data in enumerate(optimized_stops):
+                # Distance from previous point in the optimized route
+                prev_point = route_points[i]  # Previous point (origin or previous stop)
+                current_point = route_points[i + 1]  # Current stop
+                
+                distance_from_previous = self.calculate_distance_google_api(
+                    prev_point['lat'], prev_point['lon'],
+                    current_point['lat'], current_point['lon']
+                )
+                
+                BusBookingStop.objects.create(
+                    booking=booking,
+                    stop_order=i + 1,
+                    location_name=stop_data['location_name'],
+                    latitude=float(stop_data['latitude']),
+                    longitude=float(stop_data['longitude']),
+                    distance_from_previous=distance_from_previous
+                )
+                
+                logger.info(f"Created optimized stop {i+1}: {stop_data['location_name']} - "
+                           f"Distance from previous: {distance_from_previous} km")
+
         # Create admin commission record
         AdminCommission.objects.create(
             booking_type='bus',
@@ -404,7 +671,7 @@ class BusBookingSerializer(BaseBookingSerializer):
             referral_deduction=Decimal('0.00')
         )
 
-        # Handle referral rewards
+        # Handle referral rewards (existing code remains the same)
         try:
             wallet = Wallet.objects.get(user=user)
             if wallet.referred_by and not wallet.referral_used:
@@ -445,7 +712,6 @@ class BusBookingSerializer(BaseBookingSerializer):
             logger.error(f"Error in referral processing: {str(e)}")
 
         return booking
-    
 
 class SingleBusBookingSerializer(serializers.ModelSerializer):
     booking_type = serializers.SerializerMethodField()
@@ -455,13 +721,15 @@ class SingleBusBookingSerializer(serializers.ModelSerializer):
     price_per_km = serializers.SerializerMethodField()
     tax = serializers.SerializerMethodField()
     base_fare = serializers.SerializerMethodField()
+    refunded_amount = serializers.SerializerMethodField()
+    stops = BusBookingStopSerializer(many=True, read_only=True)
 
     class Meta:
         model = BusBooking
         fields = [
-            'booking_id','tax' ,'base_fare','from_location', 'advance_amount','pick_up_time','to_location', 'start_date', 
+            'booking_id','tax' ,'total_distance','base_fare','from_location', 'refunded_amount','advance_amount','pick_up_time','to_location', 'start_date', 
             'end_date', 'total_travelers', 'total_amount', 'price_per_km',
-            'paid_amount', 'bus_name', 'booking_type','one_way','trip_status','balance_amount'
+            'paid_amount', 'bus_name', 'booking_type','one_way','trip_status','balance_amount','stops'
         ]
 
     def get_base_fare(self,obj):
@@ -471,6 +739,9 @@ class SingleBusBookingSerializer(serializers.ModelSerializer):
         return obj.bus.price_per_km
     
     def get_tax(self,obj):
+        return 0
+    
+    def get_refunded_amount(self,obj):
         return 0
 
     def get_booking_type(self, obj):
@@ -530,11 +801,12 @@ class SinglePackageBookingSerilizer(serializers.ModelSerializer):
     day_wise_plan = serializers.SerializerMethodField()
     tax = serializers.SerializerMethodField()
     base_fare = serializers.SerializerMethodField()
+    refunded_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = PackageBooking
         fields = [
-            'booking_id','tax','base_fare','rooms','from_location','advance_amount' ,'to_location',
+            'booking_id','tax','base_fare','rooms','from_location','refunded_amount','advance_amount' ,'to_location',
             'start_date', 'end_date', 'total_travelers',
             'total_amount', 'paid_amount', 'bus_name',
             'booking_type', 'male', 'female', 'children',
@@ -546,6 +818,9 @@ class SinglePackageBookingSerilizer(serializers.ModelSerializer):
         return [bus.minimum_fare for bus in buses]
 
     def get_tax(self,obj):
+        return 0
+    
+    def get_refunded_amount(self,obj):
         return 0
 
     def get_end_date(self, obj):
@@ -573,6 +848,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
     booking_type = serializers.SerializerMethodField()
+    bus_name = serializers.SerializerMethodField()
     total_amount = serializers.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -591,7 +867,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
         model = PackageBooking
         fields = BaseBookingSerializer.Meta.fields + [
             'package', 'package_details', 'travelers',
-            'partial_amount', 'booking_type', 'total_travelers', 'rooms','total_amount'
+            'partial_amount', 'booking_type', 'total_travelers', 'rooms','total_amount','bus_name'
         ]
         read_only_fields = BaseBookingSerializer.Meta.read_only_fields + ['rooms']
         extra_kwargs = {
@@ -604,6 +880,10 @@ class PackageBookingSerializer(BaseBookingSerializer):
 
     def get_booking_type(self, obj):
         return "package"
+    
+    def get_bus_name(self,obj):
+        first_bus = obj.package.buses.first()
+        return first_bus.bus_name if first_bus else "No Bus Assigned"
 
     def create(self, validated_data):
         import logging
@@ -1417,7 +1697,9 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
         return booking
 
 
-class BusListingSerializer(serializers.ModelSerializer):
+class BusListingSerializer(BusPriceCalculatorMixin, serializers.ModelSerializer):
+    """Updated BusListingSerializer with comprehensive price calculation matching BusBookingSerializer"""
+    
     amenities = AmenitySerializer(many=True, read_only=True)
     features = BusFeatureSerializer(many=True, read_only=True)
     average_rating = serializers.SerializerMethodField()
@@ -1484,10 +1766,90 @@ class BusListingSerializer(serializers.ModelSerializer):
             "rating_breakdown": rating_breakdown
         }
 
+    def calculate_nights_between_dates(self, start_date, end_date):
+        """Calculate number of nights between two dates"""
+        if not start_date or not end_date:
+            return 0
+        
+        delta = end_date - start_date
+        return max(0, delta.days)
+
+    def calculate_trip_price(self, bus, user_search, start_date, end_date, stops_data=None):
+        """
+        Unified trip price calculation method matching BusBookingSerializer exactly
+        """
+        try:
+            # Validate bus pricing data
+            if not bus.base_price or bus.base_price <= 0:
+                logging.warning(f"Bus {bus.id} has invalid base_price: {bus.base_price}")
+                return Decimal('0.00')
+            
+            if not bus.price_per_km or bus.price_per_km <= 0:
+                logging.warning(f"Bus {bus.id} has invalid price_per_km: {bus.price_per_km}")
+                return Decimal('0.00')
+
+            # Get total distance with optimized route
+            total_distance_km = self.calculate_total_distance_with_stops(
+                user_search.from_lat, user_search.from_lon, 
+                user_search.to_lat, user_search.to_lon,
+                stops_data
+            )
+            
+            # Calculate trip duration in days
+            total_days = (end_date - start_date).days + 1 if end_date and start_date else 1
+            
+            # Bus pricing configuration
+            base_price_per_day = bus.base_price  # Base price per day
+            base_km_per_day = bus.base_price_km or Decimal('100')  # KM included per day (default 100)
+            price_per_km = bus.price_per_km  # Rate for extra KM
+            night_allowance = bus.night_allowance or Decimal('500')  # Driver allowance per night
+            minimum_fare = bus.minimum_fare or Decimal('0.00')
+            
+            # Calculate base fare for total days
+            base_fare = base_price_per_day * total_days
+            
+            # Calculate total included KM for the trip duration
+            total_included_km = base_km_per_day * total_days
+            
+            # Calculate extra KM charges
+            extra_km_charges = Decimal('0.00')
+            if total_distance_km > total_included_km:
+                extra_km = total_distance_km - total_included_km
+                extra_km_charges = extra_km * price_per_km
+            
+            # Calculate nights and driver allowance
+            nights = self.calculate_nights_between_dates(start_date, end_date)
+            night_allowance_total = nights * night_allowance
+            
+            # Calculate total amount
+            total_amount = base_fare + extra_km_charges + night_allowance_total
+            
+            # Ensure minimum fare is met
+            if total_amount < minimum_fare:
+                total_amount = minimum_fare
+            
+            logging.info(f"=== LISTING PRICE CALCULATION ===")
+            logging.info(f"- Bus: {bus.bus_name}")
+            logging.info(f"- Total distance (optimized): {total_distance_km} km")
+            logging.info(f"- Total days: {total_days}")
+            logging.info(f"- Base fare: {base_fare}")
+            logging.info(f"- Included KM: {total_included_km}")
+            logging.info(f"- Extra KM: {max(Decimal('0.00'), total_distance_km - total_included_km)}")
+            logging.info(f"- Extra KM charges: {extra_km_charges}")
+            logging.info(f"- Nights: {nights}")
+            logging.info(f"- Night allowance: {night_allowance_total}")
+            logging.info(f"- Total amount: {total_amount}")
+            
+            return total_amount
+            
+        except Exception as e:
+            logging.error(f"Error calculating trip price in listing: {str(e)}")
+            return Decimal('0.00')
+
     def get_price(self, obj):
-        """Calculate and return the trip price"""
+        """Calculate and return the comprehensive trip price matching BusBookingSerializer"""
         request = self.context.get('request', None)
-        if request and hasattr(request, 'user'):
+        if request and hasattr(request, 'user') and request.user.is_authenticated:
             user = request.user
             try:
                 user_search = UserBusSearch.objects.get(user=user)
@@ -1495,37 +1857,31 @@ class BusListingSerializer(serializers.ModelSerializer):
                 if not user_search or not user_search.to_lat or not user_search.to_lon:
                     return "Select destination"
                 
-                from decimal import Decimal
-                from .views import BusListAPIView
+                if not user_search.from_lat or not user_search.from_lon:
+                    return "Select pickup location"
                 
-                view = BusListAPIView()
-                distance_km = view.calculate_distance_google_api(
-                    user_search.from_lat, user_search.from_lon, 
-                    user_search.to_lat, user_search.to_lon
+                if not user_search.pick_up_date:
+                    return "Select pickup date"
+                
+                # Get stops data from user search
+                stops_data = []
+                if hasattr(user_search, 'search_stops'):
+                    search_stops = user_search.search_stops.all().order_by('stop_order')
+                    for stop in search_stops:
+                        stops_data.append({
+                            'location_name': stop.location_name,
+                            'latitude': stop.latitude,
+                            'longitude': stop.longitude
+                        })
+                
+                # Get dates from user search - match BusBookingSerializer logic
+                start_date = user_search.pick_up_date
+                end_date = user_search.return_date if user_search.return_date else start_date
+                
+                # Calculate comprehensive price using the same method as BusBookingSerializer
+                total_amount = self.calculate_trip_price(
+                    obj, user_search, start_date, end_date, stops_data
                 )
-                
-                seat_count = user_search.seat or 1
-                base_price = obj.base_price or Decimal('0.00')
-                base_price_km = obj.base_price_km or 0
-                price_per_km = obj.price_per_km or Decimal('0.00')
-                minimum_fare = obj.minimum_fare or Decimal('0.00')
-                
-                # Calculate amount based on distance
-                if distance_km <= base_price_km:
-                    # Within base price range
-                    total_amount = base_price
-                else:
-                    # Base price + additional km charges
-                    additional_km = distance_km - base_price_km
-                    additional_charges = additional_km * price_per_km
-                    total_amount = base_price + additional_charges
-                
-                # Apply seat multiplier
-                total_amount = total_amount * seat_count
-                
-                # Ensure minimum fare is met
-                if total_amount < minimum_fare:
-                    total_amount = minimum_fare
                 
                 return float(total_amount)
                 
@@ -1535,7 +1891,7 @@ class BusListingSerializer(serializers.ModelSerializer):
                 logging.error(f"Error in get_price: {str(e)}")
                 return "Price calculation error"
         else:
-            user = None
+            return "Authentication required"
 
     def to_representation(self, instance):
         """Make base_price an integer in the output."""
@@ -1545,9 +1901,10 @@ class BusListingSerializer(serializers.ModelSerializer):
 
 
 # Response serializer for the bus list API view
-class BusListResponseSerializer(serializers.Serializer):
+class BusListResponseSerializer(BusPriceCalculatorMixin, serializers.Serializer):
     """
-    Serializer for the complete bus list response including distance
+    Updated serializer for the complete bus list response with comprehensive price calculation
+    matching BusBookingSerializer
     """
     distance_km = serializers.SerializerMethodField()
     buses = BusListingSerializer(many=True)
@@ -1564,62 +1921,31 @@ class BusListResponseSerializer(serializers.Serializer):
             if not user_search.to_lat or not user_search.to_lon:
                 return "Destination not selected"
             
-            # Calculate distance using Google Distance Matrix API
-            distance_km = self.calculate_distance_google_api(
+            # Get stops data from user search
+            stops_data = []
+            if hasattr(user_search, 'search_stops'):
+                search_stops = user_search.search_stops.all().order_by('stop_order')
+                for stop in search_stops:
+                    stops_data.append({
+                        'location_name': stop.location_name,
+                        'latitude': stop.latitude,
+                        'longitude': stop.longitude
+                    })
+            
+            # Calculate total distance with stops optimization - same as BusBookingSerializer
+            total_distance = self.calculate_total_distance_with_stops(
                 user_search.from_lat, user_search.from_lon,
-                user_search.to_lat, user_search.to_lon
+                user_search.to_lat, user_search.to_lon,
+                stops_data
             )
             
-            return f"{float(distance_km)} km"
+            return f"{float(total_distance)} km"
             
         except UserBusSearch.DoesNotExist:
             return "Search data not found"
         except Exception as e:
             logging.error(f"Error calculating distance: {str(e)}")
             return "Distance calculation error"
-    
-    def calculate_distance_google_api(self, from_lat, from_lon, to_lat, to_lon):
-        """
-        Calculate distance using Google Distance Matrix API
-        Returns distance in kilometers
-        """
-        try:
-            import requests
-            from django.conf import settings
-            from decimal import Decimal
-            import logging
-            
-            # Google Distance Matrix API endpoint
-            url = "https://maps.googleapis.com/maps/api/distancematrix/json"
-            
-            # API parameters
-            params = {
-                'origins': f"{from_lat},{from_lon}",
-                'destinations': f"{to_lat},{to_lon}",
-                'units': 'metric',
-                'mode': 'driving',
-                'key': settings.GOOGLE_DISTANCE_MATRIX_API_KEY
-            }
-            
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            
-            data = response.json()
-            
-            if data['status'] == 'OK':
-                element = data['rows'][0]['elements'][0]
-                if element['status'] == 'OK':
-                    # Distance in meters, convert to kilometers
-                    distance_km = element['distance']['value'] / 1000
-                    return Decimal(str(round(distance_km, 2)))
-                else:
-                    raise Exception(f"Google API element error: {element['status']}")
-            else:
-                raise Exception(f"Google API error: {data['status']}")
-                
-        except Exception as e:
-            logging.error(f"Error calculating distance with Google API: {str(e)}")
-            return Decimal('0.00')
     
 
 

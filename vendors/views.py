@@ -1830,11 +1830,12 @@ class VendorTotalRevenueView(APIView):
 
         # Include ALL bookings regardless of payment_status
         bus_revenue = BusBooking.objects.filter(
-            bus__vendor=vendor
+            bus__vendor=vendor,
+            trip_status='ongoing'
         ).aggregate(total=Sum('total_amount'), count=Count('id'))
 
         package_revenue = PackageBooking.objects.filter(
-            package__vendor=vendor
+            package__vendor=vendor,trip_status='ongoing'
         ).aggregate(total=Sum('total_amount'), count=Count('id'))
 
         total_revenue = float(bus_revenue['total'] or 0) + float(package_revenue['total'] or 0)
@@ -1865,7 +1866,8 @@ class BusBookingRevenueListView(APIView):
 
         monthly_revenue = BusBooking.objects.filter(
             created_at__month=current_month,
-            created_at__year=current_year
+            created_at__year=current_year,
+            trip_status='ongoing'
         ).aggregate(total=Sum('total_amount'))['total'] or 0
 
         queryset = BusBooking.objects.values(
@@ -1905,7 +1907,8 @@ class PackageBookingRevenueListView(APIView):
 
         monthly_revenue = PackageBooking.objects.filter(
             created_at__month=current_month,
-            created_at__year=current_year
+            created_at__year=current_year,
+            trip_status='ongoing'
         ).aggregate(total=Sum('total_amount'))['total'] or 0
 
         queryset = PackageBooking.objects.values(
@@ -1997,7 +2000,7 @@ class VendorBusBookingListView(APIView):
         current_year = datetime.now().year
         current_month = datetime.now().month
         
-        bookings = BusBooking.objects.filter(bus__vendor=vendor)
+        bookings = BusBooking.objects.filter(bus__vendor=vendor,trip_status='ongoing')
         for booking in bookings:
             print("Booking created at:", booking.created_at)
 
@@ -2094,7 +2097,8 @@ class BusHistoryFilterView(APIView):
 
         bookings = BusBooking.objects.filter(
             start_date__range=[start_date, end_date],
-            bus__vendor=vendor
+            bus__vendor=vendor,
+            trip_status='ongoing'
         )
 
         serializer = BusBookingDetailSerializer(bookings, many=True)
@@ -2102,7 +2106,7 @@ class BusHistoryFilterView(APIView):
         current_year = timezone.now().year
         current_month = timezone.now().month
 
-        all_vendor_bookings = BusBooking.objects.filter(bus__vendor=vendor)
+        all_vendor_bookings = BusBooking.objects.filter(bus__vendor=vendor,trip_status='ongoing')
 
          
 
@@ -2140,7 +2144,7 @@ class LatestPackageBookingDetailView(APIView):
         user = request.user
         print(user)
 
-        latest_booking = PackageBooking.objects.filter(user=user).order_by('-id').first()
+        latest_booking = PackageBooking.objects.filter(user=user,trip_status='ongoing').order_by('-id').first()
         
         if not latest_booking:
             return Response({"message": "No package bookings found."}, status=status.HTTP_404_NOT_FOUND)
@@ -2164,7 +2168,7 @@ class BusBookingEarningsHistoryView(APIView):
 
             vendor_buses = Bus.objects.filter(vendor=vendor)
 
-            bookings = BusBooking.objects.filter(bus__in=vendor_buses).order_by('-start_date')
+            bookings = BusBooking.objects.filter(bus__in=vendor_buses,trip_status='ongoing').order_by('-start_date')
 
             serializer = BusBookingBasicSerializer(bookings, many=True)
 
@@ -2233,7 +2237,7 @@ class PackageBookingEarningsView(APIView):
             if not vendor:
                 return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
 
-            package_bookings = PackageBooking.objects.filter(package__vendor=vendor).order_by('-start_date')
+            package_bookings = PackageBooking.objects.filter(package__vendor=vendor,trip_status='ongoing').order_by('-start_date')
 
             total_revenue = package_bookings.aggregate(total_revenue=Sum('total_amount'))['total_revenue'] or 0.00
 
@@ -2279,7 +2283,7 @@ class PackageBookingListView(APIView):
         current_year = current_date.year
         current_month = current_date.month
 
-        bookings = PackageBooking.objects.filter(package__vendor=vendor)
+        bookings = PackageBooking.objects.filter(package__vendor=vendor,trip_status='ongoing')
 
         monthly_bookings = bookings.filter(
             created_at__year=current_year,
@@ -2413,7 +2417,8 @@ class PackageBookingHistoryFilterView(APIView):
         package_bookings = PackageBooking.objects.filter(
             user=user,   
             start_date__gte=start_date,
-            start_date__lte=end_date
+            start_date__lte=end_date,
+            trip_status='ongoing'
         )
         
         serializer = PackageBookingDetailSerializer(package_bookings, many=True)
@@ -2421,7 +2426,7 @@ class PackageBookingHistoryFilterView(APIView):
         current_year = timezone.now().year
         current_month = timezone.now().month
 
-        all_user_bookings = PackageBooking.objects.filter(user=user)
+        all_user_bookings = PackageBooking.objects.filter(user=user,trip_status='ongoing')
 
          
 
@@ -2455,7 +2460,7 @@ class PackageBookingEarningsFilterView(APIView):
     def get(self, request):
         vendor = request.user.vendor
 
-        all_bookings = PackageBooking.objects.filter(package__vendor=vendor) 
+        all_bookings = PackageBooking.objects.filter(package__vendor=vendor,trip_status='ongoing') 
         package_bookings = all_bookings.order_by('-created_at')
 
         filter_type = request.query_params.get('filter', None)
@@ -2700,7 +2705,7 @@ class BusBookingEarningsHistoryFilterView(APIView):
     def get(self, request):
         vendor = request.user.vendor
         vendor_buses = Bus.objects.filter(vendor=vendor)
-        bookings = BusBooking.objects.filter(bus__in=vendor_buses).order_by('-created_at')
+        bookings = BusBooking.objects.filter(bus__in=vendor_buses,trip_status='ongoing').order_by('-created_at')
 
         filter_type = request.query_params.get('filter')
         start_date = request.query_params.get('start_date')
@@ -2735,13 +2740,14 @@ class BusBookingEarningsHistoryFilterView(APIView):
             else:
                 return Response({"error": "Please provide start_date and end_date for custom filter."}, status=400)
 
-        total_revenue = BusBooking.objects.filter(bus__in=vendor_buses).aggregate(
+        total_revenue = BusBooking.objects.filter(bus__in=vendor_buses,trip_status='ongoing').aggregate(
             total=Sum('total_amount'))['total'] or 0
 
         first_day_of_month = today.replace(day=1)
         month_start = make_aware(datetime.combine(first_day_of_month, datetime.min.time()))
         monthly_revenue = BusBooking.objects.filter(
-            bus__in=vendor_buses, created_at__gte=month_start
+            bus__in=vendor_buses, created_at__gte=month_start,
+            trip_status='ongoing'
         ).aggregate(total=Sum('total_amount'))['total'] or 0
 
         monthly_revenue = float(monthly_revenue)
@@ -2822,7 +2828,7 @@ class CanceledBusBookingView(APIView):
         current_year = now.year
         current_month = now.month
 
-        all_vendor_bookings = BusBooking.objects.filter(bus__vendor=vendor)
+        all_vendor_bookings = BusBooking.objects.filter(bus__vendor=vendor,trip_status='ongoing')
 
         monthly_revenue = float(
             all_vendor_bookings.filter(
@@ -2832,7 +2838,7 @@ class CanceledBusBookingView(APIView):
         )
 
         canceled_bookings = BusBooking.objects.filter(
-            bus__vendor=vendor
+            bus__vendor=vendor,trip_status='ongoing'
         ).filter(
             Q(payment_status='cancelled') | Q(trip_status='cancelled')
         ).order_by('-created_at')
@@ -2865,7 +2871,7 @@ class CanceledBusBookingFilterView(APIView):
         current_year = now.year
         current_month = now.month
 
-        all_vendor_bookings = BusBooking.objects.filter(bus__vendor=vendor)
+        all_vendor_bookings = BusBooking.objects.filter(bus__vendor=vendor,trip_status='ongoing')
 
         monthly_revenue = float(
             all_vendor_bookings.filter(
@@ -2962,7 +2968,7 @@ class CanceledPackageBookingView(APIView):
         current_year = now.year
         current_month = now.month
 
-        all_vendor_package_bookings = PackageBooking.objects.filter(package__vendor=vendor)
+        all_vendor_package_bookings = PackageBooking.objects.filter(package__vendor=vendor,trip_status='ongoing')
 
         monthly_revenue = float(
             all_vendor_package_bookings.filter(
@@ -2991,7 +2997,8 @@ class CanceledPackageBookingView(APIView):
         else:
             canceled_package_bookings = PackageBooking.objects.filter(
                 cancel_conditions,
-                package__vendor=vendor
+                package__vendor=vendor,
+                trip_status='ongoing'
             ).order_by('-created_at')
 
             if canceled_package_bookings.exists():
@@ -3028,7 +3035,7 @@ class CanceledPackageBookingFilterView(APIView):
         current_year = now.year
         current_month = now.month
 
-        all_vendor_package_bookings = PackageBooking.objects.filter(package__vendor=vendor)
+        all_vendor_package_bookings = PackageBooking.objects.filter(package__vendor=vendor,trip_status='ongoing')
 
         monthly_revenue = float(
             all_vendor_package_bookings.filter(
@@ -3061,7 +3068,7 @@ class CanceledPackageBookingFilterView(APIView):
         start_date = request.query_params.get('start_date')
         end_date = request.query_params.get('end_date')
 
-        queryset = PackageBooking.objects.filter(cancel_conditions, package__vendor=vendor)
+        queryset = PackageBooking.objects.filter(cancel_conditions, package__vendor=vendor,trip_status='ongoing')
 
         if filter_type == "today":
             queryset = queryset.filter(created_at__date=now.date())
@@ -3155,7 +3162,8 @@ class DeclinedBusBookingListView(APIView):
             
             declined_bus_bookings = BusBooking.objects.filter(
                 booking_status='declined',    
-                bus__vendor=vendor
+                bus__vendor=vendor,
+                trip_status='ongoing'
             ).order_by('-created_at')
 
             if declined_bus_bookings.exists():
@@ -3250,7 +3258,8 @@ class AcceptPackageBookingView(APIView):
             package_booking = PackageBooking.objects.filter(
                 booking_id=booking_id1, 
                 booking_status='pending',   
-                package__vendor=vendor   
+                package__vendor=vendor ,
+                trip_status='ongoing'  
             ).first()
 
             if package_booking:
@@ -3301,7 +3310,8 @@ class AcceptedPackageBookingDetailView(APIView):
             package_booking = PackageBooking.objects.filter(
                 booking_id=booking_id1, 
                 booking_status='accepted',   
-                package__vendor=vendor   
+                package__vendor=vendor,
+                trip_status='ongoing'
             ).first()
 
             if package_booking:
@@ -3357,7 +3367,8 @@ class DeclinePackageBookingView(APIView):
 
             declined_bookings = PackageBooking.objects.filter(
                 booking_status='declined',   
-                package__vendor=vendor   
+                package__vendor=vendor,
+                trip_status='ongoing'
             )
 
             serializer = PackageBookingListSerializer(declined_bookings, many=True)
@@ -3460,12 +3471,14 @@ class BusBookingRequestListView(APIView):
 
             pending_bookings = BusBooking.objects.filter(
                 bus__in=vendor_buses,
-                booking_status='pending'
+                booking_status='pending',
+                trip_status='ongoing'
             ).order_by('-created_at')
 
             confirmed_bookings = BusBooking.objects.filter(
                 bus__in=vendor_buses,
-                booking_status='accepted'
+                booking_status='accepted',
+                trip_status='ongoing'
             ).order_by('-created_at')
 
             pending_serializer = BusBookingRequestSerializer(pending_bookings, many=True)
@@ -3522,12 +3535,14 @@ class PackageBookingRequestView(APIView):
 
             pending_bookings = PackageBooking.objects.filter(
                 package__vendor=vendor,
-                booking_status='pending'
+                booking_status='pending',
+                trip_status='ongoing'
             ).order_by('-created_at')
 
             accepted_bookings = PackageBooking.objects.filter(
                 package__vendor=vendor,
-                booking_status='accepted'
+                booking_status='accepted',
+                trip_status='ongoing'
             ).order_by('-created_at')
 
             pending_serializer = PackageBookingREQUESTSerializer(pending_bookings, many=True)
@@ -3817,6 +3832,7 @@ class PreAcceptPackageBookingDetailView(APIView):
                     "from_location": bus_booking.from_location,
                     "to_location": bus_booking.to_location,
                     "start_date": bus_booking.start_date,
+                    "end_date":bus_booking.end_date,
                     "total_travelers": bus_booking.total_travelers,
                     "male": bus_booking.male,
                     "female": bus_booking.female,
@@ -3835,11 +3851,15 @@ class PreAcceptPackageBookingDetailView(APIView):
             ).first()
 
             if package_booking:
+                night_count = package_booking.package.day_plans.filter(night=True).count()
+                total_days = package_booking.package.days + night_count
+                end_date = package_booking.start_date + timedelta(days=total_days)
                 data = {
                     "booking_type": "package",
                     "from_location": package_booking.from_location,
                     "to_location": package_booking.to_location,
                     "start_date": package_booking.start_date,
+                    "end_date":end_date,
                     "total_travelers": package_booking.total_travelers,
                     "male": package_booking.male,
                     "female": package_booking.female,
@@ -3983,21 +4003,9 @@ class VendorTransactionHistoryAPIView(APIView):
         # Fetch Bus Bookings
         bus_bookings = BusBooking.objects.filter(
             bus__vendor=vendor,
-            payment_status__in=['partial', 'paid']
-        )
-
-        # Fetch Package Bookings
-        package_bookings = PackageBooking.objects.filter(
-            package__vendor=vendor,
-            payment_status__in=['partial', 'paid']
-        )
-
-        # Combine and sort all transactions by creation time (descending)
-        all_bookings = sorted(
-            list(bus_bookings) + list(package_bookings),
-            key=lambda x: x.created_at,
-            reverse=True
-        )
+            payment_status__in=['partial', 'paid'],
+            trip_status='ongoing'
+        ).order_by('-created_at')
 
         serializer = BaseBookingSerializer(all_bookings, many=True)
         return Response(serializer.data, status=200)

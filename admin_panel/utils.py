@@ -33,7 +33,6 @@ def generate_referral_code(length=7):
     return ''.join(random.choices(characters, k=length))
 
 
-
 def get_admin_commission_from_db(total_amount):
     from .models import AdminCommissionSlab
     slab = AdminCommissionSlab.objects.filter(
@@ -42,21 +41,23 @@ def get_admin_commission_from_db(total_amount):
     ).first()
 
     if slab:
+        # Calculate commission from total_amount
         revenue = round(total_amount * (slab.commission_percentage / 100), 2)
         return slab.commission_percentage, revenue
 
     return 0, 0
 
 
-def get_advance_amount_from_db(advance_amount):
+def get_advance_amount_from_db(total_amount):  # Changed parameter name for clarity
     from .models import AdminCommissionSlab
     slab = AdminCommissionSlab.objects.filter(
-        min_amount__lte=advance_amount,
-        max_amount__gte=advance_amount
+        min_amount__lte=total_amount,
+        max_amount__gte=total_amount
     ).first()
 
     if slab:
-        advance = round(advance_amount * (slab.advance_percentage / 100), 2)
+        # Calculate advance amount from total_amount
+        advance = round(total_amount * (slab.advance_percentage / 100), 2)
         return slab.advance_percentage, advance
 
     return 0, 0
