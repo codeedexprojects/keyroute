@@ -242,7 +242,21 @@ class BusListAPIView(BusPriceCalculatorMixin, APIView):
         # Get sorting parameter
         sort_by = request.query_params.get('sort_by', 'nearest')
 
-        # Apply sorting
+        # Get dates and stops data for price calculation
+        start_date = user_search.pick_up_date if user_search.pick_up_date else timezone.now().date()
+        end_date = user_search.return_date if user_search.return_date else start_date
+        
+        stops_data = []
+        if hasattr(user_search, 'search_stops'):
+            search_stops = user_search.search_stops.all().order_by('stop_order')
+            for stop in search_stops:
+                stops_data.append({
+                    'location_name': stop.location_name,
+                    'latitude': stop.latitude,
+                    'longitude': stop.longitude
+                })
+
+        # Apply sorting with unified price calculation
         if search:
             # For name-based search, no distance sorting
             if sort_by == 'popular':
@@ -252,16 +266,24 @@ class BusListAPIView(BusPriceCalculatorMixin, APIView):
             elif sort_by == 'price_low_to_high':
                 bus_prices = []
                 for bus in buses_only:
-                    price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
-                                                    user_search.to_lat, user_search.to_lon, user_search.seat or 1)
+                    # Use unified comprehensive price calculation
+                    price = self.calculate_comprehensive_trip_price(
+                        bus, user_search.from_lat, user_search.from_lon, 
+                        user_search.to_lat, user_search.to_lon, 
+                        start_date, end_date, stops_data
+                    )
                     bus_prices.append((bus, price))
                 bus_prices.sort(key=lambda x: x[1])
                 buses_only = [bus for bus, price in bus_prices]
             elif sort_by == 'price_high_to_low':
                 bus_prices = []
                 for bus in buses_only:
-                    price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
-                                                    user_search.to_lat, user_search.to_lon, user_search.seat or 1)
+                    # Use unified comprehensive price calculation
+                    price = self.calculate_comprehensive_trip_price(
+                        bus, user_search.from_lat, user_search.from_lon, 
+                        user_search.to_lat, user_search.to_lon, 
+                        start_date, end_date, stops_data
+                    )
                     bus_prices.append((bus, price))
                 bus_prices.sort(key=lambda x: x[1], reverse=True)
                 buses_only = [bus for bus, price in bus_prices]
@@ -277,16 +299,24 @@ class BusListAPIView(BusPriceCalculatorMixin, APIView):
             elif sort_by == 'price_low_to_high':
                 bus_prices = []
                 for bus, dist in nearby_buses:
-                    price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
-                                                    user_search.to_lat, user_search.to_lon, user_search.seat or 1)
+                    # Use unified comprehensive price calculation
+                    price = self.calculate_comprehensive_trip_price(
+                        bus, user_search.from_lat, user_search.from_lon, 
+                        user_search.to_lat, user_search.to_lon, 
+                        start_date, end_date, stops_data
+                    )
                     bus_prices.append((bus, dist, price))
                 bus_prices.sort(key=lambda x: x[2])
                 nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
             elif sort_by == 'price_high_to_low':
                 bus_prices = []
                 for bus, dist in nearby_buses:
-                    price = self.calculate_trip_price(bus, user_search.from_lat, user_search.from_lon, 
-                                                    user_search.to_lat, user_search.to_lon, user_search.seat or 1)
+                    # Use unified comprehensive price calculation
+                    price = self.calculate_comprehensive_trip_price(
+                        bus, user_search.from_lat, user_search.from_lon, 
+                        user_search.to_lat, user_search.to_lon, 
+                        start_date, end_date, stops_data
+                    )
                     bus_prices.append((bus, dist, price))
                 bus_prices.sort(key=lambda x: x[2], reverse=True)
                 nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
@@ -302,114 +332,6 @@ class BusListAPIView(BusPriceCalculatorMixin, APIView):
             context={'request': request, 'user_search': user_search}
         )
         return Response(serializer.data)
-
-
-    def calculate_distance_google_api(self, from_lat, from_lon, to_lat, to_lon):
-        """
-        Calculate distance using Google Distance Matrix API
-        Returns distance in kilometers
-        """
-        try:
-            import requests
-            from django.conf import settings
-            from decimal import Decimal
-            import logging
-            
-            # Google Distance Matrix API endpoint
-            url = "https://maps.googleapis.com/maps/api/distancematrix/json"
-            
-            # API parameters
-            params = {
-                'origins': f"{from_lat},{from_lon}",
-                'destinations': f"{to_lat},{to_lon}",
-                'units': 'metric',
-                'mode': 'driving',
-                'key': settings.GOOGLE_DISTANCE_MATRIX_API_KEY
-            }
-            
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            
-            data = response.json()
-            
-            if data['status'] == 'OK':
-                element = data['rows'][0]['elements'][0]
-                if element['status'] == 'OK':
-                    # Distance in meters, convert to kilometers
-                    distance_km = element['distance']['value'] / 1000
-                    return Decimal(str(round(distance_km, 2)))
-                else:
-                    raise Exception(f"Google API element error: {element['status']}")
-            else:
-                raise Exception(f"Google API error: {data['status']}")
-                
-        except Exception as e:
-            logging.error(f"Error calculating distance with Google API: {str(e)}")
-            # Fallback to simple calculation if API fails
-            return self.calculate_distance_fallback(from_lat, from_lon, to_lat, to_lon)
-
-    def calculate_distance_fallback(self, from_lat, from_lon, to_lat, to_lon):
-        """
-        Fallback distance calculation using Haversine formula
-        Returns distance in kilometers
-        """
-        try:
-            from math import radians, cos, sin, asin, sqrt
-            from decimal import Decimal
-            import logging
-            
-            # Convert decimal degrees to radians
-            from_lat, from_lon, to_lat, to_lon = map(radians, [from_lat, from_lon, to_lat, to_lon])
-            
-            # Haversine formula
-            dlat = to_lat - from_lat
-            dlon = to_lon - from_lon
-            a = sin(dlat/2)**2 + cos(from_lat) * cos(to_lat) * sin(dlon/2)**2
-            c = 2 * asin(sqrt(a))
-            r = 6371  # Radius of earth in kilometers
-            
-            distance_km = c * r
-            return Decimal(str(round(distance_km, 2)))
-        except Exception as e:
-            logging.error(f"Error in fallback distance calculation: {str(e)}")
-            return Decimal('10.0')  # Default fallback distance
-
-    def calculate_trip_price(self, bus, from_lat, from_lon, to_lat, to_lon, seat_count):
-        """
-        Updated method to use comprehensive price calculation
-        """
-        try:
-            # Get user search data for dates and stops
-            user_search = UserBusSearch.objects.get(user=self.request.user)
-            
-            # Get stops data
-            stops_data = []
-            if hasattr(user_search, 'search_stops'):
-                search_stops = user_search.search_stops.all().order_by('stop_order')
-                for stop in search_stops:
-                    stops_data.append({
-                        'location_name': stop.location_name,
-                        'latitude': stop.latitude,
-                        'longitude': stop.longitude
-                    })
-            
-            # Get dates
-            start_date = user_search.pick_up_date if hasattr(user_search, 'pick_up_date') else timezone.now().date()
-            end_date = user_search.return_date if hasattr(user_search, 'return_date') and user_search.return_date else start_date
-            
-            # Calculate comprehensive price
-            total_amount = self.calculate_comprehensive_trip_price(
-                bus, from_lat, from_lon, to_lat, to_lon,
-                start_date, end_date, stops_data
-            )
-            
-            # Apply seat multiplier if needed (though comprehensive calculation should handle capacity)
-            # For listing purposes, we might still want to show per-seat or total pricing
-            return total_amount
-            
-        except Exception as e:
-            logging.error(f"Error calculating trip price: {str(e)}")
-            return Decimal('0.00')
     
 
 
