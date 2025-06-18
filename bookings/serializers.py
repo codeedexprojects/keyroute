@@ -1698,7 +1698,7 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
 
 
 class BusListingSerializer(BusPriceCalculatorMixin, serializers.ModelSerializer):
-    """Updated BusListingSerializer with comprehensive price calculation"""
+    """Updated BusListingSerializer with comprehensive price calculation matching BusBookingSerializer"""
     
     amenities = AmenitySerializer(many=True, read_only=True)
     features = BusFeatureSerializer(many=True, read_only=True)
@@ -1766,16 +1766,102 @@ class BusListingSerializer(BusPriceCalculatorMixin, serializers.ModelSerializer)
             "rating_breakdown": rating_breakdown
         }
 
+    def calculate_nights_between_dates(self, start_date, end_date):
+        """Calculate number of nights between two dates"""
+        if not start_date or not end_date:
+            return 0
+        
+        delta = end_date - start_date
+        return max(0, delta.days)
+
+    def calculate_trip_price(self, bus, user_search, start_date, end_date, stops_data=None):
+        """
+        Unified trip price calculation method matching BusBookingSerializer exactly
+        """
+        try:
+            # Validate bus pricing data
+            if not bus.base_price or bus.base_price <= 0:
+                logging.warning(f"Bus {bus.id} has invalid base_price: {bus.base_price}")
+                return Decimal('0.00')
+            
+            if not bus.price_per_km or bus.price_per_km <= 0:
+                logging.warning(f"Bus {bus.id} has invalid price_per_km: {bus.price_per_km}")
+                return Decimal('0.00')
+
+            # Get total distance with optimized route
+            total_distance_km = self.calculate_total_distance_with_stops(
+                user_search.from_lat, user_search.from_lon, 
+                user_search.to_lat, user_search.to_lon,
+                stops_data
+            )
+            
+            # Calculate trip duration in days
+            total_days = (end_date - start_date).days + 1 if end_date and start_date else 1
+            
+            # Bus pricing configuration
+            base_price_per_day = bus.base_price  # Base price per day
+            base_km_per_day = bus.base_price_km or Decimal('100')  # KM included per day (default 100)
+            price_per_km = bus.price_per_km  # Rate for extra KM
+            night_allowance = bus.night_allowance or Decimal('500')  # Driver allowance per night
+            minimum_fare = bus.minimum_fare or Decimal('0.00')
+            
+            # Calculate base fare for total days
+            base_fare = base_price_per_day * total_days
+            
+            # Calculate total included KM for the trip duration
+            total_included_km = base_km_per_day * total_days
+            
+            # Calculate extra KM charges
+            extra_km_charges = Decimal('0.00')
+            if total_distance_km > total_included_km:
+                extra_km = total_distance_km - total_included_km
+                extra_km_charges = extra_km * price_per_km
+            
+            # Calculate nights and driver allowance
+            nights = self.calculate_nights_between_dates(start_date, end_date)
+            night_allowance_total = nights * night_allowance
+            
+            # Calculate total amount
+            total_amount = base_fare + extra_km_charges + night_allowance_total
+            
+            # Ensure minimum fare is met
+            if total_amount < minimum_fare:
+                total_amount = minimum_fare
+            
+            logging.info(f"=== LISTING PRICE CALCULATION ===")
+            logging.info(f"- Bus: {bus.bus_name}")
+            logging.info(f"- Total distance (optimized): {total_distance_km} km")
+            logging.info(f"- Total days: {total_days}")
+            logging.info(f"- Base fare: {base_fare}")
+            logging.info(f"- Included KM: {total_included_km}")
+            logging.info(f"- Extra KM: {max(Decimal('0.00'), total_distance_km - total_included_km)}")
+            logging.info(f"- Extra KM charges: {extra_km_charges}")
+            logging.info(f"- Nights: {nights}")
+            logging.info(f"- Night allowance: {night_allowance_total}")
+            logging.info(f"- Total amount: {total_amount}")
+            
+            return total_amount
+            
+        except Exception as e:
+            logging.error(f"Error calculating trip price in listing: {str(e)}")
+            return Decimal('0.00')
+
     def get_price(self, obj):
-        """Calculate and return the comprehensive trip price"""
+        """Calculate and return the comprehensive trip price matching BusBookingSerializer"""
         request = self.context.get('request', None)
-        if request and hasattr(request, 'user'):
+        if request and hasattr(request, 'user') and request.user.is_authenticated:
             user = request.user
             try:
                 user_search = UserBusSearch.objects.get(user=user)
                 
                 if not user_search or not user_search.to_lat or not user_search.to_lon:
                     return "Select destination"
+                
+                if not user_search.from_lat or not user_search.from_lon:
+                    return "Select pickup location"
+                
+                if not user_search.pick_up_date:
+                    return "Select pickup date"
                 
                 # Get stops data from user search
                 stops_data = []
@@ -1788,16 +1874,13 @@ class BusListingSerializer(BusPriceCalculatorMixin, serializers.ModelSerializer)
                             'longitude': stop.longitude
                         })
                 
-                # Get dates from user search
-                start_date = user_search.pick_up_date if hasattr(user_search, 'pick_up_date') else timezone.now().date()
-                end_date = user_search.return_date if hasattr(user_search, 'return_date') and user_search.return_date else start_date
+                # Get dates from user search - match BusBookingSerializer logic
+                start_date = user_search.pick_up_date
+                end_date = user_search.return_date if user_search.return_date else start_date
                 
-                # Calculate comprehensive price
-                total_amount = self.calculate_comprehensive_trip_price(
-                    obj, 
-                    user_search.from_lat, user_search.from_lon, 
-                    user_search.to_lat, user_search.to_lon,
-                    start_date, end_date, stops_data
+                # Calculate comprehensive price using the same method as BusBookingSerializer
+                total_amount = self.calculate_trip_price(
+                    obj, user_search, start_date, end_date, stops_data
                 )
                 
                 return float(total_amount)
@@ -1821,6 +1904,7 @@ class BusListingSerializer(BusPriceCalculatorMixin, serializers.ModelSerializer)
 class BusListResponseSerializer(BusPriceCalculatorMixin, serializers.Serializer):
     """
     Updated serializer for the complete bus list response with comprehensive price calculation
+    matching BusBookingSerializer
     """
     distance_km = serializers.SerializerMethodField()
     buses = BusListingSerializer(many=True)
@@ -1848,7 +1932,7 @@ class BusListResponseSerializer(BusPriceCalculatorMixin, serializers.Serializer)
                         'longitude': stop.longitude
                     })
             
-            # Calculate total distance with stops optimization
+            # Calculate total distance with stops optimization - same as BusBookingSerializer
             total_distance = self.calculate_total_distance_with_stops(
                 user_search.from_lat, user_search.from_lon,
                 user_search.to_lat, user_search.to_lon,
