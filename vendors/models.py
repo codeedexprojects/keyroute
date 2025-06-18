@@ -48,6 +48,7 @@ class BusFeature(models.Model):
     def __str__(self):
         return self.name
 
+
 class Bus(models.Model):
     STATUS_CHOICES = (
         ('available', 'Available'),
