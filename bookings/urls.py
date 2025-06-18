@@ -13,7 +13,7 @@ from .views import (
     ApplyWalletToPackageBookingAPIView,
     RemoveWalletFromPackageBookingAPIView,
     GetWalletBalanceAPIView,
-    WalletTransactionHistoryAPIView,BusDriverDetailListAPIView,AddStopsAPIView,BusPriceCalculationAPIView
+    WalletTransactionHistoryAPIView,BusDriverDetailListAPIView,AddStopsAPIView,BusPriceCalculationAPIView,NearbyBusLocationAPIView
 
 )
 
@@ -79,4 +79,6 @@ urlpatterns = [
     path('bus-search/stops/', AddStopsAPIView.as_view(), name='bus-search-stops'),
     path('bus/price-calculation/', BusPriceCalculationAPIView.as_view(), name='bus-price-calculation'),
 
+
+    path('buses/nearby/', NearbyBusLocationAPIView.as_view(), name='bus-location-get'),
 ]
