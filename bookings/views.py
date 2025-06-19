@@ -177,7 +177,6 @@ class SinglePackageListAPIView(APIView):
         except Package.DoesNotExist:
             return Response({"error": "No Pckages Found."}, status=404)
 
-
 class BusListAPIView(BusPriceCalculatorMixin, APIView):
     permission_classes = [IsAuthenticated]
 
@@ -266,10 +265,9 @@ class BusListAPIView(BusPriceCalculatorMixin, APIView):
             elif sort_by == 'price_low_to_high':
                 bus_prices = []
                 for bus in buses_only:
-                    # Use unified comprehensive price calculation
                     price = self.calculate_comprehensive_trip_price(
-                        bus, user_search.from_lat, user_search.from_lon, 
-                        user_search.to_lat, user_search.to_lon, 
+                        bus, user_search.from_lat, user_search.from_lon,
+                        user_search.to_lat, user_search.to_lon,
                         start_date, end_date, stops_data
                     )
                     bus_prices.append((bus, price))
@@ -278,10 +276,9 @@ class BusListAPIView(BusPriceCalculatorMixin, APIView):
             elif sort_by == 'price_high_to_low':
                 bus_prices = []
                 for bus in buses_only:
-                    # Use unified comprehensive price calculation
                     price = self.calculate_comprehensive_trip_price(
-                        bus, user_search.from_lat, user_search.from_lon, 
-                        user_search.to_lat, user_search.to_lon, 
+                        bus, user_search.from_lat, user_search.from_lon,
+                        user_search.to_lat, user_search.to_lon,
                         start_date, end_date, stops_data
                     )
                     bus_prices.append((bus, price))
@@ -299,10 +296,9 @@ class BusListAPIView(BusPriceCalculatorMixin, APIView):
             elif sort_by == 'price_low_to_high':
                 bus_prices = []
                 for bus, dist in nearby_buses:
-                    # Use unified comprehensive price calculation
                     price = self.calculate_comprehensive_trip_price(
-                        bus, user_search.from_lat, user_search.from_lon, 
-                        user_search.to_lat, user_search.to_lon, 
+                        bus, user_search.from_lat, user_search.from_lon,
+                        user_search.to_lat, user_search.to_lon,
                         start_date, end_date, stops_data
                     )
                     bus_prices.append((bus, dist, price))
@@ -311,10 +307,9 @@ class BusListAPIView(BusPriceCalculatorMixin, APIView):
             elif sort_by == 'price_high_to_low':
                 bus_prices = []
                 for bus, dist in nearby_buses:
-                    # Use unified comprehensive price calculation
                     price = self.calculate_comprehensive_trip_price(
-                        bus, user_search.from_lat, user_search.from_lon, 
-                        user_search.to_lat, user_search.to_lon, 
+                        bus, user_search.from_lat, user_search.from_lon,
+                        user_search.to_lat, user_search.to_lon,
                         start_date, end_date, stops_data
                     )
                     bus_prices.append((bus, dist, price))
@@ -328,7 +323,7 @@ class BusListAPIView(BusPriceCalculatorMixin, APIView):
         }
 
         serializer = BusListResponseSerializer(
-            response_data, 
+            response_data,
             context={'request': request, 'user_search': user_search}
         )
         return Response(serializer.data)
@@ -540,106 +535,98 @@ class BusBookingListCreateAPIView(APIView):
 
 
 class AddStopsAPIView(APIView):
-    """API to add stops to user's bus search"""
+    """API to manage (add/update/delete) user's bus search stops"""
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
-        """Add stops to user's bus search"""
+        """Add or update stops for the authenticated user"""
         user = request.user
         stops_data = request.data.get('stops', [])
-        
+
+        # Get or create user search object
+        user_search, _ = UserBusSearch.objects.get_or_create(user=user)
+
+        # If stops are not provided, clear all existing stops
         if not stops_data:
-            return Response(
-                {"error": "Stops data is required"}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Validate stops data
+            user_search.search_stops.all().delete()
+            return Response({
+                "message": "All stops cleared since no stops were provided.",
+                "stops": []
+            }, status=status.HTTP_200_OK)
+
+        # Validate all stops
         for i, stop in enumerate(stops_data):
-            required_fields = ['location_name', 'latitude', 'longitude']
-            if not all(field in stop for field in required_fields):
+            if not all(key in stop for key in ['location_name', 'latitude', 'longitude']):
                 return Response(
-                    {"error": f"Stop {i+1} must have location_name, latitude, and longitude"}, 
+                    {"error": f"Stop {i+1} must contain location_name, latitude, and longitude"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
             try:
                 float(stop['latitude'])
                 float(stop['longitude'])
             except (ValueError, TypeError):
                 return Response(
-                    {"error": f"Stop {i+1} has invalid latitude or longitude"}, 
+                    {"error": f"Stop {i+1} has invalid latitude or longitude"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        
+
         try:
-            # Get or create user bus search
-            user_search, created = UserBusSearch.objects.get_or_create(user=user)
-            
-            # Clear existing stops
-            user_search.search_stops.all().delete()
-            
-            # Add new stops
+            # Use transaction to ensure data integrity
             with transaction.atomic():
+                # Delete old stops
+                user_search.search_stops.all().delete()
+
+                # Create new stops
                 for i, stop_data in enumerate(stops_data):
                     UserBusSearchStop.objects.create(
                         user_search=user_search,
                         stop_order=i + 1,
                         location_name=stop_data['location_name'],
                         latitude=float(stop_data['latitude']),
-                        longitude=float(stop_data['longitude'])
+                        longitude=float(stop_data['longitude']),
                     )
-            
+
             # Return updated stops
-            stops = user_search.search_stops.all().order_by('stop_order')
-            serializer = UserBusSearchStopSerializer(stops, many=True)
-            
+            updated_stops = user_search.search_stops.all().order_by('stop_order')
+            serializer = UserBusSearchStopSerializer(updated_stops, many=True)
             return Response({
-                "message": "Stops added successfully",
+                "message": "Stops updated successfully",
                 "stops": serializer.data
             }, status=status.HTTP_201_CREATED)
-            
+
         except Exception as e:
-            logger.error(f"Error adding stops: {str(e)}")
+            logger.error(f"Error while updating stops: {str(e)}")
             return Response(
-                {"error": "An error occurred while adding stops"}, 
+                {"error": "An unexpected error occurred while updating stops"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-    
+
     def get(self, request):
-        """Get user's current stops"""
+        """Get current stops for the authenticated user"""
         user = request.user
-        
         try:
             user_search = UserBusSearch.objects.get(user=user)
             stops = user_search.search_stops.all().order_by('stop_order')
             serializer = UserBusSearchStopSerializer(stops, many=True)
-            
             return Response({
                 "stops": serializer.data
-            })
-            
+            }, status=status.HTTP_200_OK)
         except UserBusSearch.DoesNotExist:
-            return Response({
-                "stops": []
-            })
-    
+            return Response({"stops": []}, status=status.HTTP_200_OK)
+
     def delete(self, request):
-        """Clear all stops"""
+        """Delete all stops for the authenticated user"""
         user = request.user
-        
         try:
             user_search = UserBusSearch.objects.get(user=user)
             user_search.search_stops.all().delete()
-            
             return Response({
-                "message": "All stops cleared successfully"
-            })
-            
+                "message": "All stops deleted successfully"
+            }, status=status.HTTP_200_OK)
         except UserBusSearch.DoesNotExist:
             return Response({
-                "message": "No stops found to clear"
-            })
+                "message": "No stops found to delete"
+            }, status=status.HTTP_200_OK)
 
 
 class BusPriceCalculationAPIView(APIView):
