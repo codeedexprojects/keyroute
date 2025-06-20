@@ -315,6 +315,9 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
 
         # Check if this is user's first booking and apply 10% discount
         is_first_booking = self.is_first_user_booking(user)
+        discount_amount = Decimal('0.00')
+        original_amount = total_amount
+        
         if is_first_booking:
             discount_amount = total_amount * Decimal('0.10')  # 10% discount
             total_amount = total_amount - discount_amount
@@ -345,11 +348,12 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
         logger.info(f"Total Distance: {total_distance_km} km")
         logger.info(f"Nights: {nights}")
         logger.info(f"Night Allowance: ₹{night_allowance_total}")
-        logger.info(f"Total Amount: ₹{total_amount}")
+        logger.info(f"Original Amount: ₹{original_amount}")
+        logger.info(f"Discount Applied: ₹{discount_amount}")
+        logger.info(f"Final Amount: ₹{total_amount}")
         logger.info(f"First Booking: {is_first_booking}")
 
         # Calculate minimum advance amount required
-        total_amount = validated_data.get('total_amount')
         advance_percent, min_advance_amount = get_advance_amount_from_db(total_amount)
 
         # Handle partial amount and set paid_amount
@@ -373,14 +377,8 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
             validated_data['advance_amount'] = min_advance_amount
             validated_data['paid_amount'] = min_advance_amount
 
-        # Calculate admin commission (adjusted for first booking discount)
-        commission_percent, revenue = get_admin_commission_from_db(total_amount)
-        
-        # If first booking, reduce admin commission by the discount amount
-        if is_first_booking:
-            discount_from_commission = total_amount * Decimal('0.10') / (1 - Decimal('0.10'))  # Adjust back to original
-            revenue = revenue - discount_from_commission
-            logger.info(f"Admin commission reduced by discount: ₹{discount_from_commission}. New revenue: ₹{revenue}")
+        # Calculate admin commission using original amount (before discount)
+        commission_percent, revenue = get_admin_commission_from_db(original_amount)
 
         # Create booking
         booking = super().create(validated_data)
@@ -428,9 +426,9 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
                 )
                 
                 logger.info(f"Created optimized stop {i+1}: {stop_data['location_name']} - "
-                           f"Distance from previous: {distance_from_previous} km")
+                        f"Distance from previous: {distance_from_previous} km")
 
-        # Create admin commission record (with adjusted revenue for first booking)
+        # Create admin commission record with original revenue
         AdminCommission.objects.create(
             booking_type='bus',
             booking_id=booking.booking_id,
@@ -441,45 +439,46 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
             referral_deduction=Decimal('0.00')
         )
 
-        # Handle referral rewards (existing code)
-        try:
-            wallet = Wallet.objects.get(user=user)
-            if wallet.referred_by and not wallet.referral_used:
-                logger.info(f"Processing referral for user {user.id}, referred by {wallet.referred_by}")
+        # Process referral rewards ONLY for first booking
+        if is_first_booking:
+            try:
+                wallet = Wallet.objects.get(user=user)
+                if wallet.referred_by and not wallet.referral_used:
+                    logger.info(f"Processing referral for user {user.id}, referred by {wallet.referred_by}")
 
-                referrer = None
-                try:
-                    referrer = User.objects.get(mobile=wallet.referred_by)
-                except User.DoesNotExist:
-                    try:
-                        referrer = User.objects.get(email=wallet.referred_by)
-                    except User.DoesNotExist:
-                        referrer = User.objects.filter(mobile=wallet.referred_by).first()
+                    # Find referrer by mobile or email
+                    referrer = User.objects.filter(
+                        models.Q(mobile=wallet.referred_by) | models.Q(email=wallet.referred_by)
+                    ).first()
 
-                if referrer:
-                    try:
-                        referral_config = ReferAndEarn.objects.first()
-                        reward_amount = referral_config.price if referral_config else Decimal('300.00')
-                    except:
-                        reward_amount = Decimal('300.00')
+                    if referrer:
+                        try:
+                            # Get referral reward amount
+                            referral_config = ReferAndEarn.objects.first()
+                            reward_amount = referral_config.price
+                        except:
+                            logger.error("No referral config found, using default amount")
 
-                    ReferralRewardTransaction.objects.create(
-                        referrer=referrer,
-                        referred_user=user,
-                        booking_type='bus',
-                        booking_id=booking.booking_id,
-                        reward_amount=reward_amount,
-                        status='pending'
-                    )
-                    wallet.referral_used = True
-                    wallet.save()
-                    logger.info(f"Referral reward created for referrer {referrer.id}")
-                else:
-                    logger.warning(f"Referrer not found: {wallet.referred_by}")
-        except Wallet.DoesNotExist:
-            pass
-        except Exception as e:
-            logger.error(f"Error in referral processing: {str(e)}")
+                        # Create referral reward transaction (will be credited only after trip completion)
+                        ReferralRewardTransaction.objects.create(
+                            referrer=referrer,
+                            referred_user=user,
+                            booking_type='bus',
+                            booking_id=booking.booking_id,
+                            reward_amount=reward_amount,
+                            status='pending'
+                        )
+                        
+                        # Mark referral as used only when creating the transaction
+                        wallet.referral_used = True
+                        wallet.save()
+                        logger.info(f"Created referral reward for referrer {referrer.id} from bus booking {booking.booking_id}")
+                    else:
+                        logger.warning(f"Could not find referrer with identifier '{wallet.referred_by}'")
+            except Wallet.DoesNotExist:
+                logger.warning(f"No wallet found for user {user.id}")
+            except Exception as e:
+                logger.error(f"Unexpected error during referral processing: {str(e)}")
 
         return booking
 
@@ -677,6 +676,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
         
         # Check if this is user's first booking and apply 10% discount
         is_first_booking = self.is_first_user_booking(user)
+        discount_amount = Decimal('0.00')
         if is_first_booking:
             discount_amount = calculated_total_amount * Decimal('0.10')  # 10% discount
             calculated_total_amount = calculated_total_amount - discount_amount
@@ -711,20 +711,17 @@ class PackageBookingSerializer(BaseBookingSerializer):
         rooms_required = (total_travelers + 2) // 3  # Ceiling of total_travelers / 3
         validated_data['rooms'] = rooms_required
 
-        # Calculate commission (adjusted for first booking discount)
-        commission_percent, revenue = get_admin_commission_from_db(calculated_total_amount)
+        # Calculate commission (using original amount before discount)
+        original_amount = calculated_total_amount + discount_amount if is_first_booking else calculated_total_amount
+        commission_percent, revenue = get_admin_commission_from_db(original_amount)
         
-        # If first booking, reduce admin commission by the discount amount
-        if is_first_booking:
-            discount_from_commission = calculated_total_amount * Decimal('0.10') / (1 - Decimal('0.10'))  # Adjust back to original
-            revenue = revenue - discount_from_commission
-            logger.info(f"Admin commission reduced by discount: ₹{discount_from_commission}. New revenue: ₹{revenue}")
-
         logger.info(f"=== PACKAGE BOOKING CALCULATION ===")
         logger.info(f"Package: {package.name if hasattr(package, 'name') else 'N/A'}")
         logger.info(f"Total Travelers: {total_travelers}")
         logger.info(f"Rooms Required: {rooms_required}")
-        logger.info(f"Total Amount: ₹{calculated_total_amount}")
+        logger.info(f"Original Amount: ₹{original_amount}")
+        logger.info(f"Discount Applied: ₹{discount_amount}")
+        logger.info(f"Final Amount: ₹{calculated_total_amount}")
         logger.info(f"First Booking: {is_first_booking}")
         logger.info(f"Paid Amount: ₹{validated_data['paid_amount']}")
 
@@ -734,52 +731,55 @@ class PackageBookingSerializer(BaseBookingSerializer):
         # Get referral reward amount
         try:
             referral_config = ReferAndEarn.objects.first()
-            reward_amount = referral_config.price
+            reward_amount = referral_config.price if referral_config else Decimal('0.00')
         except:
-            print("no amount error")
+            reward_amount = Decimal('0.00')
+            logger.error("No referral config found")
 
-        # Create admin commission record (with adjusted revenue for first booking)
+        # Create admin commission record (with original revenue)
         AdminCommission.objects.create(
             booking_type='package',
             booking_id=booking.booking_id,
             advance_amount=validated_data['advance_amount'],
             commission_percentage=commission_percent,
             revenue_to_admin=revenue,
-            original_revenue=revenue,  # Store original revenue
-            referral_deduction=Decimal('0.00')  # Will be updated when referral is credited
+            original_revenue=revenue,
+            referral_deduction=Decimal('0.00')
         )
 
-        # Process referral rewards
-        try:
-            wallet = Wallet.objects.get(user=user)
-            if wallet.referred_by and not wallet.referral_used:
-                logger.info(f"Processing referral for user {user.id}, referred by {wallet.referred_by}")
-                referrer = User.objects.filter(
-                    models.Q(mobile=wallet.referred_by) | models.Q(email=wallet.referred_by)
-                ).first()
+        # Process referral rewards ONLY for first booking
+        if is_first_booking:
+            try:
+                wallet = Wallet.objects.get(user=user)
+                if wallet.referred_by and not wallet.referral_used:
+                    logger.info(f"Processing referral for user {user.id}, referred by {wallet.referred_by}")
+                    referrer = User.objects.filter(
+                        models.Q(mobile=wallet.referred_by) | models.Q(email=wallet.referred_by)
+                    ).first()
 
-                if referrer:
-                    try:
-                        # Create referral reward transaction (will be credited only after trip completion)
-                        ReferralRewardTransaction.objects.create(
-                            referrer=referrer,
-                            referred_user=user,
-                            booking_type='package',
-                            booking_id=booking.booking_id,
-                            reward_amount=reward_amount,
-                            status='pending'
-                        )
-                        wallet.referral_used = True
-                        wallet.save()
-                        logger.info(f"Created referral reward for referrer {referrer.id} from package booking {booking.booking_id}")
-                    except Exception as e:
-                        logger.error(f"Error creating referral transaction: {str(e)}")
-                else:
-                    logger.warning(f"Could not find referrer with identifier '{wallet.referred_by}'")
-        except Wallet.DoesNotExist:
-            pass
-        except Exception as e:
-            logger.error(f"Unexpected error during referral processing: {str(e)}")
+                    if referrer:
+                        try:
+                            # Create referral reward transaction (will be credited only after trip completion)
+                            ReferralRewardTransaction.objects.create(
+                                referrer=referrer,
+                                referred_user=user,
+                                booking_type='package',
+                                booking_id=booking.booking_id,
+                                reward_amount=reward_amount,
+                                status='pending'
+                            )
+                            # Mark referral as used only when creating the transaction
+                            wallet.referral_used = True
+                            wallet.save()
+                            logger.info(f"Created referral reward for referrer {referrer.id} from package booking {booking.booking_id}")
+                        except Exception as e:
+                            logger.error(f"Error creating referral transaction: {str(e)}")
+                    else:
+                        logger.warning(f"Could not find referrer with identifier '{wallet.referred_by}'")
+            except Wallet.DoesNotExist:
+                logger.warning(f"No wallet found for user {user.id}")
+            except Exception as e:
+                logger.error(f"Unexpected error during referral processing: {str(e)}")
 
         return booking
 
@@ -1467,7 +1467,9 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
                     ).exists()
 
                     if not existing_reward:
-                        reward = 300
+                        from admin_panel.models import ReferAndEarn
+                        reward_model = ReferAndEarn.objects.all().first()
+                        reward = reward_model.price
                         try:
                             ReferralRewardTransaction.objects.create(
                                 referrer=referrer,
@@ -2045,7 +2047,9 @@ class BusBookingUpdateSerializer(BaseBookingSerializer):
                     ).exists()
 
                     if not existing_reward:
-                        reward = 300
+                        from admin_panel.models import ReferAndEarn
+                        reward_model = ReferAndEarn.objects.all().first()
+                        reward = reward_model.price
                         try:
                             ReferralRewardTransaction.objects.create(
                                 referrer=referrer,
