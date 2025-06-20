@@ -198,7 +198,6 @@ class PackageDriverDetail(models.Model):
 
 class UserBusSearch(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="bus_search")
-    one_way = models.BooleanField(default=True)
     from_lat = models.FloatField(null=False, blank=False)
     from_lon = models.FloatField(null=False, blank=False)
     to_lat = models.FloatField(null=True, blank=True)

@@ -77,7 +77,6 @@ urlpatterns = [
     path('wallet/transactions/',WalletTransactionHistoryAPIView.as_view(), name='wallet-transactions'),
 
     path('bus-search/stops/', AddStopsAPIView.as_view(), name='bus-search-stops'),
-    path('bus/price-calculation/', BusPriceCalculationAPIView.as_view(), name='bus-price-calculation'),
 
 
     path('buses/nearby/', NearbyBusLocationAPIView.as_view(), name='bus-location-get'),
