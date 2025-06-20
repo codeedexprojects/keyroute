@@ -1116,7 +1116,7 @@ class BusBookingDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = BusBooking
         fields = [
-            'id', 'start_date', 'from_location', 'to_location', 'one_way',
+            'id', 'start_date', 'from_location', 'to_location',
             'total_amount', 'advance_amount', 'balance_amount', 'payment_status', 
             'user', 'bus','bus_number', 'trip_status', 'travelers','base_price','payment_date','payment_type'
         ]
@@ -1212,10 +1212,7 @@ class BusBookingBasicSerializer(serializers.ModelSerializer):
     
 
     def get_trip_type(self, obj):
-        if obj.one_way:
-            return "One Way"
-        else:
-            return "Two Way"
+        return "Two Way"
         
     def get_total_members(self, obj):
         return obj.travelers.count()
@@ -1262,7 +1259,7 @@ class BusBookingDetailSerializer222(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'bus', 'from_location', 'to_location',
             'start_date', 'total_amount', 'advance_amount',
-            'balance_amount', 'payment_status', 'one_way',
+            'balance_amount', 'payment_status',
             'travelers','trip_status','booking_status','cancellation_reason','created_at',
             'payment_date', 'base_price',
             'payment_type', 'paid_advance_only'
@@ -1626,7 +1623,7 @@ class BusBookingRequestSerializer(serializers.ModelSerializer):
         return commission.revenue_to_admin if commission else 0
 
     def get_trip_type(self, obj):
-        return "One Way" if obj.one_way else "Two Way"
+        return "Two Way"
 
     def get_total_travelers(self, obj):
         return obj.travelers.count()
