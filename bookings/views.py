@@ -216,26 +216,36 @@ class BusListAPIView(BusPriceCalculatorMixin, APIView):
         if user_search.pushback:
             buses = buses.filter(features__name__iexact='pushback')
 
+        # Prepare buses with distance information
+        buses_with_distance = []
+
         # If search has value, filter by name only (no location filtering)
         if search:
             buses = buses.filter(bus_name__icontains=search)
             buses_only = list(buses.distinct())
+            
+            # For search results, calculate distance from user location to each bus
+            for bus in buses_only:
+                if bus.latitude is not None and bus.longitude is not None:
+                    bus_coords = (bus.latitude, bus.longitude)
+                    distance_km = geodesic(user_coords, bus_coords).kilometers
+                    buses_with_distance.append((bus, distance_km))
+                else:
+                    # If bus doesn't have coordinates, set distance as None or a high value
+                    buses_with_distance.append((bus, None))
         else:
             # No search - apply location-based filtering (within 30 km)
-            nearby_buses = []
             for bus in buses.distinct():
                 if bus.latitude is not None and bus.longitude is not None:
                     bus_coords = (bus.latitude, bus.longitude)
                     distance_km = geodesic(user_coords, bus_coords).kilometers
                     if distance_km <= 30:
-                        nearby_buses.append((bus, distance_km))
+                        buses_with_distance.append((bus, distance_km))
 
-            if not nearby_buses:
+            if not buses_with_distance:
                 return Response({"message": "No buses found near your location within 30 km."}, status=200)
 
-            buses_only = [bus for bus, dist in nearby_buses]
-
-        if not buses_only:
+        if not buses_with_distance:
             return Response({"message": "No buses found matching your criteria."}, status=200)
 
         # Get sorting parameter
@@ -256,75 +266,59 @@ class BusListAPIView(BusPriceCalculatorMixin, APIView):
                 })
 
         # Apply sorting with unified price calculation
-        if search:
-            # For name-based search, no distance sorting
-            if sort_by == 'popular':
-                buses_only = [bus for bus in buses_only if getattr(bus, 'is_popular', False)]
-            elif sort_by == 'top_rated':
-                buses_only.sort(key=lambda x: x.bus_reviews.aggregate(avg=Avg('rating'))['avg'] or 0, reverse=True)
-            elif sort_by == 'price_low_to_high':
-                bus_prices = []
-                for bus in buses_only:
-                    price = self.calculate_comprehensive_trip_price(
-                        bus, user_search.from_lat, user_search.from_lon,
-                        user_search.to_lat, user_search.to_lon,
-                        start_date, end_date, stops_data
-                    )
-                    bus_prices.append((bus, price))
-                bus_prices.sort(key=lambda x: x[1])
-                buses_only = [bus for bus, price in bus_prices]
-            elif sort_by == 'price_high_to_low':
-                bus_prices = []
-                for bus in buses_only:
-                    price = self.calculate_comprehensive_trip_price(
-                        bus, user_search.from_lat, user_search.from_lon,
-                        user_search.to_lat, user_search.to_lon,
-                        start_date, end_date, stops_data
-                    )
-                    bus_prices.append((bus, price))
-                bus_prices.sort(key=lambda x: x[1], reverse=True)
-                buses_only = [bus for bus, price in bus_prices]
-        else:
-            # For location-based search, keep original sorting logic
-            if sort_by == 'nearest':
-                nearby_buses.sort(key=lambda x: x[1])  # Sort by distance
-            elif sort_by == 'popular':
-                nearby_buses = [(bus, dist) for bus, dist in nearby_buses if getattr(bus, 'is_popular', False)]
-                nearby_buses.sort(key=lambda x: x[1])  # Then by distance
-            elif sort_by == 'top_rated':
-                nearby_buses.sort(key=lambda x: x[0].bus_reviews.aggregate(avg=Avg('rating'))['avg'] or 0, reverse=True)
-            elif sort_by == 'price_low_to_high':
-                bus_prices = []
-                for bus, dist in nearby_buses:
-                    price = self.calculate_comprehensive_trip_price(
-                        bus, user_search.from_lat, user_search.from_lon,
-                        user_search.to_lat, user_search.to_lon,
-                        start_date, end_date, stops_data
-                    )
-                    bus_prices.append((bus, dist, price))
-                bus_prices.sort(key=lambda x: x[2])
-                nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
-            elif sort_by == 'price_high_to_low':
-                bus_prices = []
-                for bus, dist in nearby_buses:
-                    price = self.calculate_comprehensive_trip_price(
-                        bus, user_search.from_lat, user_search.from_lon,
-                        user_search.to_lat, user_search.to_lon,
-                        start_date, end_date, stops_data
-                    )
-                    bus_prices.append((bus, dist, price))
-                bus_prices.sort(key=lambda x: x[2], reverse=True)
-                nearby_buses = [(bus, dist) for bus, dist, price in bus_prices]
-            
-            buses_only = [bus for bus, dist in nearby_buses]
+        if sort_by == 'nearest':
+            # Sort by distance (handle None distances by putting them at the end)
+            buses_with_distance.sort(key=lambda x: x[1] if x[1] is not None else float('inf'))
+        elif sort_by == 'popular':
+            # Filter popular buses and then sort by distance
+            buses_with_distance = [(bus, dist) for bus, dist in buses_with_distance if getattr(bus, 'is_popular', False)]
+            buses_with_distance.sort(key=lambda x: x[1] if x[1] is not None else float('inf'))
+        elif sort_by == 'top_rated':
+            buses_with_distance.sort(key=lambda x: x[0].bus_reviews.aggregate(avg=Avg('rating'))['avg'] or 0, reverse=True)
+        elif sort_by == 'price_low_to_high':
+            bus_prices = []
+            for bus, dist in buses_with_distance:
+                price = self.calculate_comprehensive_trip_price(
+                    bus, user_search.from_lat, user_search.from_lon,
+                    user_search.to_lat, user_search.to_lon,
+                    start_date, end_date, stops_data
+                )
+                bus_prices.append((bus, dist, price))
+            bus_prices.sort(key=lambda x: x[2])
+            buses_with_distance = [(bus, dist) for bus, dist, price in bus_prices]
+        elif sort_by == 'price_high_to_low':
+            bus_prices = []
+            for bus, dist in buses_with_distance:
+                price = self.calculate_comprehensive_trip_price(
+                    bus, user_search.from_lat, user_search.from_lon,
+                    user_search.to_lat, user_search.to_lon,
+                    start_date, end_date, stops_data
+                )
+                bus_prices.append((bus, dist, price))
+            bus_prices.sort(key=lambda x: x[2], reverse=True)
+            buses_with_distance = [(bus, dist) for bus, dist, price in bus_prices]
+
+        # Get the nearest bus distance (first bus after sorting)
+        nearest_distance = None
+        if buses_with_distance:
+            # Find the minimum distance from all buses
+            distances = [dist for bus, dist in buses_with_distance if dist is not None]
+            if distances:
+                nearest_distance = min(distances)
+
+        buses_only = [bus for bus, distance in buses_with_distance]
 
         response_data = {
-            'buses': buses_only
+            'buses': buses_only,
+            'distance_km': round(nearest_distance, 2) if nearest_distance is not None else None
         }
 
         serializer = BusListResponseSerializer(
             response_data,
-            context={'request': request, 'user_search': user_search}
+            context={
+                'request': request, 
+                'user_search': user_search
+            }
         )
         return Response(serializer.data)
     
@@ -573,18 +567,37 @@ class AddStopsAPIView(APIView):
         try:
             # Use transaction to ensure data integrity
             with transaction.atomic():
-                # Delete old stops
-                user_search.search_stops.all().delete()
-
-                # Create new stops
+                # Get existing stops
+                existing_stops = list(user_search.search_stops.all().order_by('stop_order'))
+                
+                # Update or create stops based on stop_order
                 for i, stop_data in enumerate(stops_data):
-                    UserBusSearchStop.objects.create(
-                        user_search=user_search,
-                        stop_order=i + 1,
-                        location_name=stop_data['location_name'],
-                        latitude=float(stop_data['latitude']),
-                        longitude=float(stop_data['longitude']),
-                    )
+                    stop_order = i + 1
+                    
+                    # Try to find existing stop with this order
+                    existing_stop = next((stop for stop in existing_stops if stop.stop_order == stop_order), None)
+                    
+                    if existing_stop:
+                        # Update existing stop
+                        existing_stop.location_name = stop_data['location_name']
+                        existing_stop.latitude = float(stop_data['latitude'])
+                        existing_stop.longitude = float(stop_data['longitude'])
+                        existing_stop.save()
+                    else:
+                        # Create new stop
+                        UserBusSearchStop.objects.create(
+                            user_search=user_search,
+                            stop_order=stop_order,
+                            location_name=stop_data['location_name'],
+                            latitude=float(stop_data['latitude']),
+                            longitude=float(stop_data['longitude']),
+                        )
+                
+                # Delete any remaining stops that exceed the new count
+                if len(existing_stops) > len(stops_data):
+                    stops_to_delete = [stop for stop in existing_stops if stop.stop_order > len(stops_data)]
+                    for stop in stops_to_delete:
+                        stop.delete()
 
             # Return updated stops
             updated_stops = user_search.search_stops.all().order_by('stop_order')
@@ -613,20 +626,6 @@ class AddStopsAPIView(APIView):
             }, status=status.HTTP_200_OK)
         except UserBusSearch.DoesNotExist:
             return Response({"stops": []}, status=status.HTTP_200_OK)
-
-    def delete(self, request):
-        """Delete all stops for the authenticated user"""
-        user = request.user
-        try:
-            user_search = UserBusSearch.objects.get(user=user)
-            user_search.search_stops.all().delete()
-            return Response({
-                "message": "All stops deleted successfully"
-            }, status=status.HTTP_200_OK)
-        except UserBusSearch.DoesNotExist:
-            return Response({
-                "message": "No stops found to delete"
-            }, status=status.HTTP_200_OK)
 
 
 class BusPriceCalculationAPIView(APIView):
