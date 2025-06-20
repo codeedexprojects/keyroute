@@ -103,7 +103,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
             Wallet.objects.create(
                 user=user, 
                 referred_by=referrer.mobile,
-                referral_used=True
+                referral_used=False
             )
         else:
             Wallet.objects.create(user=user)
