@@ -1096,7 +1096,7 @@ class TravelerSerializer(serializers.ModelSerializer):
     """Serializer for individual traveler details"""
     class Meta:
         model = Travelers
-        fields = ['first_name', 'last_name', 'gender', 'dob', 'email', 'mobile', 'place', 'city','id_proof']
+        fields = ['first_name', 'last_name', 'gender', 'dob', 'email', 'mobile', 'place','age' ,'city','id_proof']
 
 class BusBookingDetailSerializer(serializers.ModelSerializer):
     """Serializer for the full bus booking details"""
