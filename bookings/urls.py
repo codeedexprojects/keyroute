@@ -13,7 +13,7 @@ from .views import (
     ApplyWalletToPackageBookingAPIView,
     RemoveWalletFromPackageBookingAPIView,
     GetWalletBalanceAPIView,
-    WalletTransactionHistoryAPIView,BusDriverDetailListAPIView,AddStopsAPIView,BusPriceCalculationAPIView,NearbyBusLocationAPIView
+    WalletTransactionHistoryAPIView,BusDriverDetailListAPIView,AddStopsAPIView,NearbyBusLocationAPIView
 
 )
 
