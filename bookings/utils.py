@@ -100,8 +100,8 @@ from django.utils import timezone
 
 class BusPriceCalculatorMixin:
     """
-    Unified mixin class for price calculation logic across all bus serializers
-    Handles both same-day round trips and multi-day one-way trips correctly
+    Updated mixin class for price calculation logic across all bus serializers
+    Handles per-day pricing with daily KM allowance and proper return journey logic
     """
     
     def calculate_distance_google_api(self, from_lat, from_lon, to_lat, to_lon):
@@ -216,17 +216,17 @@ class BusPriceCalculatorMixin:
 
     def calculate_total_distance_with_stops(self, from_lat, from_lon, to_lat, to_lon, start_date, end_date, stops_data=None):
         """
-        Calculate total distance based on trip type:
-        - Same day trip (start_date == end_date): Round trip distance
-        - Multi-day trip (start_date != end_date): One way distance only
+        Calculate total distance based on trip type and new return logic:
+        - Same day trip (start_date == end_date): Forward journey with all stops + Direct return
+        - Multi-day trip (start_date != end_date): One way distance only (forward journey with stops)
         
-        This method maintains backward compatibility with old calls that don't pass dates
+        Return journey logic: Direct distance from destination to origin (no stops)
         """
         
-        # Handle backward compatibility - if dates are not provided, assume round trip
+        # Handle backward compatibility - if dates are not provided, assume same day trip
         if start_date is None or end_date is None:
-            logging.info("=== BACKWARD COMPATIBILITY MODE - ASSUMING ROUND TRIP ===")
-            return self._calculate_round_trip_distance(from_lat, from_lon, to_lat, to_lon, stops_data)
+            logging.info("=== BACKWARD COMPATIBILITY MODE - ASSUMING SAME DAY TRIP ===")
+            return self._calculate_same_day_trip_distance(from_lat, from_lon, to_lat, to_lon, stops_data)
         
         # Determine if it's a same-day trip or multi-day trip
         is_same_day_trip = start_date == end_date
@@ -236,23 +236,47 @@ class BusPriceCalculatorMixin:
             one_way_distance = self.calculate_distance_google_api(from_lat, from_lon, to_lat, to_lon)
             
             if is_same_day_trip:
-                # Same day trip: Round trip
+                # Same day trip: Round trip (forward + direct return)
                 total_distance = one_way_distance * 2
-                logging.info(f"=== SAME DAY ROUND TRIP ===")
+                logging.info(f"=== SAME DAY ROUND TRIP (NO STOPS) ===")
                 logging.info(f"One way distance: {one_way_distance} km")
                 logging.info(f"Round trip total: {total_distance} km")
             else:
                 # Multi-day trip: One way only
                 total_distance = one_way_distance
-                logging.info(f"=== MULTI-DAY ONE WAY TRIP ===")
+                logging.info(f"=== MULTI-DAY ONE WAY TRIP (NO STOPS) ===")
                 logging.info(f"One way distance: {total_distance} km")
             
             return total_distance
         
+        # Calculate forward journey with optimized stops
+        forward_distance = self._calculate_forward_journey_with_stops(
+            from_lat, from_lon, to_lat, to_lon, stops_data
+        )
+        
+        if is_same_day_trip:
+            # Same day trip: Forward journey + Direct return (no stops on return)
+            direct_return_distance = self.calculate_distance_google_api(to_lat, to_lon, from_lat, from_lon)
+            total_distance = forward_distance + direct_return_distance
+            
+            logging.info(f"=== SAME DAY TRIP WITH STOPS ===")
+            logging.info(f"Forward journey (with stops): {forward_distance} km")
+            logging.info(f"Direct return journey: {direct_return_distance} km")
+            logging.info(f"Total distance: {total_distance} km")
+        else:
+            # Multi-day trip: Forward journey only (with stops)
+            total_distance = forward_distance
+            logging.info(f"=== MULTI-DAY TRIP WITH STOPS ===")
+            logging.info(f"Forward journey (with stops): {total_distance} km")
+        
+        return total_distance
+
+    def _calculate_forward_journey_with_stops(self, from_lat, from_lon, to_lat, to_lon, stops_data):
+        """Calculate forward journey distance with optimized stops"""
         # Find optimal route for stops
         optimized_stops = self.find_optimal_route(from_lat, from_lon, to_lat, to_lon, stops_data)
         
-        # Build complete route for one way
+        # Build complete forward route
         forward_route = []
         forward_route.append({'lat': from_lat, 'lon': from_lon, 'name': 'Origin'})
         
@@ -269,7 +293,7 @@ class BusPriceCalculatorMixin:
         
         # Calculate forward journey distance
         forward_distance = Decimal('0.00')
-        logging.info("=== FORWARD JOURNEY (OPTIMIZED ROUTE) ===")
+        logging.info("=== FORWARD JOURNEY (OPTIMIZED ROUTE WITH STOPS) ===")
         
         for i in range(len(forward_route) - 1):
             current_point = forward_route[i]
@@ -284,114 +308,37 @@ class BusPriceCalculatorMixin:
             logging.info(f"Segment {i+1}: {current_point['name']} -> {next_point['name']} = {segment_distance} km")
         
         logging.info(f"Forward journey total: {forward_distance} km")
-        
-        if is_same_day_trip:
-            # Same day trip with stops: Calculate return journey (reverse route)
-            return_distance = Decimal('0.00')
-            logging.info("=== RETURN JOURNEY (REVERSE ROUTE) ===")
-            
-            return_route = list(reversed(forward_route))
-            
-            for i in range(len(return_route) - 1):
-                current_point = return_route[i]
-                next_point = return_route[i + 1]
-                
-                segment_distance = self.calculate_distance_google_api(
-                    current_point['lat'], current_point['lon'],
-                    next_point['lat'], next_point['lon']
-                )
-                
-                return_distance += segment_distance
-                logging.info(f"Return Segment {i+1}: {current_point['name']} -> {next_point['name']} = {segment_distance} km")
-            
-            logging.info(f"Return journey total: {return_distance} km")
-            
-            # Total round trip distance
-            total_distance = forward_distance + return_distance
-            logging.info(f"=== TOTAL SAME DAY ROUND TRIP DISTANCE: {total_distance} km ===")
-        else:
-            # Multi-day trip with stops: One way only
-            total_distance = forward_distance
-            logging.info(f"=== TOTAL MULTI-DAY ONE WAY DISTANCE: {total_distance} km ===")
-        
-        return total_distance
+        return forward_distance
 
-    def _calculate_round_trip_distance(self, from_lat, from_lon, to_lat, to_lon, stops_data=None):
+    def _calculate_same_day_trip_distance(self, from_lat, from_lon, to_lat, to_lon, stops_data=None):
         """
-        Helper method for backward compatibility - always calculates round trip
-        Used when dates are not provided (old behavior)
+        Helper method for backward compatibility - same day trip logic
+        Forward journey with stops + Direct return
         """
         if not stops_data:
             # Simple round trip without stops
             one_way_distance = self.calculate_distance_google_api(from_lat, from_lon, to_lat, to_lon)
             total_distance = one_way_distance * 2  # Round trip
             
-            logging.info(f"=== SIMPLE ROUND TRIP (BACKWARD COMPATIBILITY) ===")
+            logging.info(f"=== SIMPLE SAME DAY TRIP (BACKWARD COMPATIBILITY) ===")
             logging.info(f"One way distance: {one_way_distance} km")
             logging.info(f"Round trip total: {total_distance} km")
             
             return total_distance
         
-        # Find optimal route for stops
-        optimized_stops = self.find_optimal_route(from_lat, from_lon, to_lat, to_lon, stops_data)
+        # Forward journey with stops
+        forward_distance = self._calculate_forward_journey_with_stops(
+            from_lat, from_lon, to_lat, to_lon, stops_data
+        )
         
-        # Build complete route
-        forward_route = []
-        forward_route.append({'lat': from_lat, 'lon': from_lon, 'name': 'Origin'})
+        # Direct return journey (no stops)
+        direct_return_distance = self.calculate_distance_google_api(to_lat, to_lon, from_lat, from_lon)
+        total_distance = forward_distance + direct_return_distance
         
-        # Add optimized stops
-        for stop in optimized_stops:
-            forward_route.append({
-                'lat': float(stop['latitude']), 
-                'lon': float(stop['longitude']),
-                'name': stop['location_name']
-            })
-        
-        # Add destination
-        forward_route.append({'lat': to_lat, 'lon': to_lon, 'name': 'Destination'})
-        
-        # Calculate forward journey distance
-        forward_distance = Decimal('0.00')
-        logging.info("=== FORWARD JOURNEY (OPTIMIZED ROUTE - BACKWARD COMPATIBILITY) ===")
-        
-        for i in range(len(forward_route) - 1):
-            current_point = forward_route[i]
-            next_point = forward_route[i + 1]
-            
-            segment_distance = self.calculate_distance_google_api(
-                current_point['lat'], current_point['lon'],
-                next_point['lat'], next_point['lon']
-            )
-            
-            forward_distance += segment_distance
-            logging.info(f"Segment {i+1}: {current_point['name']} -> {next_point['name']} = {segment_distance} km")
-        
-        logging.info(f"Forward journey total: {forward_distance} km")
-        
-        # Calculate return journey (reverse the forward route)
-        return_distance = Decimal('0.00')
-        logging.info("=== RETURN JOURNEY (REVERSE ROUTE - BACKWARD COMPATIBILITY) ===")
-        
-        return_route = list(reversed(forward_route))
-        
-        for i in range(len(return_route) - 1):
-            current_point = return_route[i]
-            next_point = return_route[i + 1]
-            
-            segment_distance = self.calculate_distance_google_api(
-                current_point['lat'], current_point['lon'],
-                next_point['lat'], next_point['lon']
-            )
-            
-            return_distance += segment_distance
-            logging.info(f"Return Segment {i+1}: {current_point['name']} -> {next_point['name']} = {segment_distance} km")
-        
-        logging.info(f"Return journey total: {return_distance} km")
-        
-        # Total round trip distance
-        total_distance = forward_distance + return_distance
-        
-        logging.info(f"=== TOTAL OPTIMIZED ROUND TRIP DISTANCE (BACKWARD COMPATIBILITY): {total_distance} km ===")
+        logging.info(f"=== SAME DAY TRIP WITH STOPS (BACKWARD COMPATIBILITY) ===")
+        logging.info(f"Forward journey (with stops): {forward_distance} km")
+        logging.info(f"Direct return journey: {direct_return_distance} km")
+        logging.info(f"Total distance: {total_distance} km")
         
         return total_distance
 
@@ -415,8 +362,10 @@ class BusPriceCalculatorMixin:
 
     def calculate_comprehensive_trip_price(self, bus, from_lat, from_lon, to_lat, to_lon, start_date=None, end_date=None, stops_data=None):
         """
-        Comprehensive trip price calculation with correct logic for all trip types
-        Maintains backward compatibility while supporting both same-day and multi-day trips
+        Updated comprehensive trip price calculation with per-day pricing logic
+        - Base price charged per day
+        - KM allowance is per day (base_price_km × total_days)
+        - Driver bata charged per night stayed
         """
         try:
             # Validate bus pricing data
@@ -446,7 +395,7 @@ class BusPriceCalculatorMixin:
             base_price_per_day = bus.base_price  # Base price per day
             base_km_per_day = bus.base_price_km or Decimal('100')  # KM included per day (default 100)
             price_per_km = bus.price_per_km  # Rate for extra KM
-            night_allowance = bus.night_allowance or Decimal('500')  # Driver allowance per night
+            night_allowance = bus.night_allowance or Decimal('500')  # Driver bata per night
             minimum_fare = bus.minimum_fare or Decimal('0.00')
             
             # Calculate base fare for total days
@@ -461,7 +410,7 @@ class BusPriceCalculatorMixin:
                 extra_km = total_distance_km - total_included_km
                 extra_km_charges = extra_km * price_per_km
             
-            # Calculate nights and driver allowance
+            # Calculate nights and driver bata
             nights = self.calculate_nights_between_dates(start_date, end_date)
             night_allowance_total = nights * night_allowance
             
@@ -473,19 +422,18 @@ class BusPriceCalculatorMixin:
                 total_amount = minimum_fare
             
             # Determine trip type for logging
-            trip_type = "SAME DAY ROUND TRIP" if start_date == end_date else "MULTI-DAY TRIP"
+            trip_type = "SAME DAY TRIP" if start_date == end_date else "MULTI-DAY TRIP"
             
-            logging.info(f"=== COMPREHENSIVE PRICE CALCULATION ({trip_type}) ===")
+            logging.info(f"=== UPDATED COMPREHENSIVE PRICE CALCULATION ({trip_type}) ===")
             logging.info(f"- Bus: {bus.bus_name}")
-            logging.info(f"- Trip dates: {start_date} to {end_date}")
+            logging.info(f"- Trip dates: {start_date} to {end_date} ({total_days} days)")
             logging.info(f"- Total distance: {total_distance_km} km")
-            logging.info(f"- Total days: {total_days}")
-            logging.info(f"- Base fare: ₹{base_fare} ({total_days} days × ₹{base_price_per_day})")
-            logging.info(f"- Included KM: {total_included_km} km ({total_days} days × {base_km_per_day} km)")
+            logging.info(f"- Base fare: ₹{base_fare} ({total_days} days × ₹{base_price_per_day}/day)")
+            logging.info(f"- Included KM: {total_included_km} km ({total_days} days × {base_km_per_day} km/day)")
             logging.info(f"- Extra KM: {max(Decimal('0.00'), total_distance_km - total_included_km)} km")
-            logging.info(f"- Extra KM charges: ₹{extra_km_charges}")
-            logging.info(f"- Nights: {nights}")
-            logging.info(f"- Night allowance: ₹{night_allowance_total} ({nights} nights × ₹{night_allowance})")
+            logging.info(f"- Extra KM charges: ₹{extra_km_charges} ({max(Decimal('0.00'), total_distance_km - total_included_km)} km × ₹{price_per_km}/km)")
+            logging.info(f"- Nights stayed: {nights}")
+            logging.info(f"- Driver bata: ₹{night_allowance_total} ({nights} nights × ₹{night_allowance}/night)")
             logging.info(f"- Total amount: ₹{total_amount}")
             
             return total_amount
@@ -497,10 +445,10 @@ class BusPriceCalculatorMixin:
     # Backward compatibility methods
     def calculate_total_distance_with_stops_legacy(self, from_lat, from_lon, to_lat, to_lon, stops_data=None):
         """
-        Legacy method for backward compatibility - always assumes round trip
+        Legacy method for backward compatibility - same day trip logic
         This method signature matches your old code that doesn't pass dates
         """
-        return self._calculate_round_trip_distance(from_lat, from_lon, to_lat, to_lon, stops_data)
+        return self._calculate_same_day_trip_distance(from_lat, from_lon, to_lat, to_lon, stops_data)
 
     def calculate_trip_price_legacy(self, bus, user_search, start_date, end_date, stops_data=None):
         """
