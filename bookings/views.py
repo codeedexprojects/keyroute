@@ -46,6 +46,7 @@ class PackageListAPIView(APIView):
         lat = request.query_params.get('lat')
         lon = request.query_params.get('lon')
         total_travellers = request.query_params.get('total_travellers')
+        search = request.query_params.get('search')  # New search parameter
 
         if lat is None or lon is None:
             return Response(
@@ -92,9 +93,18 @@ class PackageListAPIView(APIView):
                     status=400
                 )
 
+        # Filter packages by category
         packages = Package.objects.filter(sub_category=category)
+        
+        # Apply search filter if search parameter is provided
+        if search:
+            packages = packages.filter(places__icontains=search)
+        
         if not packages.exists():
-            return Response({"error": f"No packages found under category '{category}'."}, status=404)
+            error_message = f"No packages found under category '{category}'"
+            if search:
+                error_message += f" matching search '{search}'"
+            return Response({"error": error_message}, status=404)
 
         nearby_packages = []
         for package in packages:
@@ -125,6 +135,8 @@ class PackageListAPIView(APIView):
 
         if not nearby_packages:
             message = f"No packages found near your location within 30 km"
+            if search:
+                message += f" matching search '{search}'"
             if travellers_count:
                 message += f" with suitable capacity for {travellers_count} travellers"
             return Response({"message": message}, status=200)
