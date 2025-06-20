@@ -1059,12 +1059,15 @@ class PopularBusSerializer(serializers.ModelSerializer):
             'total_reviews',
             'is_popular',
             'is_favorite',
-            'bus_image',  # 👈 include in output
+            'bus_image',
         ]
 
     def get_average_rating(self, obj):
         avg = obj.bus_reviews.aggregate(avg=Avg('rating'))['avg']
-        return round(avg, 1) if avg else 0.0
+        if avg is None:
+            return 2.0
+        calculated_avg = round(avg, 1)
+        return max(calculated_avg, 2.0)
 
     def get_total_reviews(self, obj):
         return obj.bus_reviews.count()
