@@ -37,7 +37,7 @@ MINIMUM_WALLET_AMOUNT = Decimal('1000.00')
 class BusBookingStopSerializer(serializers.ModelSerializer):
     class Meta:
         model = BusBookingStop
-        fields = ['id', 'stop_order', 'location_name', 'latitude', 'longitude', 
+        fields = ['id', 'stop_order', 'booking','location_name', 'latitude', 'longitude', 
                  'estimated_arrival', 'distance_from_previous']
         read_only_fields = ['id', 'distance_from_previous', 'estimated_arrival']
 
@@ -112,12 +112,14 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
         fields = BaseBookingSerializer.Meta.fields + [
             'bus', 'bus_details','bus_name','travelers', 'booking_type', 
             'partial_amount', 'return_date', 'pick_up_time', 'price', 'end_date',
-            'night_allowance_total', 'base_price_days', 'total_distance', 'stops', 'stops_data'
+            'night_allowance_total', 'base_price_days', 'total_distance', 'stops', 'stops_data',
+            'paid_amount'
         ]
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
             'advance_amount': {'write_only': False, 'required': False},
             'total_amount': {'write_only': False, 'required': False},
+            'paid_amount': {'read_only': True},
             'total_travelers': {'read_only': True},
             'total_distance': {'read_only': True}
         }
@@ -230,6 +232,10 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
             logging.error(f"Error in get_price: {str(e)}")
             return "Price calculation error"
 
+    def is_first_user_booking(self, user):
+        """Check if this is the user's first booking"""
+        return not BusBooking.objects.filter(user=user).exists()
+
     def create(self, validated_data):
         import logging
         logger = logging.getLogger(__name__)
@@ -307,6 +313,13 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
             stops_data=stops_data if stops_data else None
         )
 
+        # Check if this is user's first booking and apply 10% discount
+        is_first_booking = self.is_first_user_booking(user)
+        if is_first_booking:
+            discount_amount = total_amount * Decimal('0.10')  # 10% discount
+            total_amount = total_amount - discount_amount
+            logger.info(f"First booking discount applied: ₹{discount_amount}. New total: ₹{total_amount}")
+
         # Calculate trip metrics for database storage
         total_distance_km = self.calculate_total_distance_with_stops(
             bus_search.from_lat, bus_search.from_lon,
@@ -333,12 +346,13 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
         logger.info(f"Nights: {nights}")
         logger.info(f"Night Allowance: ₹{night_allowance_total}")
         logger.info(f"Total Amount: ₹{total_amount}")
+        logger.info(f"First Booking: {is_first_booking}")
 
         # Calculate minimum advance amount required
         total_amount = validated_data.get('total_amount')
         advance_percent, min_advance_amount = get_advance_amount_from_db(total_amount)
 
-        # Handle partial amount
+        # Handle partial amount and set paid_amount
         partial_amount = validated_data.pop('partial_amount', None)
         if partial_amount is None:
             partial_amount = self.initial_data.get('partial_amount')
@@ -351,14 +365,22 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
                         f"Partial amount (₹{partial_amount}) must be greater than or equal to "
                         f"the minimum advance amount (₹{min_advance_amount})."
                     )
-                validated_data['advance_amount'] = partial_amount
+                validated_data['advance_amount'] = min_advance_amount
+                validated_data['paid_amount'] = partial_amount
             except (ValueError, TypeError):
                 raise serializers.ValidationError("Invalid partial amount format.")
         else:
             validated_data['advance_amount'] = min_advance_amount
+            validated_data['paid_amount'] = min_advance_amount
 
-        # Calculate admin commission
+        # Calculate admin commission (adjusted for first booking discount)
         commission_percent, revenue = get_admin_commission_from_db(total_amount)
+        
+        # If first booking, reduce admin commission by the discount amount
+        if is_first_booking:
+            discount_from_commission = total_amount * Decimal('0.10') / (1 - Decimal('0.10'))  # Adjust back to original
+            revenue = revenue - discount_from_commission
+            logger.info(f"Admin commission reduced by discount: ₹{discount_from_commission}. New revenue: ₹{revenue}")
 
         # Create booking
         booking = super().create(validated_data)
@@ -408,7 +430,7 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
                 logger.info(f"Created optimized stop {i+1}: {stop_data['location_name']} - "
                            f"Distance from previous: {distance_from_previous} km")
 
-        # Create admin commission record
+        # Create admin commission record (with adjusted revenue for first booking)
         AdminCommission.objects.create(
             booking_type='bus',
             booking_id=booking.booking_id,
@@ -463,7 +485,6 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
 
 class SingleBusBookingSerializer(serializers.ModelSerializer):
     booking_type = serializers.SerializerMethodField()
-    paid_amount = serializers.SerializerMethodField()
     bus_name = serializers.SerializerMethodField()
     end_date = serializers.SerializerMethodField()
     price_per_km = serializers.SerializerMethodField()
@@ -494,9 +515,6 @@ class SingleBusBookingSerializer(serializers.ModelSerializer):
 
     def get_booking_type(self, obj):
         return "bus"
-    
-    def get_paid_amount(self, obj):
-        return obj.advance_amount
     
     def get_bus_name(self, obj):
         return obj.bus.bus_name
@@ -543,7 +561,6 @@ class SimpleDayPlanSerializer(serializers.Serializer):
 
 class SinglePackageBookingSerilizer(serializers.ModelSerializer):
     end_date = serializers.SerializerMethodField()
-    paid_amount = serializers.SerializerMethodField()
     bus_name = serializers.SerializerMethodField()
     booking_type = serializers.SerializerMethodField()
     day_wise_plan = serializers.SerializerMethodField()
@@ -580,9 +597,6 @@ class SinglePackageBookingSerilizer(serializers.ModelSerializer):
     def get_booking_type(self, obj):
         return "package"
 
-    def get_paid_amount(self, obj):
-        return obj.advance_amount
-
     def get_bus_name(self, obj):
         buses = obj.package.buses.all()
         return [bus.bus_name for bus in buses]
@@ -615,12 +629,14 @@ class PackageBookingSerializer(BaseBookingSerializer):
         model = PackageBooking
         fields = BaseBookingSerializer.Meta.fields + [
             'package', 'package_details', 'travelers',
-            'partial_amount', 'booking_type', 'total_travelers', 'rooms','total_amount','bus_name'
+            'partial_amount', 'booking_type', 'total_travelers', 'rooms','total_amount','bus_name',
+            'paid_amount'
         ]
         read_only_fields = BaseBookingSerializer.Meta.read_only_fields + ['rooms']
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
             'advance_amount': {'write_only': False, 'required': False},
+            'paid_amount': {'read_only': True},
         }
 
     def get_package_details(self, obj):
@@ -633,6 +649,16 @@ class PackageBookingSerializer(BaseBookingSerializer):
         first_bus = obj.package.buses.first()
         return first_bus.bus_name if first_bus else "No Bus Assigned"
 
+    def is_first_user_booking(self, user):
+        """Check if this is the user's first booking (across all booking types)"""
+        from bookings.models import BusBooking  # Import here to avoid circular imports
+        
+        # Check both bus bookings and package bookings
+        has_bus_booking = BusBooking.objects.filter(user=user).exists()
+        has_package_booking = PackageBooking.objects.filter(user=user).exists()
+        
+        return not (has_bus_booking or has_package_booking)
+
     def create(self, validated_data):
         import logging
         logger = logging.getLogger(__name__)
@@ -644,17 +670,24 @@ class PackageBookingSerializer(BaseBookingSerializer):
         if not package:
             raise serializers.ValidationError("Package is required")
         
+        user = self.context['request'].user
+        
         # Calculate total amount based on package price and travelers
         calculated_total_amount = total_travelers * package.price_per_person
-        validated_data['total_amount'] = calculated_total_amount
         
-        user = self.context['request'].user
-
-        # REMOVED: Auto wallet balance application logic
+        # Check if this is user's first booking and apply 10% discount
+        is_first_booking = self.is_first_user_booking(user)
+        if is_first_booking:
+            discount_amount = calculated_total_amount * Decimal('0.10')  # 10% discount
+            calculated_total_amount = calculated_total_amount - discount_amount
+            logger.info(f"First booking discount applied: ₹{discount_amount}. New total: ₹{calculated_total_amount}")
+        
+        validated_data['total_amount'] = calculated_total_amount
 
         # Calculate advance amount
         advance_percent, min_advance_amount = get_advance_amount_from_db(calculated_total_amount)
 
+        # Handle partial amount and set paid_amount
         partial_amount = validated_data.pop('partial_amount', None)
         if partial_amount is None:
             partial_amount = self.initial_data.get('partial_amount')
@@ -664,20 +697,36 @@ class PackageBookingSerializer(BaseBookingSerializer):
                 partial_amount = Decimal(str(partial_amount))
                 if partial_amount < min_advance_amount:
                     raise serializers.ValidationError(
-                        f"Partial amount ({partial_amount}) must be >= minimum advance amount ({min_advance_amount})."
+                        f"Partial amount (₹{partial_amount}) must be >= minimum advance amount (₹{min_advance_amount})."
                     )
-                validated_data['advance_amount'] = partial_amount
+                validated_data['advance_amount'] = min_advance_amount
+                validated_data['paid_amount'] = partial_amount
             except (ValueError, TypeError):
                 raise serializers.ValidationError("Invalid partial amount format.")
         else:
             validated_data['advance_amount'] = min_advance_amount
+            validated_data['paid_amount'] = min_advance_amount
 
         # Calculate rooms required
         rooms_required = (total_travelers + 2) // 3  # Ceiling of total_travelers / 3
         validated_data['rooms'] = rooms_required
 
-        # Calculate commission
+        # Calculate commission (adjusted for first booking discount)
         commission_percent, revenue = get_admin_commission_from_db(calculated_total_amount)
+        
+        # If first booking, reduce admin commission by the discount amount
+        if is_first_booking:
+            discount_from_commission = calculated_total_amount * Decimal('0.10') / (1 - Decimal('0.10'))  # Adjust back to original
+            revenue = revenue - discount_from_commission
+            logger.info(f"Admin commission reduced by discount: ₹{discount_from_commission}. New revenue: ₹{revenue}")
+
+        logger.info(f"=== PACKAGE BOOKING CALCULATION ===")
+        logger.info(f"Package: {package.name if hasattr(package, 'name') else 'N/A'}")
+        logger.info(f"Total Travelers: {total_travelers}")
+        logger.info(f"Rooms Required: {rooms_required}")
+        logger.info(f"Total Amount: ₹{calculated_total_amount}")
+        logger.info(f"First Booking: {is_first_booking}")
+        logger.info(f"Paid Amount: ₹{validated_data['paid_amount']}")
 
         # Create the booking with all calculated values
         booking = super().create(validated_data)
@@ -689,7 +738,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
         except:
             print("no amount error")
 
-        # Create admin commission record (store original revenue)
+        # Create admin commission record (with adjusted revenue for first booking)
         AdminCommission.objects.create(
             booking_type='package',
             booking_id=booking.booking_id,
@@ -1496,15 +1545,15 @@ class BusListingSerializer(BusPriceCalculatorMixin, serializers.ModelSerializer)
         total_reviews = bus_reviews.count()
 
         if total_reviews == 0:
-            rating_breakdown = {f"{i}★": 0.0 for i in range(1, 6)}
-            rating_breakdown["2★"] = 30.0
+            rating_breakdown = {f"{i}": 0.0 for i in range(1, 6)}
+            rating_breakdown["2"] = 30.0
         else:
             rating_breakdown = {
-                f"{i}★": round((bus_reviews.filter(rating=i).count() / total_reviews) * 100, 1)
+                f"{i}": round((bus_reviews.filter(rating=i).count() / total_reviews) * 100, 1)
                 for i in range(1, 6)
             }
-            if rating_breakdown["2★"] < 30.0:
-                rating_breakdown["2★"] = 30.0
+            if rating_breakdown["2"] < 30.0:
+                rating_breakdown["2"] = 30.0
 
         final_average_rating = max(round(average_rating, 1), 2.0)
 
@@ -1573,50 +1622,9 @@ class BusListingSerializer(BusPriceCalculatorMixin, serializers.ModelSerializer)
 
 # Response serializer for the bus list API view
 class BusListResponseSerializer(BusPriceCalculatorMixin, serializers.Serializer):
-    """
-    Updated serializer for the complete bus list response with comprehensive price calculation
-    matching BusBookingSerializer
-    """
-    distance_km = serializers.SerializerMethodField()
+
+    distance_km = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
     buses = BusListingSerializer(many=True)
-    
-    def get_distance_km(self, obj):
-        """Calculate distance from user's current location to destination in km"""
-        try:
-            user = self.context['request'].user
-            user_search = UserBusSearch.objects.get(user=user)
-            
-            if not user_search.from_lat or not user_search.from_lon:
-                return "User location not available"
-            
-            if not user_search.to_lat or not user_search.to_lon:
-                return "Destination not selected"
-            
-            # Get stops data from user search
-            stops_data = []
-            if hasattr(user_search, 'search_stops'):
-                search_stops = user_search.search_stops.all().order_by('stop_order')
-                for stop in search_stops:
-                    stops_data.append({
-                        'location_name': stop.location_name,
-                        'latitude': stop.latitude,
-                        'longitude': stop.longitude
-                    })
-            
-            # Calculate total distance with stops optimization - same as BusBookingSerializer
-            total_distance = self.calculate_total_distance_with_stops(
-                user_search.from_lat, user_search.from_lon,
-                user_search.to_lat, user_search.to_lon,
-                stops_data
-            )
-            
-            return f"{float(total_distance)} km"
-            
-        except UserBusSearch.DoesNotExist:
-            return "Search data not found"
-        except Exception as e:
-            logging.error(f"Error calculating distance: {str(e)}")
-            return "Distance calculation error"
     
 
 

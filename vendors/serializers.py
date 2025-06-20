@@ -1535,19 +1535,25 @@ class BusDriverDetailSerializer(serializers.ModelSerializer):
 class AcceptedBusBookingSerializer(serializers.ModelSerializer):
     driver_detail = BusDriverDetailSerializer(read_only=True)
     traveler = serializers.SerializerMethodField()
+    all_travelers = serializers.SerializerMethodField()
     balance_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = BusBooking
-        fields = ['id', 'start_date', 'total_amount', 'advance_amount','trip_status', 'balance_amount','payment_status', 'booking_status', 
-                  'from_location', 'to_location', 'created_at', 'total_travelers', 'male', 'female', 'children', 
-                  'cancellation_reason', 'driver_detail','traveler'] 
-        
+        fields = [
+            'id', 'start_date', 'total_amount', 'advance_amount', 'trip_status', 'balance_amount',
+            'payment_status', 'booking_status', 'from_location', 'to_location', 'created_at',
+            'total_travelers', 'male', 'female', 'children', 'cancellation_reason',
+            'driver_detail', 'traveler', 'all_travelers'
+        ]
 
     def get_traveler(self, obj):
         traveler = obj.travelers.first()
         return TravelerSerializer(traveler).data if traveler else None
-    
+
+    def get_all_travelers(self, obj):
+        return TravelerSerializer(obj.travelers.all(), many=True).data
+
     def get_balance_amount(self, obj):
         return obj.total_amount - obj.advance_amount if obj.total_amount and obj.advance_amount else 0
 
@@ -1563,18 +1569,25 @@ class PackageDriverDetailSerializer(serializers.ModelSerializer):
 class AcceptedPackageBookingSerializer(serializers.ModelSerializer):
     driver_detail = PackageDriverDetailSerializer(read_only=True)
     traveler = serializers.SerializerMethodField()
+    all_travelers = serializers.SerializerMethodField()
     balance_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = PackageBooking
-        fields = ['id', 'start_date', 'total_amount', 'advance_amount', 'trip_status','balance_amount','payment_status', 'booking_status', 
-                  'from_location', 'to_location', 'created_at', 'total_travelers', 'male', 'female', 'children', 
-                  'cancellation_reason', 'driver_detail','traveler']
-        
+        fields = [
+            'id', 'start_date', 'total_amount', 'advance_amount', 'trip_status', 'balance_amount',
+            'payment_status', 'booking_status', 'from_location', 'to_location', 'created_at',
+            'total_travelers', 'male', 'female', 'children', 'cancellation_reason',
+            'driver_detail', 'traveler', 'all_travelers'
+        ]
+
     def get_traveler(self, obj):
         traveler = obj.travelers.first()
         return TravelerSerializer(traveler).data if traveler else None
-    
+
+    def get_all_travelers(self, obj):
+        return TravelerSerializer(obj.travelers.all(), many=True).data
+
     def get_balance_amount(self, obj):
         return obj.total_amount - obj.advance_amount if obj.total_amount and obj.advance_amount else 0
 
@@ -1599,7 +1612,6 @@ class BusBookingRequestSerializer(serializers.ModelSerializer):
     total_travelers = serializers.SerializerMethodField()
     first_traveler_name = serializers.SerializerMethodField()
     created_date = serializers.SerializerMethodField()
-    paid_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = BusBooking
@@ -1628,11 +1640,6 @@ class BusBookingRequestSerializer(serializers.ModelSerializer):
     def get_created_date(self, obj):
         return obj.created_at.strftime('%Y-%m-%d')
 
-    
-    
-    def get_paid_amount(self, obj):
-        return obj.advance_amount
-
 
 
 
@@ -1645,7 +1652,6 @@ class PackageBookingREQUESTSerializer(serializers.ModelSerializer):
     total_members = serializers.SerializerMethodField()
     one_member_name = serializers.SerializerMethodField()
     created_date = serializers.SerializerMethodField()
-    paid_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = PackageBooking
@@ -1680,10 +1686,7 @@ class PackageBookingREQUESTSerializer(serializers.ModelSerializer):
 
     def get_earnings(self, obj):
         commission_amount = self.get_commission_amount(obj) or 0
-        return obj.total_amount - commission_amount
-
-    def get_paid_amount(self, obj):
-        return obj.advance_amount   
+        return obj.total_amount - commission_amount 
     
 
 
