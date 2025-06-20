@@ -455,9 +455,8 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
                         try:
                             # Get referral reward amount
                             referral_config = ReferAndEarn.objects.first()
-                            reward_amount = referral_config.price if referral_config else Decimal('300.00')
+                            reward_amount = referral_config.price
                         except:
-                            reward_amount = Decimal('300.00')
                             logger.error("No referral config found, using default amount")
 
                         # Create referral reward transaction (will be credited only after trip completion)
@@ -1468,7 +1467,9 @@ class PackageBookingUpdateSerializer(BaseBookingSerializer):
                     ).exists()
 
                     if not existing_reward:
-                        reward = 300
+                        from admin_panel.models import ReferAndEarn
+                        reward_model = ReferAndEarn.objects.all().first()
+                        reward = reward_model.price
                         try:
                             ReferralRewardTransaction.objects.create(
                                 referrer=referrer,
@@ -2046,7 +2047,9 @@ class BusBookingUpdateSerializer(BaseBookingSerializer):
                     ).exists()
 
                     if not existing_reward:
-                        reward = 300
+                        from admin_panel.models import ReferAndEarn
+                        reward_model = ReferAndEarn.objects.all().first()
+                        reward = reward_model.price
                         try:
                             ReferralRewardTransaction.objects.create(
                                 referrer=referrer,
