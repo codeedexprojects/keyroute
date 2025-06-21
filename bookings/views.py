@@ -42,15 +42,24 @@ from .utils import BusPriceCalculatorMixin
 class PackageListAPIView(APIView):
     permission_classes = [AllowAny]
     
-    def get(self, request, category):
+    def get(self, request):
         lat = request.query_params.get('lat')
         lon = request.query_params.get('lon')
+        category = request.query_params.get('category')
         total_travellers = request.query_params.get('total_travellers')
-        search = request.query_params.get('search')  # New search parameter
+        search = request.query_params.get('search')
 
+        # Validate required parameters
         if lat is None or lon is None:
             return Response(
                 {"error": "Latitude (lat) and Longitude (lon) query parameters are required."},
+                status=400
+            )
+
+        # Either category or search must be provided
+        if not category and not search:
+            return Response(
+                {"error": "Either 'category' or 'search' parameter must be provided."},
                 status=400
             )
 
@@ -77,7 +86,7 @@ class PackageListAPIView(APIView):
                 status=400
             )
 
-        # Validate total_travellers if provided
+        # Validate total_travellers if provided (optional parameter)
         travellers_count = None
         if total_travellers is not None:
             try:
@@ -93,19 +102,32 @@ class PackageListAPIView(APIView):
                     status=400
                 )
 
-        # Filter packages by category
-        packages = Package.objects.filter(sub_category=category)
+        # Build query based on provided parameters
+        packages = Package.objects.all()
         
-        # Apply search filter if search parameter is provided
+        # Apply category filter if provided
+        if category:
+            packages = packages.filter(sub_category=category)
+        
+        # Apply search filter if provided
         if search:
             packages = packages.filter(places__icontains=search)
         
+        # Check if any packages exist after filtering
         if not packages.exists():
-            error_message = f"No packages found under category '{category}'"
+            error_parts = []
+            if category:
+                error_parts.append(f"category '{category}'")
             if search:
-                error_message += f" matching search '{search}'"
+                error_parts.append(f"search '{search}'")
+            
+            error_message = f"No packages found"
+            if error_parts:
+                error_message += f" for {' and '.join(error_parts)}"
+            
             return Response({"error": error_message}, status=404)
 
+        # Filter packages by location (within 30km)
         nearby_packages = []
         for package in packages:
             if package.buses.exists():  # Check if package has any buses
@@ -133,12 +155,18 @@ class PackageListAPIView(APIView):
                 if is_nearby and has_suitable_capacity:
                     nearby_packages.append(package)
 
+        # Build response message for no results
         if not nearby_packages:
-            message = f"No packages found near your location within 30 km"
+            message_parts = ["No packages found near your location within 30 km"]
+            
+            if category:
+                message_parts.append(f"for category '{category}'")
             if search:
-                message += f" matching search '{search}'"
+                message_parts.append(f"matching search '{search}'")
             if travellers_count:
-                message += f" with suitable capacity for {travellers_count} travellers"
+                message_parts.append(f"with suitable capacity for {travellers_count} travellers")
+            
+            message = " ".join(message_parts)
             return Response({"message": message}, status=200)
 
         # Create a custom serializer context with user location for distance calculation
