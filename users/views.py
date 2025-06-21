@@ -709,5 +709,111 @@ class DeleteUserAccountView(APIView):
 
 
 
-
+class UpdateDistrictAPIView(APIView):
+    permission_classes = [IsAuthenticated]
     
+    def get_district_from_coordinates(self, lat, lon):
+        district = None
+        
+        try:
+            nominatim_url = f"https://nominatim.openstreetmap.org/reverse"
+            params = {
+                'lat': lat,
+                'lon': lon,
+                'format': 'json',
+                'addressdetails': 1,
+                'zoom': 10,
+                'countrycodes': 'in'  # Restrict to India
+            }
+            headers = {
+                'User-Agent': 'keyroute/1.0'  # Replace with your app name
+            }
+            
+            response = requests.get(nominatim_url, params=params, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                address = data.get('address', {})
+                
+                district = (
+                    address.get('state_district') or 
+                    address.get('district') or 
+                    address.get('county') or
+                    address.get('suburb') or
+                    address.get('city_district')
+                )
+                
+                if district:
+                    return district
+                    
+        except Exception as e:
+            print(f"Nominatim geocoding failed: {str(e)}")
+
+    def post(self, request):
+        serializer = UpdateDistrictSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({
+                'success': False,
+                'message': 'Invalid input data',
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        latitude = serializer.validated_data['latitude']
+        longitude = serializer.validated_data['longitude']
+        
+        # Check if coordinates are within India's approximate bounds
+        if not (6.0 <= latitude <= 37.6 and 68.7 <= longitude <= 97.25):
+            return Response({
+                'success': False,
+                'message': 'Coordinates appear to be outside India'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Get district from coordinates
+            district = self.get_district_from_coordinates(latitude, longitude)
+            
+            if not district:
+                return Response({
+                    'success': False,
+                    'message': 'Could not determine district from provided coordinates'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Update user's district
+            user = request.user
+            user.district = district
+            user.save(update_fields=['district'])
+            
+            return Response({
+                'success': True,
+                'message': 'District updated successfully',
+                'data': {
+                    'user_id': user.id,
+                    'district': district,
+                    'coordinates': {
+                        'latitude': latitude,
+                        'longitude': longitude
+                    }
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': f'Error updating district: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    def get(self, request):
+        """
+        Get current user's district information
+        """
+        user = request.user
+        return Response({
+            'success': True,
+            'data': {
+                'user_id': user.id,
+                'name': user.name,
+                'district': user.district,
+                'city': user.city
+            }
+        }, status=status.HTTP_200_OK)
