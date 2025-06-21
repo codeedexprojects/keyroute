@@ -198,5 +198,7 @@ urlpatterns = [
     path('api/admin/amenities/<int:pk>/', AmenityRetrieveUpdateDeleteAPIView.as_view(), name='amenity-detail'),
 
 
+    path('api/admin/rewards/', ReferralRewardListView.as_view(), name='reward-list'),
+    path('api/admin/rewards/<int:id>/', ReferralRewardDetailView.as_view(), name='reward-detail'),
 
 ] 

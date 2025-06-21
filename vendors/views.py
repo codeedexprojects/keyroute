@@ -30,6 +30,7 @@ from calendar import monthrange
 from django.core.exceptions import ObjectDoesNotExist
 from datetime import datetime, timedelta
 from admin_panel.utils import send_otp, verify_otp, is_valid_email
+from bookings.serializers import BusBookingStopSerializer
 
 
 # Create your views here.
@@ -3832,13 +3833,12 @@ class PreAcceptPackageBookingDetailView(APIView):
                     "from_location": bus_booking.from_location,
                     "to_location": bus_booking.to_location,
                     "start_date": bus_booking.start_date,
-                    "end_date":bus_booking.end_date,
+                    "end_date": bus_booking.end_date,
                     "total_travelers": bus_booking.total_travelers,
                     "male": bus_booking.male,
                     "female": bus_booking.female,
                     "children": bus_booking.children,
-                    # 'way': bus_booking.one_way,
-                    "way": "One Way" if bus_booking.one_way else "Two Way",
+                    "stops": BusBookingStopSerializer(bus_booking.stops.all(), many=True, read_only=True).data,
                     "travelers": TravelerSerializer(bus_booking.travelers.all(), many=True).data
                 }
                 return Response(data, status=status.HTTP_200_OK)
@@ -3864,7 +3864,7 @@ class PreAcceptPackageBookingDetailView(APIView):
                     "male": package_booking.male,
                     "female": package_booking.female,
                     "children": package_booking.children,
-                    "way":'two way',
+                    "rooms":package_booking.rooms,
                     "travelers": TravelerSerializer(package_booking.travelers.all(), many=True).data
                 }
                 return Response(data, status=status.HTTP_200_OK)
@@ -3916,7 +3916,7 @@ class BookingDetailByIdView(APIView):
                     "passenger": traveler_data,
 
                     "total_fare": bus_booking.total_amount,
-                    "paid_amount": bus_booking.advance_amount,
+                    "paid_amount": bus_booking.paid_amount,
                     "balance_amount": bus_booking.balance_amount,
                 }
                 return Response(data, status=status.HTTP_200_OK)
@@ -3946,7 +3946,7 @@ class BookingDetailByIdView(APIView):
                     "children": package_booking.children,
                     "passenger": traveler_data,
                     "total_fare": package_booking.total_amount,
-                    "paid_amount": package_booking.advance_amount,
+                    "paid_amount": package_booking.paid_amount,
                     "balance_amount": package_booking.balance_amount,
                 }
                 return Response(data, status=status.HTTP_200_OK)

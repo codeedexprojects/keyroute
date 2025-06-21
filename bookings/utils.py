@@ -100,7 +100,8 @@ from django.utils import timezone
 
 class BusPriceCalculatorMixin:
     """
-    Mixin class for unified price calculation logic across all bus serializers
+    Updated mixin class for price calculation logic across all bus serializers
+    Handles per-day pricing with daily KM allowance and proper return journey logic
     """
     
     def calculate_distance_google_api(self, from_lat, from_lon, to_lat, to_lon):
@@ -213,24 +214,69 @@ class BusPriceCalculatorMixin:
         
         return optimized_stops_data
 
-    def calculate_total_distance_with_stops(self, from_lat, from_lon, to_lat, to_lon, stops_data=None):
-        """Calculate total distance for round trip with optimal route"""
+    def calculate_total_distance_with_stops(self, from_lat, from_lon, to_lat, to_lon, start_date, end_date, stops_data=None):
+        """
+        Calculate total distance based on trip type and new return logic:
+        - Same day trip (start_date == end_date): Forward journey with all stops + Direct return
+        - Multi-day trip (start_date != end_date): One way distance only (forward journey with stops)
+        
+        Return journey logic: Direct distance from destination to origin (no stops)
+        """
+        
+        # Handle backward compatibility - if dates are not provided, assume same day trip
+        if start_date is None or end_date is None:
+            logging.info("=== BACKWARD COMPATIBILITY MODE - ASSUMING SAME DAY TRIP ===")
+            return self._calculate_same_day_trip_distance(from_lat, from_lon, to_lat, to_lon, stops_data)
+        
+        # Determine if it's a same-day trip or multi-day trip
+        is_same_day_trip = start_date == end_date
         
         if not stops_data:
-            # Simple round trip without stops
+            # Simple trip without stops
             one_way_distance = self.calculate_distance_google_api(from_lat, from_lon, to_lat, to_lon)
-            total_distance = one_way_distance * 2  # Round trip
             
-            logging.info(f"=== SIMPLE ROUND TRIP ===")
-            logging.info(f"One way distance: {one_way_distance} km")
-            logging.info(f"Round trip total: {total_distance} km")
+            if is_same_day_trip:
+                # Same day trip: Round trip (forward + direct return)
+                total_distance = one_way_distance * 2
+                logging.info(f"=== SAME DAY ROUND TRIP (NO STOPS) ===")
+                logging.info(f"One way distance: {one_way_distance} km")
+                logging.info(f"Round trip total: {total_distance} km")
+            else:
+                # Multi-day trip: One way only
+                total_distance = one_way_distance
+                logging.info(f"=== MULTI-DAY ONE WAY TRIP (NO STOPS) ===")
+                logging.info(f"One way distance: {total_distance} km")
             
             return total_distance
         
+        # Calculate forward journey with optimized stops
+        forward_distance = self._calculate_forward_journey_with_stops(
+            from_lat, from_lon, to_lat, to_lon, stops_data
+        )
+        
+        if is_same_day_trip:
+            # Same day trip: Forward journey + Direct return (no stops on return)
+            direct_return_distance = self.calculate_distance_google_api(to_lat, to_lon, from_lat, from_lon)
+            total_distance = forward_distance + direct_return_distance
+            
+            logging.info(f"=== SAME DAY TRIP WITH STOPS ===")
+            logging.info(f"Forward journey (with stops): {forward_distance} km")
+            logging.info(f"Direct return journey: {direct_return_distance} km")
+            logging.info(f"Total distance: {total_distance} km")
+        else:
+            # Multi-day trip: Forward journey only (with stops)
+            total_distance = forward_distance
+            logging.info(f"=== MULTI-DAY TRIP WITH STOPS ===")
+            logging.info(f"Forward journey (with stops): {total_distance} km")
+        
+        return total_distance
+
+    def _calculate_forward_journey_with_stops(self, from_lat, from_lon, to_lat, to_lon, stops_data):
+        """Calculate forward journey distance with optimized stops"""
         # Find optimal route for stops
         optimized_stops = self.find_optimal_route(from_lat, from_lon, to_lat, to_lon, stops_data)
         
-        # Build complete route
+        # Build complete forward route
         forward_route = []
         forward_route.append({'lat': from_lat, 'lon': from_lon, 'name': 'Origin'})
         
@@ -247,7 +293,7 @@ class BusPriceCalculatorMixin:
         
         # Calculate forward journey distance
         forward_distance = Decimal('0.00')
-        logging.info("=== FORWARD JOURNEY (OPTIMIZED ROUTE) ===")
+        logging.info("=== FORWARD JOURNEY (OPTIMIZED ROUTE WITH STOPS) ===")
         
         for i in range(len(forward_route) - 1):
             current_point = forward_route[i]
@@ -262,46 +308,64 @@ class BusPriceCalculatorMixin:
             logging.info(f"Segment {i+1}: {current_point['name']} -> {next_point['name']} = {segment_distance} km")
         
         logging.info(f"Forward journey total: {forward_distance} km")
-        
-        # Calculate return journey (reverse the forward route)
-        return_distance = Decimal('0.00')
-        logging.info("=== RETURN JOURNEY (REVERSE ROUTE) ===")
-        
-        return_route = list(reversed(forward_route))
-        
-        for i in range(len(return_route) - 1):
-            current_point = return_route[i]
-            next_point = return_route[i + 1]
+        return forward_distance
+
+    def _calculate_same_day_trip_distance(self, from_lat, from_lon, to_lat, to_lon, stops_data=None):
+        """
+        Helper method for backward compatibility - same day trip logic
+        Forward journey with stops + Direct return
+        """
+        if not stops_data:
+            # Simple round trip without stops
+            one_way_distance = self.calculate_distance_google_api(from_lat, from_lon, to_lat, to_lon)
+            total_distance = one_way_distance * 2  # Round trip
             
-            segment_distance = self.calculate_distance_google_api(
-                current_point['lat'], current_point['lon'],
-                next_point['lat'], next_point['lon']
-            )
+            logging.info(f"=== SIMPLE SAME DAY TRIP (BACKWARD COMPATIBILITY) ===")
+            logging.info(f"One way distance: {one_way_distance} km")
+            logging.info(f"Round trip total: {total_distance} km")
             
-            return_distance += segment_distance
-            logging.info(f"Return Segment {i+1}: {current_point['name']} -> {next_point['name']} = {segment_distance} km")
+            return total_distance
         
-        logging.info(f"Return journey total: {return_distance} km")
+        # Forward journey with stops
+        forward_distance = self._calculate_forward_journey_with_stops(
+            from_lat, from_lon, to_lat, to_lon, stops_data
+        )
         
-        # Total round trip distance
-        total_distance = forward_distance + return_distance
+        # Direct return journey (no stops)
+        direct_return_distance = self.calculate_distance_google_api(to_lat, to_lon, from_lat, from_lon)
+        total_distance = forward_distance + direct_return_distance
         
-        logging.info(f"=== TOTAL OPTIMIZED ROUND TRIP DISTANCE: {total_distance} km ===")
+        logging.info(f"=== SAME DAY TRIP WITH STOPS (BACKWARD COMPATIBILITY) ===")
+        logging.info(f"Forward journey (with stops): {forward_distance} km")
+        logging.info(f"Direct return journey: {direct_return_distance} km")
+        logging.info(f"Total distance: {total_distance} km")
         
         return total_distance
 
     def calculate_nights_between_dates(self, start_date, end_date):
-        """Calculate number of nights between two dates"""
+        """
+        Calculate number of nights between two dates
+        For same-day trips: 0 nights
+        For multi-day trips: (end_date - start_date).days
+        """
         if not start_date or not end_date:
             return 0
         
+        if start_date == end_date:
+            return 0  # Same day trip, no nights
+        
         delta = end_date - start_date
-        return max(0, delta.days)
+        nights = max(0, delta.days)
+        
+        logging.info(f"Nights calculation: {start_date} to {end_date} = {nights} nights")
+        return nights
 
     def calculate_comprehensive_trip_price(self, bus, from_lat, from_lon, to_lat, to_lon, start_date=None, end_date=None, stops_data=None):
         """
-        Comprehensive trip price calculation with stops optimization
-        This is the unified method used across all serializers
+        Updated comprehensive trip price calculation with per-day pricing logic
+        - Base price charged per day
+        - KM allowance is per day (base_price_km × total_days)
+        - Driver bata charged per night stayed
         """
         try:
             # Validate bus pricing data
@@ -313,16 +377,16 @@ class BusPriceCalculatorMixin:
                 logging.warning(f"Bus {bus.id} has invalid price_per_km: {bus.price_per_km}")
                 return Decimal('0.00')
 
-            # Get total distance with optimized route
-            total_distance_km = self.calculate_total_distance_with_stops(
-                from_lat, from_lon, to_lat, to_lon, stops_data
-            )
-            
-            # Set default dates if not provided
+            # Set default dates if not provided (for backward compatibility)
             if not start_date:
                 start_date = timezone.now().date()
             if not end_date:
                 end_date = start_date
+            
+            # Get total distance based on trip type
+            total_distance_km = self.calculate_total_distance_with_stops(
+                from_lat, from_lon, to_lat, to_lon, start_date, end_date, stops_data
+            )
             
             # Calculate trip duration in days
             total_days = (end_date - start_date).days + 1 if end_date and start_date else 1
@@ -331,7 +395,7 @@ class BusPriceCalculatorMixin:
             base_price_per_day = bus.base_price  # Base price per day
             base_km_per_day = bus.base_price_km or Decimal('100')  # KM included per day (default 100)
             price_per_km = bus.price_per_km  # Rate for extra KM
-            night_allowance = bus.night_allowance or Decimal('500')  # Driver allowance per night
+            night_allowance = bus.night_allowance or Decimal('500')  # Driver bata per night
             minimum_fare = bus.minimum_fare or Decimal('0.00')
             
             # Calculate base fare for total days
@@ -346,7 +410,7 @@ class BusPriceCalculatorMixin:
                 extra_km = total_distance_km - total_included_km
                 extra_km_charges = extra_km * price_per_km
             
-            # Calculate nights and driver allowance
+            # Calculate nights and driver bata
             nights = self.calculate_nights_between_dates(start_date, end_date)
             night_allowance_total = nights * night_allowance
             
@@ -357,20 +421,41 @@ class BusPriceCalculatorMixin:
             if total_amount < minimum_fare:
                 total_amount = minimum_fare
             
-            logging.info(f"=== COMPREHENSIVE PRICE CALCULATION ===")
+            # Determine trip type for logging
+            trip_type = "SAME DAY TRIP" if start_date == end_date else "MULTI-DAY TRIP"
+            
+            logging.info(f"=== UPDATED COMPREHENSIVE PRICE CALCULATION ({trip_type}) ===")
             logging.info(f"- Bus: {bus.bus_name}")
-            logging.info(f"- Total distance (optimized): {total_distance_km} km")
-            logging.info(f"- Total days: {total_days}")
-            logging.info(f"- Base fare: {base_fare}")
-            logging.info(f"- Included KM: {total_included_km}")
-            logging.info(f"- Extra KM: {max(Decimal('0.00'), total_distance_km - total_included_km)}")
-            logging.info(f"- Extra KM charges: {extra_km_charges}")
-            logging.info(f"- Nights: {nights}")
-            logging.info(f"- Night allowance: {night_allowance_total}")
-            logging.info(f"- Total amount: {total_amount}")
+            logging.info(f"- Trip dates: {start_date} to {end_date} ({total_days} days)")
+            logging.info(f"- Total distance: {total_distance_km} km")
+            logging.info(f"- Base fare: ₹{base_fare} ({total_days} days × ₹{base_price_per_day}/day)")
+            logging.info(f"- Included KM: {total_included_km} km ({total_days} days × {base_km_per_day} km/day)")
+            logging.info(f"- Extra KM: {max(Decimal('0.00'), total_distance_km - total_included_km)} km")
+            logging.info(f"- Extra KM charges: ₹{extra_km_charges} ({max(Decimal('0.00'), total_distance_km - total_included_km)} km × ₹{price_per_km}/km)")
+            logging.info(f"- Nights stayed: {nights}")
+            logging.info(f"- Driver bata: ₹{night_allowance_total} ({nights} nights × ₹{night_allowance}/night)")
+            logging.info(f"- Total amount: ₹{total_amount}")
             
             return total_amount
             
         except Exception as e:
             logging.error(f"Error calculating comprehensive trip price: {str(e)}")
             return Decimal('0.00')
+
+    # Backward compatibility methods
+    def calculate_total_distance_with_stops_legacy(self, from_lat, from_lon, to_lat, to_lon, stops_data=None):
+        """
+        Legacy method for backward compatibility - same day trip logic
+        This method signature matches your old code that doesn't pass dates
+        """
+        return self._calculate_same_day_trip_distance(from_lat, from_lon, to_lat, to_lon, stops_data)
+
+    def calculate_trip_price_legacy(self, bus, user_search, start_date, end_date, stops_data=None):
+        """
+        Legacy method for serializers that use the old method signature
+        """
+        return self.calculate_comprehensive_trip_price(
+            bus, user_search.from_lat, user_search.from_lon, 
+            user_search.to_lat, user_search.to_lon, 
+            start_date, end_date, stops_data
+        )
