@@ -32,6 +32,7 @@ class BaseBooking(models.Model):
     start_date = models.DateField(null=True,blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     advance_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], default=0)
     payout_status = models.BooleanField(default=False)
     payout = models.ForeignKey('PayoutHistory', on_delete=models.SET_NULL, null=True, blank=True)
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
@@ -68,7 +69,6 @@ class BaseBooking(models.Model):
 class BusBooking(BaseBooking):
     booking_id = models.PositiveIntegerField(unique=True, editable=False)
     bus = models.ForeignKey(Bus, on_delete=models.CASCADE, related_name='bookings')
-    one_way = models.BooleanField(default=True)
     from_lat = models.FloatField()
     from_lon = models.FloatField()
     to_lat = models.FloatField(null=True, blank=True)
@@ -198,7 +198,6 @@ class PackageDriverDetail(models.Model):
 
 class UserBusSearch(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="bus_search")
-    one_way = models.BooleanField(default=True)
     from_lat = models.FloatField(null=False, blank=False)
     from_lon = models.FloatField(null=False, blank=False)
     to_lat = models.FloatField(null=True, blank=True)

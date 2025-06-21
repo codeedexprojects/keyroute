@@ -103,7 +103,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
             Wallet.objects.create(
                 user=user, 
                 referred_by=referrer.mobile,
-                referral_used=True
+                referral_used=False
             )
         else:
             Wallet.objects.create(user=user)
@@ -342,3 +342,18 @@ class GoogleUserCreateSerializer(serializers.ModelSerializer):
             Wallet.objects.create(user=user)
         
         return user
+
+
+
+
+class UpdateDistrictSerializer(serializers.Serializer):
+    latitude = serializers.FloatField(
+        min_value=-90.0, 
+        max_value=90.0,
+        help_text="Latitude coordinate"
+    )
+    longitude = serializers.FloatField(
+        min_value=-180.0, 
+        max_value=180.0,
+        help_text="Longitude coordinate"
+    )

@@ -161,7 +161,7 @@ class BusDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'bus_name', 'bus_number', 'capacity', 'vehicle_description',
-            'vehicle_rc_number', 'travels_logo', 'rc_certificate', 'license',
+            'travels_logo', 'rc_certificate', 'license',
             'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance',
             'bus_view_images', 'amenities', 'base_price', 'price_per_km'
         ]
@@ -399,12 +399,16 @@ class FooterImageSerializer(serializers.ModelSerializer):
 
 class FooterSectionSerializer(serializers.ModelSerializer):
     extra_images = FooterImageSerializer(many=True, read_only=True) 
+    vendor_name = serializers.SerializerMethodField()
     # package = PackageSerializer() 
     package = serializers.PrimaryKeyRelatedField(queryset=Package.objects.all())
     class Meta:
         model = FooterSection
 
-        fields = ['id', 'package', 'main_image','extra_images','package']
+        fields = ['id', 'package', 'main_image','extra_images','package','vendor_name']
+    
+    def get_vendor_name(self,obj):
+        return obj.package.vendor.full_name
 
 
 # --------------------------------------------------------
@@ -521,7 +525,7 @@ class AdminBusBookingSerializer(AdminBaseBookingSerializer):
     class Meta:
         model = BusBooking
         fields = AdminBaseBookingSerializer.Meta.fields + [
-            'bus', 'bus_details', 'one_way', 'travelers', 'driver_detail'
+            'bus', 'bus_details', 'travelers', 'driver_detail'
         ]
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
@@ -760,7 +764,7 @@ class BusAdminSerializerADMINBUSDETAILS(serializers.ModelSerializer):
         model = Bus
         fields = [
             'id', 'vendor', 'bus_name', 'bus_number', 'capacity',
-            'vehicle_description', 'vehicle_rc_number', 'travels_logo',
+            'vehicle_description', 'travels_logo',
             'rc_certificate', 'license', 'contract_carriage_permit',
             'passenger_insurance', 'vehicle_insurance',
             'amenities', 'features', 'base_price', 'price_per_km',
@@ -801,19 +805,34 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
 
 
 class BusReviewSerializer(serializers.ModelSerializer):
+    user_name = serializers.SerializerMethodField()
+
     class Meta:
         model = BusReview
-        fields = ['id', 'user', 'bus', 'rating', 'comment', 'created_at']
+        fields = ['id', 'user_name', 'bus', 'rating', 'comment', 'created_at']
+
+    def get_user_name(self,obj):
+        return obj.user.name
 
 class PackageReviewSerializer(serializers.ModelSerializer):
+    user_name = serializers.SerializerMethodField()
+
     class Meta:
         model = PackageReview
-        fields = ['id', 'user', 'package', 'rating', 'comment', 'created_at']
+        fields = ['id', 'user_name', 'package', 'rating', 'comment', 'created_at']
+
+    def get_user_name(self,obj):
+        return obj.user.name
 
 class AppReviewSerializer(serializers.ModelSerializer):
+    user_name = serializers.SerializerMethodField()
+
     class Meta:
         model = AppReview
-        fields = ['id', 'user', 'rating', 'comment', 'created_at']
+        fields = ['id', 'user_name', 'rating', 'comment', 'created_at']
+
+    def get_user_name(self,obj):
+        return obj.user.name
 
 
 
@@ -844,5 +863,39 @@ class UnifiedReviewSerializer(serializers.Serializer):
 
 
 
+# serializers.py
+from rest_framework import serializers
+from users.models import ReferralRewardTransaction
+
+class ReferralRewardListSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='referrer.name')
+    refer_id = serializers.SerializerMethodField()
+    status_text = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ReferralRewardTransaction
+        fields = ['id', 'name', 'created_at', 'refer_id', 'reward_amount', 'status', 'status_text', 'booking_type']
+
+    def get_refer_id(self, obj):
+        return f"#{obj.id:08d}"
+
+    def get_status_text(self, obj):
+        if obj.status == 'pending':
+            return 'Withdraw'
+        elif obj.status == 'credited':
+            return 'Completed'
+        return obj.status.capitalize()
+
+
+class ReferralRewardDetailSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='referrer.name')
+    refer_id = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ReferralRewardTransaction
+        fields = ['name', 'booking_id', 'created_at', 'refer_id', 'reward_amount', 'status']
+
+    def get_refer_id(self, obj):
+        return f"#{obj.id:08d}"
 
 

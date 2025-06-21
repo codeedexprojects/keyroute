@@ -13,13 +13,13 @@ from .views import (
     ApplyWalletToPackageBookingAPIView,
     RemoveWalletFromPackageBookingAPIView,
     GetWalletBalanceAPIView,
-    WalletTransactionHistoryAPIView,BusDriverDetailListAPIView,AddStopsAPIView,BusPriceCalculationAPIView,NearbyBusLocationAPIView
+    WalletTransactionHistoryAPIView,BusDriverDetailListAPIView,AddStopsAPIView,NearbyBusLocationAPIView
 
 )
 
 urlpatterns = [
     # Vendor resource endpoints
-    path('packages/<int:category>/', PackageListAPIView.as_view(), name='package-list'),
+    path('packages/', PackageListAPIView.as_view(), name='package-list'),
     path('buses/', BusListAPIView.as_view(), name='bus-list'),
 
     path('bus/details/<int:bus_id>/',SingleBusListAPIView.as_view(),name="bus detail"),
@@ -77,7 +77,6 @@ urlpatterns = [
     path('wallet/transactions/',WalletTransactionHistoryAPIView.as_view(), name='wallet-transactions'),
 
     path('bus-search/stops/', AddStopsAPIView.as_view(), name='bus-search-stops'),
-    path('bus/price-calculation/', BusPriceCalculationAPIView.as_view(), name='bus-price-calculation'),
 
 
     path('buses/nearby/', NearbyBusLocationAPIView.as_view(), name='bus-location-get'),
