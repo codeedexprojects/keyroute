@@ -993,7 +993,7 @@ class BusDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bus
         fields = [
-            'id', 'bus_name', 'bus_number', 'capacity', 'vehicle_description', 'vehicle_rc_number',
+            'id', 'bus_name', 'bus_number', 'capacity', 'vehicle_description',
             'travels_logo', 'rc_certificate', 'license', 'contract_carriage_permit', 'passenger_insurance',
             'vehicle_insurance', 'base_price', 'price_per_km', 'minimum_fare', 'status',
             'amenities', 'features', 'images', 'travel_images',

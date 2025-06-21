@@ -234,7 +234,7 @@ class BusSerializer(serializers.ModelSerializer):
         model = Bus
         fields = [
             'id','average_rating', 'total_reviews', 'features', 'minimum_fare', 'bus_travel_images', 'bus_name', 'bus_number',
-            'capacity', 'vehicle_description', 'vehicle_rc_number', 'travels_logo',
+            'capacity', 'vehicle_description', 'travels_logo',
             'rc_certificate', 'license', 'contract_carriage_permit', 'passenger_insurance',
             'vehicle_insurance', 'bus_view_images', 'amenities', 'base_price', 'price_per_km','location','is_favorite','bus_type','longitude','latitude','base_price_km','is_popular',
             'bus_view_images_upload', 'bus_travel_images_upload','night_allowance'
@@ -281,11 +281,6 @@ class BusSerializer(serializers.ModelSerializer):
     def validate_capacity(self, value):
         if value <= 0:
             raise serializers.ValidationError("Capacity must be a positive number.")
-        return value
-
-    def validate_vehicle_rc_number(self, value):
-        if not value.isalnum():
-            raise serializers.ValidationError("RC number must be alphanumeric.")
         return value
 
     def create(self, validated_data):
@@ -373,7 +368,7 @@ class BusSerializer(serializers.ModelSerializer):
 #         model = Bus
 #         fields = [
 #             'id','average_rating', 'total_reviews', 'features', 'minimum_fare', 'bus_travel_images', 'bus_name', 'bus_number',
-#             'capacity', 'vehicle_description', 'vehicle_rc_number', 'travels_logo',
+#             'capacity', 'vehicle_description', 'travels_logo',
 #             'rc_certificate', 'license', 'contract_carriage_permit', 'passenger_insurance',
 #             'vehicle_insurance', 'bus_view_images', 'amenities', 'base_price', 'price_per_km','location','is_favorite','bus_type','longitude','latitude','base_price_km','is_popular'
 #         ]
@@ -398,11 +393,6 @@ class BusSerializer(serializers.ModelSerializer):
 #     def validate_capacity(self, value):
 #         if value <= 0:
 #             raise serializers.ValidationError("Capacity must be a positive number.")
-#         return value
-
-#     def validate_vehicle_rc_number(self, value):
-#         if not value.isalnum():
-#             raise serializers.ValidationError("RC number must be alphanumeric.")
 #         return value
 
 
@@ -462,7 +452,7 @@ class BusSerializer(serializers.ModelSerializer):
 #             'bus_travel_images',
 
 #             'bus_name', 'bus_number',  'capacity', 'vehicle_description',
-#             'vehicle_rc_number', 'travels_logo', 'rc_certificate', 'license',
+#             'travels_logo', 'rc_certificate', 'license',
 #             'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance', 'bus_view_images','amenities','base_price', 'price_per_km' 
 #         ]
 
@@ -492,11 +482,6 @@ class BusSerializer(serializers.ModelSerializer):
 #     def validate_capacity(self, value):
 #         if value <= 0:
 #             raise serializers.ValidationError("Capacity must be a positive number.")
-#         return value
-
-#     def validate_vehicle_rc_number(self, value):
-#         if not value.isalnum():
-#             raise serializers.ValidationError("RC number must be alphanumeric.")
 #         return value
     
   
@@ -907,7 +892,6 @@ class BusSerializer2(serializers.ModelSerializer):
             'bus_number',
             'capacity',
             'vehicle_description',
-            'vehicle_rc_number',
             'travels_logo',
             'rc_certificate',
             'license',
