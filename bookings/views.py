@@ -1062,7 +1062,8 @@ class BookingFilterByDate(APIView):
             bookings = BusBooking.objects.filter(
                 created_at__gte=start_datetime,
                 created_at__lte=end_datetime,
-                bus__vendor=vendor
+                bus__vendor=vendor,
+                trip_status="ongoing"
             )
             serializer = BusBookingSerializer(bookings, many=True, context={'request': request})
 
@@ -1070,7 +1071,8 @@ class BookingFilterByDate(APIView):
             bookings = PackageBooking.objects.filter(
                 created_at__gte=start_datetime,
                 created_at__lte=end_datetime,
-                package__vendor=vendor
+                package__vendor=vendor,
+                trip_status="ongoing"
             )
             serializer = PackageBookingSerializer(bookings, many=True, context={'request': request})
 
@@ -1078,12 +1080,14 @@ class BookingFilterByDate(APIView):
             bus_bookings = BusBooking.objects.filter(
                 created_at__gte=start_datetime,
                 created_at__lte=end_datetime,
-                bus__vendor=vendor
+                bus__vendor=vendor,
+                trip_status="ongoing"
             )
             package_bookings = PackageBooking.objects.filter(
                 created_at__gte=start_datetime,
                 created_at__lte=end_datetime,
-                package__vendor=vendor
+                package__vendor=vendor,
+                trip_status="ongoing"
             )
 
             bus_data = BusBookingSerializer(bus_bookings, many=True, context={'request': request}).data
