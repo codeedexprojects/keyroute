@@ -161,7 +161,7 @@ class BusDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'bus_name', 'bus_number', 'capacity', 'vehicle_description',
-            'vehicle_rc_number', 'travels_logo', 'rc_certificate', 'license',
+            'travels_logo', 'rc_certificate', 'license',
             'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance',
             'bus_view_images', 'amenities', 'base_price', 'price_per_km'
         ]
@@ -760,7 +760,7 @@ class BusAdminSerializerADMINBUSDETAILS(serializers.ModelSerializer):
         model = Bus
         fields = [
             'id', 'vendor', 'bus_name', 'bus_number', 'capacity',
-            'vehicle_description', 'vehicle_rc_number', 'travels_logo',
+            'vehicle_description', 'travels_logo',
             'rc_certificate', 'license', 'contract_carriage_permit',
             'passenger_insurance', 'vehicle_insurance',
             'amenities', 'features', 'base_price', 'price_per_km',
