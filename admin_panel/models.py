@@ -80,7 +80,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_google_user = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
-
+    district = models.CharField(max_length=300,null=True,blank=True)
     profile_image = models.ImageField(upload_to='profile_images/', null=True, blank=True)
     referral_code = models.CharField(max_length=7, unique=True, null=True, blank=True)
     
