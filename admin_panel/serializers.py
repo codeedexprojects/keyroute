@@ -399,12 +399,16 @@ class FooterImageSerializer(serializers.ModelSerializer):
 
 class FooterSectionSerializer(serializers.ModelSerializer):
     extra_images = FooterImageSerializer(many=True, read_only=True) 
+    vendor_name = serializers.SerializerMethodField()
     # package = PackageSerializer() 
     package = serializers.PrimaryKeyRelatedField(queryset=Package.objects.all())
     class Meta:
         model = FooterSection
 
-        fields = ['id', 'package', 'main_image','extra_images','package']
+        fields = ['id', 'package', 'main_image','extra_images','package','vendor_name']
+    
+    def get_vendor_name(self,obj):
+        return obj.package.vendor.full_name
 
 
 # --------------------------------------------------------
@@ -521,7 +525,7 @@ class AdminBusBookingSerializer(AdminBaseBookingSerializer):
     class Meta:
         model = BusBooking
         fields = AdminBaseBookingSerializer.Meta.fields + [
-            'bus', 'bus_details', 'one_way', 'travelers', 'driver_detail'
+            'bus', 'bus_details', 'travelers', 'driver_detail'
         ]
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
@@ -801,19 +805,34 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
 
 
 class BusReviewSerializer(serializers.ModelSerializer):
+    user_name = serializers.SerializerMethodField()
+
     class Meta:
         model = BusReview
-        fields = ['id', 'user', 'bus', 'rating', 'comment', 'created_at']
+        fields = ['id', 'user_name', 'bus', 'rating', 'comment', 'created_at']
+
+    def get_user_name(self,obj):
+        return obj.user.name
 
 class PackageReviewSerializer(serializers.ModelSerializer):
+    user_name = serializers.SerializerMethodField()
+
     class Meta:
         model = PackageReview
-        fields = ['id', 'user', 'package', 'rating', 'comment', 'created_at']
+        fields = ['id', 'user_name', 'package', 'rating', 'comment', 'created_at']
+
+    def get_user_name(self,obj):
+        return obj.user.name
 
 class AppReviewSerializer(serializers.ModelSerializer):
+    user_name = serializers.SerializerMethodField()
+
     class Meta:
         model = AppReview
-        fields = ['id', 'user', 'rating', 'comment', 'created_at']
+        fields = ['id', 'user_name', 'rating', 'comment', 'created_at']
+
+    def get_user_name(self,obj):
+        return obj.user.name
 
 
 
