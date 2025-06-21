@@ -863,5 +863,39 @@ class UnifiedReviewSerializer(serializers.Serializer):
 
 
 
+# serializers.py
+from rest_framework import serializers
+from users.models import ReferralRewardTransaction
+
+class ReferralRewardListSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='referrer.name')
+    refer_id = serializers.SerializerMethodField()
+    status_text = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ReferralRewardTransaction
+        fields = ['id', 'name', 'created_at', 'refer_id', 'reward_amount', 'status', 'status_text', 'booking_type']
+
+    def get_refer_id(self, obj):
+        return f"#{obj.id:08d}"
+
+    def get_status_text(self, obj):
+        if obj.status == 'pending':
+            return 'Withdraw'
+        elif obj.status == 'credited':
+            return 'Completed'
+        return obj.status.capitalize()
+
+
+class ReferralRewardDetailSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='referrer.name')
+    refer_id = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ReferralRewardTransaction
+        fields = ['name', 'booking_id', 'created_at', 'refer_id', 'reward_amount', 'status']
+
+    def get_refer_id(self, obj):
+        return f"#{obj.id:08d}"
 
 
