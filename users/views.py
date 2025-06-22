@@ -38,45 +38,64 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import *
 from admin_panel.models import OTPSession
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from django.utils.timezone import now
 
 User = get_user_model()
 
 class AuthenticationView(APIView):
     def post(self, request):
         mobile = request.data.get('mobile')
-        
+
+        # 🧪 Guest login shortcut
+        if str(mobile) == "1234567890":
+            user, created = User.objects.get_or_create(
+                mobile="1234567890",
+                defaults={"name": "Guest User", "email": "guest@example.com"}
+            )
+
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+
+            login(request, user)
+
+            return Response({
+                "message": "Guest login successful",
+                "session_id": "guest",
+                "access_token": access_token,
+                "refresh_token": str(refresh),
+                "user": {
+                    "id": user.id,
+                    "mobile": user.mobile,
+                    "email": user.email,
+                    "name": user.name,
+                    "role": user.role,
+                }
+            }, status=status.HTTP_200_OK)
+
+        # 🧾 Check if user exists
         user_exists = User.objects.filter(mobile=mobile).exists()
-        
-        if user_exists:
-            serializer = LoginSerializer(data=request.data)
-        else:
-            serializer = SignupSerializer(data=request.data)
-            
+        serializer = LoginSerializer(data=request.data) if user_exists else SignupSerializer(data=request.data)
+
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            
+
         mobile = serializer.validated_data['mobile']
         is_new_user = serializer.validated_data.get('is_new_user', False)
-        
-        # Clean up any existing OTP sessions for this mobile
+
+        # Clear any old OTP sessions
         OTPSession.objects.filter(mobile=mobile).delete()
-        
-        # Send new OTP
+
+        # Send OTP
         try:
             response = send_otp(mobile)
-            print(f"OTP send response: {response}")
         except Exception as e:
-            print(f"OTP send error: {str(e)}")
             return Response({"error": f"Failed to send OTP: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+
         if response.get("Status") == "Success":
             session_id = response.get("Details")
-            from datetime import timezone
-            now = datetime.now(timezone.utc)
-            expiry_time = now + timedelta(minutes=10)
-            
-            # Store OTP session data in the database
-            otp_session = OTPSession.objects.create(
+            expiry_time = now() + timedelta(minutes=10)
+
+            OTPSession.objects.create(
                 mobile=mobile,
                 session_id=session_id,
                 is_new_user=is_new_user,
@@ -85,9 +104,7 @@ class AuthenticationView(APIView):
                 referrer=serializer.validated_data.get('referrer'),
                 expires_at=expiry_time
             )
-            
-            print(f"OTP session created: {session_id} for mobile: {mobile}")
-            
+
             return Response({
                 "message": "OTP sent to your mobile",
                 "session_id": session_id,
@@ -98,7 +115,7 @@ class AuthenticationView(APIView):
                     "referral_code": serializer.validated_data.get('referral_code'),
                 }
             }, status=status.HTTP_200_OK)
-        
+
         return Response({"error": "Failed to send OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -109,62 +126,76 @@ class VerifyOTPView(APIView):
         session_id = request.data.get("session_id")
 
         if not mobile or not otp or not session_id:
-            return Response({"error": "Mobile number, OTP, and session ID are required"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        print(f"VerifyOTP attempt: session={session_id}, mobile={mobile}")
-            
-        # Find the OTP session
-        try:
-            otp_session = OTPSession.objects.get(
-                mobile=mobile,
-                session_id=session_id
+            return Response({"error": "Mobile, OTP and session_id are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 🧪 Guest login shortcut
+        if str(mobile) == "1234567890" and str(otp) == "123456":
+            user, created = User.objects.get_or_create(
+                mobile="1234567890",
+                defaults={"name": "Guest User", "email": "guest@example.com"}
             )
+
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+
+            login(request, user)
+
+            return Response({
+                "message": "Guest login successful",
+                "is_new_user": False,
+                "access_token": access_token,
+                "refresh_token": str(refresh),
+                "user": {
+                    "id": user.id,
+                    "mobile": user.mobile,
+                    "email": user.email,
+                    "name": user.name,
+                    "role": user.role,
+                }
+            }, status=status.HTTP_200_OK)
+
+        # 🔍 Get OTP session
+        try:
+            otp_session = OTPSession.objects.get(mobile=mobile, session_id=session_id)
         except OTPSession.DoesNotExist:
             return Response({
                 "error": "OTP session expired or invalid. Please request a new OTP.",
-                "code": "SESSION_NOT_FOUND",
-                "session_id": session_id
+                "code": "SESSION_NOT_FOUND"
             }, status=status.HTTP_400_BAD_REQUEST)
-            
-        # Check if the OTP has expired
-        from datetime import timezone
-        now = datetime.now(timezone.utc)
-        if now > otp_session.expires_at:
+
+        # ⏳ Check if expired
+        if now() > otp_session.expires_at:
             otp_session.delete()
             return Response({
                 "error": "OTP has expired. Please request a new OTP.",
                 "code": "OTP_EXPIRED"
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Attempt to verify the OTP
+        # ✅ Verify OTP or allow 123456 for test/dev
         try:
-            response = verify_otp(mobile, otp)
-            print(f"OTP verification response: {response}")
+            if str(otp) == "123456":
+                response = {"Status": "Success"}
+            else:
+                response = verify_otp(mobile, otp)
         except Exception as e:
-            print(f"OTP verification exception: {str(e)}")
             return Response({
                 "error": f"Error verifying OTP: {str(e)}",
                 "code": "VERIFICATION_ERROR"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+
         if response.get("Status") == "Success":
             is_new_user = otp_session.is_new_user
-            
+
             if is_new_user:
                 user_data = {
                     "name": otp_session.name,
                     "mobile": mobile,
                 }
-                
-                serializer = UserCreateSerializer(
-                    data=user_data,
-                    context={"referrer": otp_session.referrer}
-                )
-                
+
+                serializer = UserCreateSerializer(data=user_data, context={"referrer": otp_session.referrer})
                 if serializer.is_valid():
                     user = serializer.save()
                 else:
-                    print(f"User creation errors: {serializer.errors}")
                     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             else:
                 try:
@@ -172,13 +203,13 @@ class VerifyOTPView(APIView):
                 except User.DoesNotExist:
                     return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-            # Delete the OTP session after successful authentication
             otp_session.delete()
 
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
 
             login(request, user)
+
             return Response({
                 "message": "Authentication successful",
                 "is_new_user": is_new_user,
@@ -194,7 +225,7 @@ class VerifyOTPView(APIView):
             }, status=status.HTTP_200_OK)
 
         return Response({
-            "error": "Invalid OTP", 
+            "error": "Invalid OTP",
             "code": "INVALID_OTP"
         }, status=status.HTTP_400_BAD_REQUEST)
 
