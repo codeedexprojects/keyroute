@@ -4034,8 +4034,7 @@ class DeleteVendorAccountView(APIView):
         
         user.delete()
 
-        return Response({"message": "Vendor account deleted successfully."}, status=status.HTTP_200_OK)
-    
+        return Response({"message": "Vendor account deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
 
 
