@@ -3979,21 +3979,36 @@ class PackageUpdateAPIView(APIView):
 class VendorTransactionHistoryAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # def get(self, request):
+    #     try:
+    #         vendor = Vendor.objects.get(user=request.user)
+    #     except Vendor.DoesNotExist:
+    #         return Response({"error": "Vendor not found."}, status=404)
+
+    #     transactions = BusBooking.objects.filter(
+    #         bus__vendor=vendor,
+    #         payment_status__in=['partial', 'paid']
+    #     ).order_by('-created_at')
+
+    #     serializer = BaseBookingSerializer(transactions, many=True)
+    #     return Response(serializer.data, status=200)
+
+
     def get(self, request):
         try:
             vendor = Vendor.objects.get(user=request.user)
         except Vendor.DoesNotExist:
             return Response({"error": "Vendor not found."}, status=404)
 
-        transactions = BusBooking.objects.filter(
+        # Fetch Bus Bookings
+        bus_bookings = BusBooking.objects.filter(
             bus__vendor=vendor,
             payment_status__in=['partial', 'paid'],
             trip_status='ongoing'
         ).order_by('-created_at')
 
-        serializer = BaseBookingSerializer(transactions, many=True)
+        serializer = BaseBookingSerializer(all_bookings, many=True)
         return Response(serializer.data, status=200)
-
 
 
 
@@ -4006,9 +4021,9 @@ class DeleteVendorAccountView(APIView):
     authentication_classes = [JWTAuthentication]
 
     def delete(self, request):
+        print('is working')
         user = request.user
 
-        # Check if user is a vendor
         if user.role != User.VENDOR:
             return Response(
                 {"error": "Only vendors can delete their account."},
@@ -4017,17 +4032,10 @@ class DeleteVendorAccountView(APIView):
 
         vendor = get_object_or_404(Vendor, user=user)
         
-        # Delete the user and cascade the vendor deletion
         user.delete()
 
-        return Response({"message": "Vendor account deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
-
-
-
-
-
-
-
+        return Response({"message": "Vendor account deleted successfully."}, status=status.HTTP_200_OK)
+    
 
 
 
