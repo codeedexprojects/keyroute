@@ -24,7 +24,7 @@ class AdminVendorSerializer(serializers.ModelSerializer):
             'user_id',
             'mobile', 'email_address', 'password', 'full_name',
             'travels_name', 'location', 'landmark', 'address',
-            'city', 'state', 'pincode', 'district',
+            'city', 'state', 'pincode', 'district','profile_image'
         ]
 
     def validate_mobile(self, value):
@@ -570,7 +570,7 @@ class AdminBusReviewSerializer(serializers.ModelSerializer):
 class RecentUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'name', 'email', 'created_at']
+        fields = ['id', 'name', 'email', 'created_at','profile_image']
 
 
 
