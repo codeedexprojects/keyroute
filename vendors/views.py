@@ -4070,15 +4070,23 @@ class VehicleRCVerificationView(APIView):
 
     def post(self, request):
         rc_number = request.data.get("rc_number")
-        if not rc_number:
-            return Response({"error": "RC number is required"}, status=status.HTTP_400_BAD_REQUEST)
+        input_chassis = request.data.get("vehicle_chasi_number")
+        input_engine = request.data.get("vehicle_engine_number")
+
+        if not rc_number or not input_chassis or not input_engine:
+            return Response(
+                {"error": "rc_number, vehicle_chasi_number, and vehicle_engine_number are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         access_token = get_access_token()
         if not access_token:
-            return Response({"error": "Failed to retrieve access token"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": "Failed to retrieve access token"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
         url = f"https://production.deepvue.tech/v1/verification/rc-advanced?rc_number={rc_number}"
-
         headers = {
             'Authorization': f'Bearer {access_token}',
             'x-api-key': '26fbe96efaf24488b16ef65acdb869ea',
@@ -4090,13 +4098,53 @@ class VehicleRCVerificationView(APIView):
 
             if response.status_code == 200:
                 data = response.json()
-                return Response(data, status=status.HTTP_200_OK)
+
+                fetched_chassis = data.get("data", {}).get("vehicle_chasi_number", "").strip().upper()
+                fetched_engine = data.get("data", {}).get("vehicle_engine_number", "").strip().upper()
+
+                input_chassis = input_chassis.strip().upper()
+                input_engine = input_engine.strip().upper()
+
+                mismatches = {}
+                if input_chassis != fetched_chassis:
+                    mismatches["chassis_mismatch"] = {
+                        "input": input_chassis
+                    }
+                if input_engine != fetched_engine:
+                    mismatches["engine_mismatch"] = {
+                        "input": input_engine
+                    }
+
+                if mismatches:
+                    return Response(
+                        {
+                            "status": "verification_failed",
+                            "mismatches": mismatches,
+                            "full_data": data
+                        },
+                        status=status.HTTP_200_OK
+                    )
+                else:
+                    return Response(
+                        {
+                            "status": "verification_successful",
+                            "message": "Chassis number and engine number match",
+                            "full_data": data
+                        },
+                        status=status.HTTP_200_OK
+                    )
             else:
-                return Response({
-                    "error": "Verification failed",
-                    "status_code": response.status_code,
-                    "details": response.text
-                }, status=response.status_code)
+                return Response(
+                    {
+                        "error": "Verification failed",
+                        "status_code": response.status_code,
+                        "details": response.text
+                    },
+                    status=response.status_code
+                )
 
         except requests.exceptions.RequestException as e:
-            return Response({"error": "Request failed", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": "Request failed", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
