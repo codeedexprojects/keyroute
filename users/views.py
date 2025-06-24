@@ -732,7 +732,7 @@ class DeleteUserAccountView(APIView):
 
     def delete(self, request):
         user = request.user
-        user.delete()  # Deletes associated Vendor automatically if vendor
+        user.delete()   
         return Response({"message": "User account deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
 

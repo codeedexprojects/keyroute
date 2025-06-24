@@ -30,7 +30,7 @@ Thumbs.db
 env
 venv
 
-keyroute/settings.py
+
 keyrouteuser-firebase-adminsdk-fbsvc-2b142f3163.json
 *settings.py
 
@@ -43,3 +43,5 @@ media
 keyrouteuser-firebase-adminsdk-fbsvc-2b142f3163.json
 
 .env
+
+keyroute/settings.py
