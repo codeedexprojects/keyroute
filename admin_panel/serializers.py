@@ -349,6 +349,10 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 
+
+
+
+
 # --------------------------------- Advertisement-----------------
 
 class AdvertisementSerializer(serializers.ModelSerializer):
