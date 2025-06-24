@@ -2230,6 +2230,7 @@ class RecentReviewsAPIView(APIView):
                 "rating": review.rating,
                 "comment": review.comment,
                 "created_at": review.created_at,
+                "profile_image":review.user.profile_image,
                 "type": review.type,
                 "related_name": review.related_name
             }
