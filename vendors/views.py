@@ -4266,7 +4266,7 @@ class VendorTransactionHistoryAPIView(APIView):
             trip_status='ongoing'
         ).order_by('-created_at')
 
-        serializer = BaseBookingSerializer(all_bookings, many=True)
+        serializer = BaseBookingSerializer(bus_bookings, many=True)
         return Response(serializer.data, status=200)
 
 
@@ -4280,19 +4280,8 @@ class DeleteVendorAccountView(APIView):
     authentication_classes = [JWTAuthentication]
 
     def delete(self, request):
-        print('is working')
         user = request.user
-
-        if user.role != User.VENDOR:
-            return Response(
-                {"error": "Only vendors can delete their account."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        vendor = get_object_or_404(Vendor, user=user)
-        
         user.delete()
-
         return Response({"message": "Vendor account deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
 
