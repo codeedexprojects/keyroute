@@ -984,7 +984,6 @@ class VendorBankDetailSerializer(serializers.ModelSerializer):
     def validate_ifsc_code(self, value):
         if not re.match(r'^[A-Z]{4}0[A-Z0-9]{6}$', value):
             raise serializers.ValidationError("Enter a valid IFSC code (e.g., SBIN0001234).")
-            raise serializers.ValidationError("Enter a valid IFSC code (e.g., SBIN0001234).")            
         return value
 
     def validate_payout_amount(self, value):
