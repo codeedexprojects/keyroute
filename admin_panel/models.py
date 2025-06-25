@@ -111,19 +111,6 @@ class User(AbstractBaseUser, PermissionsMixin):
         else:
             return "Unnamed User"
 
-    class Meta:
-        # Add constraint to ensure unique email when not null
-        constraints = [
-            models.UniqueConstraint(
-                fields=['email'],
-                condition=models.Q(email__isnull=False),
-                name='unique_email_when_not_null'
-            )
-        ]
-
-
-
-
 class Vendor(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True)
     full_name = models.CharField(max_length=255)
