@@ -4266,7 +4266,7 @@ class VendorTransactionHistoryAPIView(APIView):
             trip_status='ongoing'
         ).order_by('-created_at')
 
-        serializer = BaseBookingSerializer(all_bookings, many=True)
+        serializer = BaseBookingSerializer(bus_bookings, many=True)
         return Response(serializer.data, status=200)
 
 
