@@ -106,8 +106,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         if self.mobile:
             return self.mobile
-        elif self.email:
-            return self.email
         else:
             return "Unnamed User"
 
