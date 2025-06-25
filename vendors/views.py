@@ -1836,7 +1836,22 @@ class ChangePasswordAPIView(APIView):
 
 
 
+def get_access_token():
+    """Get access token for DeepVue API"""
+    url = "https://production.deepvue.tech/v1/authorize"
+    payload = {
+        'client_id': '2732a5119a',
+        'client_secret': '26fbe96efaf24488b16ef65acdb869ea'
+    }
 
+    try:
+        response = requests.post(url, data=payload)
+        response.raise_for_status()
+        data = response.json()
+        return data.get("access_token")
+    except requests.exceptions.RequestException as e:
+        print("Error fetching access token:", e)
+        return None
 
 
 
@@ -1846,13 +1861,34 @@ class VendorBankDetailView(APIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
-    def post(self, request):
-        vendor = get_object_or_404(Vendor, user=request.user)
-        serializer = VendorBankDetailSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(vendor=vendor)
-            return Response({"message": "Bank details created successfully", "data": serializer.data}, status=status.HTTP_201_CREATED)
-    
+    def verify_bank_account(self, account_number, ifsc_code):
+        """Internal method to verify bank account"""
+        access_token = get_access_token()
+        if not access_token:
+            return {"success": False, "error": "Failed to retrieve access token"}
+
+        url = f"https://production.deepvue.tech/v1/verification/bankaccount?account_number={account_number}&ifsc={ifsc_code}"
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'x-api-key': '26fbe96efaf24488b16ef65acdb869ea',
+            'Content-Type': 'application/json'
+        }
+
+        try:
+            response = requests.get(url, headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                # Check if account exists in the API response
+                account_exists = data.get("data", {}).get("account_exists", False)
+                if account_exists:
+                    return {"success": True, "data": data}
+                else:
+                    message = data.get("data", {}).get("message", "Account verification failed")
+                    return {"success": False, "error": message, "full_response": data}
+            else:
+                return {"success": False, "error": f"Verification API failed with status {response.status_code}"}
+        except requests.exceptions.RequestException as e:
+            return {"success": False, "error": str(e)}
 
     def post(self, request):
         vendor = get_object_or_404(Vendor, user=request.user)
@@ -1865,14 +1901,45 @@ class VendorBankDetailView(APIView):
 
         serializer = VendorBankDetailSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(vendor=vendor)
-            return Response(
-                {
-                    "message": "Bank details created successfully.",
-                    "data": serializer.data
-                },
-                status=status.HTTP_201_CREATED
-            )
+            account_number = serializer.validated_data.get('account_number')
+            ifsc_code = serializer.validated_data.get('ifsc_code')
+            
+            # Verify bank account if both account number and IFSC are provided
+            if account_number and ifsc_code:
+                verification_result = self.verify_bank_account(account_number, ifsc_code)
+                if not verification_result["success"]:
+                    return Response(
+                        {
+                            "error": "Bank account verification failed",
+                            "message": verification_result["error"],
+                            "account_number": account_number,
+                            "ifsc_code": ifsc_code,
+                            "details": "Please check your account number and IFSC code"
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Save only if verification is successful
+                bank_detail = serializer.save(vendor=vendor)
+                
+                return Response(
+                    {
+                        "message": "Bank details created and verified successfully.",
+                        "data": serializer.data
+                    },
+                    status=status.HTTP_201_CREATED
+                )
+            else:
+                # Save without verification if account details not provided
+                serializer.save(vendor=vendor)
+                return Response(
+                    {
+                        "message": "Bank details created successfully.",
+                        "data": serializer.data,
+                        "note": "Bank verification skipped - account number or IFSC code not provided"
+                    },
+                    status=status.HTTP_201_CREATED
+                )
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
@@ -1898,10 +1965,45 @@ class VendorBankDetailView(APIView):
 
         serializer = VendorBankDetailSerializer(bank_detail, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "Bank details updated successfully", "data": serializer.data}, status=status.HTTP_200_OK)
+            account_number = serializer.validated_data.get('account_number', bank_detail.account_number)
+            ifsc_code = serializer.validated_data.get('ifsc_code', bank_detail.ifsc_code)
+            
+            # Verify bank account if account number or IFSC is being updated
+            if ('account_number' in request.data or 'ifsc_code' in request.data) and account_number and ifsc_code:
+                verification_result = self.verify_bank_account(account_number, ifsc_code)
+                if not verification_result["success"]:
+                    return Response(
+                        {
+                            "error": "Bank account verification failed",
+                            "message": verification_result["error"],
+                            "account_number": account_number,
+                            "ifsc_code": ifsc_code,
+                            "details": "Please check your account number and IFSC code"
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Update only if verification is successful
+                serializer.save()
+                return Response(
+                    {
+                        "message": "Bank details updated and verified successfully",
+                        "data": serializer.data
+                    },
+                    status=status.HTTP_200_OK
+                )
+            else:
+                # Update without verification
+                serializer.save()
+                return Response(
+                    {
+                        "message": "Bank details updated successfully",
+                        "data": serializer.data
+                    },
+                    status=status.HTTP_200_OK
+                )
+        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 
