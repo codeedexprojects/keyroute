@@ -35,26 +35,181 @@ from bookings.serializers import BusBookingStopSerializer
 
 # Create your views here.
 
-# VENDOR REGISTRATION
 class VendorSignupAPIView(APIView):
     def post(self, request):
-        print(request.data,'data')
+        print(request.data, 'data')
+        
+        # First validate the data without creating user
         serializer = VendorSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {"errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get mobile and email from validated data
+        mobile = request.data.get('mobile')
+        email = request.data.get('email_address')
+        
+        # Determine where to send OTP
+        otp_sent_to = None
+        
+        if mobile and email:
+            # Both provided, send to mobile (priority)
+            otp_sent_to = "mobile"
+            identifier = mobile
+        elif mobile:
+            # Only mobile provided
+            otp_sent_to = "mobile"
+            identifier = mobile
+        elif email:
+            # Only email provided
+            otp_sent_to = "email"
+            identifier = email
+        else:
+            return Response(
+                {"errors": "Either mobile number or email is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Delete any existing OTP for this identifier
+        SignupOTP.objects.filter(identifier=identifier).delete()
+        
+        # Create new OTP record
+        signup_otp = SignupOTP.objects.create(
+            identifier=identifier,
+            signup_data=request.data,
+            otp_type=otp_sent_to
+        )
+        
+        # Generate OTP
+        otp_code = signup_otp.generate_otp()
+        
+        # Send OTP
+        if otp_sent_to == "mobile":
+            try:
+                otp_response = send_otp(identifier)
+                if otp_response.get("Status") == "Success":
+                    return Response({
+                        "message": "OTP sent successfully!",
+                        "otp_sent_to": "mobile",
+                        "identifier": identifier
+                    }, status=status.HTTP_200_OK)
+                else:
+                    signup_otp.delete()  # Clean up if failed
+                    return Response(
+                        {"errors": "Failed to send OTP via SMS."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except Exception as e:
+                signup_otp.delete()  # Clean up if failed
+                return Response(
+                    {"errors": f"Failed to send OTP: {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        else:  # email
+            try:
+                subject = "Your OTP for Vendor Registration"
+                message = f"Your OTP code is {otp_code}. It is valid for 5 minutes."
+                from_email = "praveen.codeedex@gmail.com"
+                
+                from django.core.mail import send_mail
+                send_mail(subject, message, from_email, [identifier])
+                
+                return Response({
+                    "message": "OTP sent successfully!",
+                    "otp_sent_to": "email",
+                    "identifier": identifier
+                }, status=status.HTTP_200_OK)
+                
+            except Exception as e:
+                signup_otp.delete()  # Clean up if failed
+                return Response(
+                    {"errors": f"Failed to send OTP via email: {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+class VerifySignupOtpAPIView(APIView):
+    def post(self, request):
+        identifier = request.data.get('identifier')
+        otp = request.data.get('otp')
+        
+        if not identifier or not otp:
+            return Response(
+                {"errors": "Identifier and OTP are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Get the OTP record
+            signup_otp = SignupOTP.objects.get(
+                identifier=identifier,
+                is_verified=False
+            )
+        except SignupOTP.DoesNotExist:
+            return Response(
+                {"errors": "Invalid request. Please start registration again."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if OTP is expired
+        if signup_otp.is_expired():
+            signup_otp.delete()
+            return Response(
+                {"errors": "OTP has expired. Please request a new one."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verify OTP based on type
+        otp_valid = False
+        
+        if signup_otp.otp_type == "mobile":
+            try:
+                verification_response = verify_otp(identifier, otp)
+                if verification_response.get("Status") == "Success":
+                    otp_valid = True
+            except Exception as e:
+                return Response(
+                    {"errors": f"OTP verification failed: {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        elif signup_otp.otp_type == "email":
+            if signup_otp.otp_code == otp:
+                otp_valid = True
+        
+        if not otp_valid:
+            return Response(
+                {"errors": "Invalid OTP."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # OTP verified successfully, now create the vendor
+        serializer = VendorSerializer(data=signup_otp.signup_data)
         if serializer.is_valid():
             vendor = serializer.save()
+            
+            # Mark OTP as verified and delete
+            signup_otp.is_verified = True
+            signup_otp.save()
+            signup_otp.delete()  # Clean up
+            
             return Response(
-                {"message": "Vendor registered successfully!", "data": VendorSerializer(vendor).data},
+                {
+                    "message": "Vendor registered successfully!",
+                    "data": VendorSerializer(vendor).data
+                },
                 status=status.HTTP_201_CREATED
             )
-        return Response(
-            {"errors": serializer.errors},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        else:
+            return Response(
+                {"errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     
-# # VEONDOR LOGIN
 class LoginAPIView(APIView):
-
     def post(self, request):
         identifier = request.data.get('email_or_phone')   
         password = request.data.get('password')
@@ -87,17 +242,19 @@ class LoginAPIView(APIView):
 
         refresh = RefreshToken.for_user(user)
         vendor_name = ""
+        travels_name = ""
         try:
             vendor_name = user.vendor.full_name
-            travels_name= user.vendor.travels_name
+            travels_name = user.vendor.travels_name
         except Vendor.DoesNotExist:
             pass
+            
         return Response({
             "message": "Login successful!",
             "refresh": str(refresh),
             "access": str(refresh.access_token),
             "vendor_name": vendor_name,
-            "travels_name":travels_name
+            "travels_name": travels_name
         }, status=status.HTTP_200_OK)
 
 
@@ -128,7 +285,7 @@ class SendOtpAPIView(APIView):
         if not identifier:
             return Response({"error": "Email or phone number is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if is_valid_email(identifier):  # Handle Email OTP
+        if is_valid_email(identifier):  
             try:
                 vendor = Vendor.objects.get(email_address=identifier)
                 otp_instance, _ = OTP.objects.get_or_create(user=vendor.user)
