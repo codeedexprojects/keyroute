@@ -2,7 +2,7 @@ from django.db import models
 from django.core.validators import FileExtensionValidator
 from django.db.models import Avg
 # Create your models here.
-
+from datetime import timedelta
 from django.utils import timezone
 import random
 from admin_panel.models import *
@@ -310,3 +310,24 @@ class VendorBusyDate(models.Model):
         if self.from_time and self.to_time:
             return f"{self.vendor.user.name} - {self.date} ({self.from_time} to {self.to_time})"
         return f"{self.vendor.user.name} - {self.date} (Full Day)"
+    
+
+
+class SignupOTP(models.Model):
+    identifier = models.CharField(max_length=100)  # email or mobile
+    otp_code = models.CharField(max_length=6)
+    signup_data = models.JSONField()  # Store the entire signup data
+    otp_type = models.CharField(max_length=10, choices=[('mobile', 'Mobile'), ('email', 'Email')])
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_verified = models.BooleanField(default=False)
+    
+    def is_expired(self):
+        return timezone.now() > self.created_at + timedelta(minutes=5)
+    
+    def generate_otp(self):
+        self.otp_code = str(random.randint(100000, 999999))
+        self.save()
+        return self.otp_code
+    
+    class Meta:
+        db_table = 'signup_otp'
