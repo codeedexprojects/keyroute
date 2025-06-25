@@ -3,7 +3,8 @@ from .views import *
 from bookings.views import CompleteTripAPIView,VendorPackageBookingAPI,VendorBusBookingByStatusAPI,VendorPackageBookingByStatusAPI,BookingFilterByDate
 from reviews.views import VendorAllReviewsView
 urlpatterns = [
-   path('api/vendor/signup/', VendorSignupAPIView.as_view(), name='vendor-signup'),
+   path('api/vendor/signup/', VendorSignupAPIView.as_view(), name='vendor_signup'),
+   path('api/vendor/verify-signup-otp/', VerifySignupOtpAPIView.as_view(), name='verify_signup_otp'),
    path('api/vendor/login/', LoginAPIView.as_view(), name='vendor_login'),
    path('api/vendor/logout/', LogoutAPIView.as_view(), name='logout'),
 

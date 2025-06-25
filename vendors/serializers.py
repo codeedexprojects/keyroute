@@ -14,7 +14,8 @@ from bookings.models import *
 class VendorSerializer(serializers.ModelSerializer):
 
     phone_number = serializers.CharField(source='user.mobile', read_only=True)
-    mobile = serializers.CharField(write_only=True) 
+    mobile = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    email_address = serializers.EmailField(required=False, allow_blank=True)
     password = serializers.CharField(write_only=True)
     # profile_image = serializers.SerializerMethodField()
     profile_image = serializers.ImageField(source='user.profile_image', allow_null=True, required=False)
@@ -28,11 +29,23 @@ class VendorSerializer(serializers.ModelSerializer):
         ]
 
     def validate_mobile(self, value):
-        if not value or len(value) < 10:
+        if not value:
+            return value
+        if len(value) < 10:
             raise serializers.ValidationError('Mobile number must be at least 10 digits long.')
         if User.objects.filter(mobile=value).exists():
             raise serializers.ValidationError('Mobile number already registered.')
         return value
+
+    def validate_email_address(self, value):  # Match the field name `email_address`
+        if not value:
+            return value
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError('Email address already registered.')
+        if Vendor.objects.filter(email_address=value).exists():
+            raise serializers.ValidationError('Email address already registered with another vendor.')
+        return value
+
 
     def get_profile_image(self, obj):
         request = self.context.get('request')
@@ -42,17 +55,6 @@ class VendorSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(image_url)
             return image_url
         return None
-    
-
-   
-
-    def validate_email(self, value):
-        if value:
-            if User.objects.filter(email=value).exists():
-                raise serializers.ValidationError('Email address already registered.')
-            if Vendor.objects.filter(email_address=value).exists():  
-                raise serializers.ValidationError('Email address already registered with another vendor.')
-        return value
 
 
     def validate_password(self, value):
@@ -62,7 +64,7 @@ class VendorSerializer(serializers.ModelSerializer):
 
     
     def create(self, validated_data):
-        mobile = validated_data.pop('mobile')
+        mobile = validated_data.pop('mobile', None)
         # email = validated_data.pop('email', None) 
         email = validated_data.get('email_address') or None  
         password = validated_data.pop('password')
