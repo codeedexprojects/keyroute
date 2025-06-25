@@ -73,7 +73,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         (USER, 'User'),
     ]
 
-    email = models.EmailField(null=True, blank=True)
+    email = models.EmailField(null=True, blank=True,unique=True)
     name = models.CharField(max_length=150)
     mobile = models.CharField(max_length=15, unique=True, null=True, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=USER)
@@ -110,19 +110,6 @@ class User(AbstractBaseUser, PermissionsMixin):
             return self.email
         else:
             return "Unnamed User"
-
-    class Meta:
-        # Add constraint to ensure unique email when not null
-        constraints = [
-            models.UniqueConstraint(
-                fields=['email'],
-                condition=models.Q(email__isnull=False),
-                name='unique_email_when_not_null'
-            )
-        ]
-
-
-
 
 class Vendor(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True)
