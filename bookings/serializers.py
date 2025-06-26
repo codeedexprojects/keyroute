@@ -807,7 +807,7 @@ class PackageFilterSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = PackageBooking
-        fields = ['booking_id','booking_status','package_name','total_travelers','start_date','total_amount','from_location',
+        fields = ['booking_id','advance_amount','booking_status','package_name','total_travelers','start_date','total_amount','from_location',
                   'to_location','created_at','average_rating', 'total_reviews','package_images','capacity','package_bus_name','package_id','package_bus_id','travels_name']
 
     def get_package_name(self, obj):
@@ -856,7 +856,7 @@ class BusFilterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BusBooking
-        fields = ['booking_id','booking_status','bus_name','total_travelers','start_date','total_amount','from_location',
+        fields = ['booking_id','advance_amount','booking_status','bus_name','total_travelers','start_date','total_amount','from_location',
                   'to_location','created_at','average_rating', 'total_reviews','bus_images','capacity','bus_id','travels_name']
 
     def get_bus_name(self, obj):
@@ -2159,3 +2159,15 @@ class  TripStatusUpdateSerializer(serializers.Serializer):
         
         data['booking'] = booking
         return data
+    
+
+
+class PaymentOrderSerializer(serializers.Serializer):
+    booking_id = serializers.IntegerField()
+    booking_type = serializers.ChoiceField(choices=['bus', 'package'])
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+
+class PaymentVerificationSerializer(serializers.Serializer):
+    razorpay_order_id = serializers.CharField(max_length=100)
+    razorpay_payment_id = serializers.CharField(max_length=100)
+    razorpay_signature = serializers.CharField(max_length=200)
