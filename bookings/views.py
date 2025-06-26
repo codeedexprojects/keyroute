@@ -37,6 +37,18 @@ from .serializers import PackageDriverDetailSerializer,BusDriverDetailSerializer
 from django.db.models import Avg
 from .serializers import UserBusSearchStopSerializer
 from .utils import BusPriceCalculatorMixin
+import razorpay
+import hmac
+import hashlib
+from django.conf import settings
+from decimal import Decimal
+from .models import BusBooking, PackageBooking, PaymentTransaction
+from .serializers import (
+    PaymentOrderSerializer, 
+    PaymentVerificationSerializer,
+    BusBookingSerializer,
+    PackageBookingSerializer
+)
 
 
 class PackageListAPIView(APIView):
@@ -1060,8 +1072,8 @@ class BookingFilterByDate(APIView):
 
         if booking_type == 'bus':
             bookings = BusBooking.objects.filter(
-                created_at__gte=start_datetime,
-                created_at__lte=end_datetime,
+                start_date__gte=start_datetime,
+                start_date__lte=end_datetime,
                 bus__vendor=vendor,
                 trip_status="ongoing"
             )
@@ -1069,8 +1081,8 @@ class BookingFilterByDate(APIView):
 
         elif booking_type == 'package':
             bookings = PackageBooking.objects.filter(
-                created_at__gte=start_datetime,
-                created_at__lte=end_datetime,
+                start_date__gte=start_datetime,
+                start_date__lte=end_datetime,
                 package__vendor=vendor,
                 trip_status="ongoing"
             )
@@ -1078,14 +1090,14 @@ class BookingFilterByDate(APIView):
 
         elif booking_type == 'all':
             bus_bookings = BusBooking.objects.filter(
-                created_at__gte=start_datetime,
-                created_at__lte=end_datetime,
+                start_date__gte=start_datetime,
+                start_date__lte=end_datetime,
                 bus__vendor=vendor,
                 trip_status="ongoing"
             )
             package_bookings = PackageBooking.objects.filter(
-                created_at__gte=start_datetime,
-                created_at__lte=end_datetime,
+                start_date__gte=start_datetime,
+                start_date__lte=end_datetime,
                 package__vendor=vendor,
                 trip_status="ongoing"
             )
@@ -2154,3 +2166,243 @@ class NearbyBusLocationAPIView(APIView):
         }
         
         return Response(response_data, status=status.HTTP_200_OK)
+    
+
+
+# razooor pay
+
+
+razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+
+
+class CreatePaymentOrderAPIView(APIView):
+    """Create Razorpay order for payment"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        serializer = PaymentOrderSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({
+                'success': False, 
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            booking_id = serializer.validated_data['booking_id']
+            booking_type = serializer.validated_data['booking_type']
+            amount = serializer.validated_data['amount']
+            
+            # Get booking based on type
+            if booking_type == 'bus':
+                booking = get_object_or_404(BusBooking, booking_id=booking_id, user=request.user)
+                booking_serializer = BusBookingSerializer(booking, context={'request': request})
+            else:
+                booking = get_object_or_404(PackageBooking, booking_id=booking_id, user=request.user)
+                booking_serializer = PackageBookingSerializer(booking, context={'request': request})
+            
+            # Validate amount
+            if amount <= 0 or amount > booking.balance_amount:
+                return Response({
+                    'success': False,
+                    'error': f'Invalid amount. Maximum payable amount is {booking.balance_amount}'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Create Razorpay order
+            order_data = {
+                'amount': int(amount * 100),  # Amount in paisa
+                'currency': 'INR',
+                'receipt': f'booking_{booking_id}_{booking_type}',
+                'notes': {
+                    'booking_id': str(booking_id),
+                    'booking_type': booking_type,
+                    'user_id': str(request.user.id)
+                }
+            }
+            
+            order = razorpay_client.order.create(data=order_data)
+            
+            # Create payment transaction record
+            if booking_type == 'bus':
+                transaction = PaymentTransaction.objects.create(
+                    booking=booking,
+                    user=request.user,
+                    amount=amount,
+                    razorpay_order_id=order['id']
+                )
+            else:
+                transaction = PaymentTransaction.objects.create(
+                    package_booking=booking,
+                    user=request.user,
+                    amount=amount,
+                    razorpay_order_id=order['id']
+                )
+            
+            return Response({
+                'success': True,
+                'order_id': order['id'],
+                'amount': float(amount),
+                'currency': 'INR',
+                'key': settings.RAZORPAY_KEY_ID,
+                'booking': booking_serializer.data,
+                'razorpay_order': {
+                    'id': order['id'],
+                    'amount': order['amount'],
+                    'currency': order['currency'],
+                    'receipt': order['receipt']
+                }
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response({
+                'success': False, 
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class VerifyPaymentAPIView(APIView):
+    """Verify Razorpay payment signature"""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        serializer = PaymentVerificationSerializer(data=request.data)
+        
+        if not serializer.is_valid():
+            return Response({
+                'success': False,
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            razorpay_order_id = serializer.validated_data['razorpay_order_id']
+            razorpay_payment_id = serializer.validated_data['razorpay_payment_id']
+            razorpay_signature = serializer.validated_data['razorpay_signature']
+            
+            # Verify signature
+            params_dict = {
+                'razorpay_order_id': razorpay_order_id,
+                'razorpay_payment_id': razorpay_payment_id,
+                'razorpay_signature': razorpay_signature
+            }
+            
+            try:
+                razorpay_client.utility.verify_payment_signature(params_dict)
+                signature_verified = True
+            except:
+                signature_verified = False
+            
+            if signature_verified:
+                # Get transaction
+                transaction = get_object_or_404(
+                    PaymentTransaction, 
+                    razorpay_order_id=razorpay_order_id,
+                    user=request.user
+                )
+                
+                transaction.razorpay_payment_id = razorpay_payment_id
+                transaction.razorpay_signature = razorpay_signature
+                transaction.status = 'success'
+                transaction.save()
+                
+                # Update booking payment
+                if transaction.booking:
+                    booking = transaction.booking
+                    booking_serializer_class = BusBookingSerializer
+                elif transaction.package_booking:
+                    booking = transaction.package_booking
+                    booking_serializer_class = PackageBookingSerializer
+                
+                booking.paid_amount += transaction.amount
+                booking.razorpay_order_id = razorpay_order_id
+                booking.razorpay_payment_id = razorpay_payment_id
+                booking.razorpay_signature = razorpay_signature
+                booking.save()  # This will auto-update payment_status
+                
+                booking_serializer = booking_serializer_class(booking)
+                
+                return Response({
+                    'success': True,
+                    'message': 'Payment verified successfully',
+                    'transaction_id': transaction.id,
+                    'booking': booking_serializer.data
+                }, status=status.HTTP_200_OK)
+            else:
+                # Mark transaction as failed
+                transaction = get_object_or_404(
+                    PaymentTransaction, 
+                    razorpay_order_id=razorpay_order_id,
+                    user=request.user
+                )
+                transaction.status = 'failed'
+                transaction.save()
+                
+                return Response({
+                    'success': False,
+                    'error': 'Payment verification failed'
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except PaymentTransaction.DoesNotExist:
+            return Response({
+                'success': False,
+                'error': 'Transaction not found'
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                'success': False, 
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class BookingPaymentStatusAPIView(APIView):
+    """Get booking payment status and details"""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, booking_type, booking_id):
+        try:
+            if booking_type == 'bus':
+                booking = get_object_or_404(BusBooking, booking_id=booking_id, user=request.user)
+                serializer = BusBookingSerializer(booking, context={'request': request})
+            elif booking_type == 'package':
+                booking = get_object_or_404(PackageBooking, booking_id=booking_id, user=request.user)
+                serializer = PackageBookingSerializer(booking, context={'request': request})
+            else:
+                return Response({
+                    'success': False,
+                    'error': 'Invalid booking type'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Get payment transactions
+            if booking_type == 'bus':
+                transactions = PaymentTransaction.objects.filter(
+                    booking=booking, 
+                    user=request.user
+                ).order_by('-created_at')
+            else:
+                transactions = PaymentTransaction.objects.filter(
+                    package_booking=booking, 
+                    user=request.user
+                ).order_by('-created_at')
+            
+            transaction_data = []
+            for txn in transactions:
+                transaction_data.append({
+                    'id': txn.id,
+                    'amount': float(txn.amount),
+                    'status': txn.status,
+                    'razorpay_order_id': txn.razorpay_order_id,
+                    'razorpay_payment_id': txn.razorpay_payment_id,
+                    'created_at': txn.created_at,
+                    'updated_at': txn.updated_at
+                })
+            
+            return Response({
+                'success': True,
+                'booking': serializer.data,
+                'transactions': transaction_data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'success': False,
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
