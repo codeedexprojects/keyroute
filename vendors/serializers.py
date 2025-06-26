@@ -210,19 +210,21 @@ class BusSummarySerializer(serializers.ModelSerializer):
 
 
 class BusSerializer(serializers.ModelSerializer):
-    features = serializers.SerializerMethodField()
-    amenities = serializers.SerializerMethodField()
+    features = serializers.PrimaryKeyRelatedField(
+        queryset=BusFeature.objects.all(), many=True, required=False
+    )
+    amenities = serializers.PrimaryKeyRelatedField(
+        queryset=Amenity.objects.all(), many=True, required=False
+    )
     is_favorite = serializers.SerializerMethodField()
-    bus_view_images = serializers.SerializerMethodField()  # Changed to SerializerMethodField for reading
-    bus_travel_images = serializers.SerializerMethodField()  # Changed to SerializerMethodField for reading
-    
-    # Separate write-only fields for creating/updating images
+    bus_view_images = serializers.SerializerMethodField()
+    bus_travel_images = serializers.SerializerMethodField()
+
     bus_view_images_upload = serializers.ListField(
         child=serializers.ImageField(),
         write_only=True,
         required=False
     )
-
     bus_travel_images_upload = serializers.ListField(
         child=serializers.ImageField(),
         write_only=True,
@@ -235,11 +237,13 @@ class BusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bus
         fields = [
-            'id','average_rating', 'total_reviews', 'features', 'minimum_fare', 'bus_travel_images', 'bus_name', 'bus_number',
-            'capacity', 'vehicle_description', 'travels_logo',
-            'rc_certificate', 'license', 'contract_carriage_permit', 'passenger_insurance',
-            'vehicle_insurance', 'bus_view_images', 'amenities', 'base_price', 'price_per_km','location','is_favorite','bus_type','longitude','latitude','base_price_km','is_popular',
-            'bus_view_images_upload', 'bus_travel_images_upload','night_allowance'
+            'id', 'average_rating', 'total_reviews', 'features', 'minimum_fare',
+            'bus_travel_images', 'bus_name', 'bus_number', 'capacity', 'vehicle_description',
+            'travels_logo', 'rc_certificate', 'license', 'contract_carriage_permit',
+            'passenger_insurance', 'vehicle_insurance', 'bus_view_images', 'amenities',
+            'base_price', 'price_per_km', 'location', 'is_favorite', 'bus_type', 'longitude',
+            'latitude', 'base_price_km', 'is_popular', 'bus_view_images_upload',
+            'bus_travel_images_upload', 'night_allowance'
         ]
 
     def get_features(self, obj):
