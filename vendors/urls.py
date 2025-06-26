@@ -212,6 +212,6 @@ urlpatterns = [
     path('api/vendor/delete-account/', DeleteVendorAccountView.as_view(), name='delete-vendor-account'),
     path('api/vendor/verify-rc/', VehicleRCVerificationView.as_view(), name='verify-rc'),
 
+    path('api/vendor/booked-days/', VendorBookedDaysView.as_view(), name='vendor-booked-days'),
 
 ]
-
