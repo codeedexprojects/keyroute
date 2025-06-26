@@ -48,6 +48,8 @@ pymysql.install_as_MySQLdb()
 load_dotenv()
 
 GOOGLE_MAPS_API_KEY = "AIzaSyCnNixdBmNb0cOCet3HofxffjMSKOsAm4w"
+RAZORPAY_KEY_ID = 'rzp_test_GG0WUzE2ULN0el'
+RAZORPAY_KEY_SECRET = 'GN1rZHDi4IlAYOOdZTbaUfEb'
 
 
 # Quick-start development settings - unsuitable for production
