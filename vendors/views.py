@@ -533,7 +533,11 @@ class BusEditAPIView(APIView):
             except Bus.DoesNotExist:
                 return Response({"error": "Bus not found or unauthorized access."}, status=status.HTTP_404_NOT_FOUND)
 
-            serializer = BusSerializer(bus, data=request.data, partial=True, context={'vendor': vendor})
+            serializer = BusSerializer(bus, data=request.data, partial=True, context={
+                'vendor': vendor,
+                'request': request
+            })
+
             if serializer.is_valid():
                 serializer.save()
                 return Response({"message": "Bus updated successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
@@ -4396,3 +4400,29 @@ class VehicleRCVerificationView(APIView):
                 {"error": "Request failed", "details": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+
+
+
+class VendorBookedDaysView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        vendor = Vendor.objects.filter(user=request.user).first()
+        if not vendor:
+            return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
+
+        bookings = BusBooking.objects.filter(
+            bus__vendor=vendor
+        ).exclude(booking_status='cancelled')
+
+        booked_dates = set()
+
+        for booking in bookings:
+            if booking.start_date and booking.end_date:
+                current_date = booking.start_date
+                while current_date <= booking.end_date:
+                    booked_dates.add(current_date.isoformat())
+                    current_date += timedelta(days=1)
+
+        return Response(sorted(booked_dates), status=status.HTTP_200_OK)
