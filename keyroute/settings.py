@@ -276,3 +276,7 @@ if not firebase_admin._apps:
     except Exception as e:
         print(f"Error initializing Firebase: {e}")
 
+
+
+RAZORPAY_KEY_ID = 'rzp_test_GG0WUzE2ULN0el'
+RAZORPAY_KEY_SECRET = 'GN1rZHDi4IlAYOOdZTbaUfEb'
