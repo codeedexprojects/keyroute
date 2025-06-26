@@ -47,12 +47,17 @@ class BaseBooking(models.Model):
     from_location = models.CharField(max_length=255, null=True, blank=True)
     to_location = models.CharField(max_length=255, null=True, blank=True)
     
+    # Razorpay fields
+    razorpay_order_id = models.CharField(max_length=100, null=True, blank=True)
+    razorpay_payment_id = models.CharField(max_length=100, null=True, blank=True)
+    razorpay_signature = models.CharField(max_length=200, null=True, blank=True)
+    
     class Meta:
         abstract = True
         
     @property
     def balance_amount(self):
-        return self.total_amount - self.advance_amount
+        return self.total_amount - self.paid_amount
     
     def generate_unique_booking_id(self):
         while True:
@@ -60,9 +65,27 @@ class BaseBooking(models.Model):
             if not self.__class__.objects.filter(booking_id=booking_id).exists():
                 return booking_id
 
+    def update_payment_status(self):
+        """Update payment status based on paid amount"""
+        if self.paid_amount == 0:
+            self.payment_status = 'pending'
+        elif self.paid_amount >= self.total_amount:
+            self.payment_status = 'paid'
+        else:
+            self.payment_status = 'partial'
+        self.save()
+
     def save(self, *args, **kwargs):
-        if not self.booking_id:
+        if not hasattr(self, 'booking_id') or not self.booking_id:
             self.booking_id = self.generate_unique_booking_id()
+        
+        if self.paid_amount == 0:
+            self.payment_status = 'pending'
+        elif self.paid_amount >= self.total_amount:
+            self.payment_status = 'paid'
+        else:
+            self.payment_status = 'partial'
+            
         super().save(*args, **kwargs)
 
 
@@ -88,6 +111,7 @@ class BusBooking(BaseBooking):
             self.total_travelers = self.bus.capacity
         super().save(*args, **kwargs)
 
+
 class PackageBooking(BaseBooking):
     booking_id = models.PositiveIntegerField(unique=True, editable=False)
     rooms = models.IntegerField(default=1)
@@ -95,6 +119,28 @@ class PackageBooking(BaseBooking):
     
     def __str__(self):
         return f"Package Booking #{self.booking_id} - {self.package.places} ({self.created_at})"
+
+
+class PaymentTransaction(models.Model):
+    TRANSACTION_STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('success', 'Success'),
+        ('failed', 'Failed'),
+    )
+    
+    booking = models.ForeignKey(BusBooking, on_delete=models.CASCADE, related_name='transactions', null=True, blank=True)
+    package_booking = models.ForeignKey(PackageBooking, on_delete=models.CASCADE, related_name='transactions', null=True, blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    razorpay_order_id = models.CharField(max_length=100)
+    razorpay_payment_id = models.CharField(max_length=100, null=True, blank=True)
+    razorpay_signature = models.CharField(max_length=200, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=TRANSACTION_STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"Transaction {self.razorpay_order_id} - {self.amount}"
 
 
 class Travelers(models.Model):
