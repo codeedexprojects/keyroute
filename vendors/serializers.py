@@ -208,14 +208,22 @@ class BusSummarySerializer(serializers.ModelSerializer):
 
 # -----------------------
 
+class FlexiblePrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
+    def to_internal_value(self, data):
+        try:
+            data = int(data)
+        except (ValueError, TypeError):
+            self.fail('incorrect_type', data_type=type(data).__name__)
+        return super().to_internal_value(data)
+
 class BusSerializer(serializers.ModelSerializer):
     features = serializers.SerializerMethodField()
-    features_ids = serializers.PrimaryKeyRelatedField(
+    features_ids = FlexiblePrimaryKeyRelatedField(
         queryset=BusFeature.objects.all(), many=True, write_only=True, required=False
     )
 
     amenities = serializers.SerializerMethodField()
-    amenities_ids = serializers.PrimaryKeyRelatedField(
+    amenities_ids = FlexiblePrimaryKeyRelatedField(
         queryset=Amenity.objects.all(), many=True, write_only=True, required=False
     )
 
@@ -332,9 +340,9 @@ class BusSerializer(serializers.ModelSerializer):
                 BusTravelImage.objects.create(bus=instance, image=travel_img)
 
         if amenities is not None:
-            instance.amenities.set(int(amenities))
+            instance.amenities.set(amenities)
         if features is not None:
-            instance.features.set(int(features))
+            instance.features.set(features)
 
         return instance
 
