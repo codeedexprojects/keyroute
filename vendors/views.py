@@ -4425,4 +4425,7 @@ class VendorBookedDaysView(APIView):
                     booked_dates.add(current_date.isoformat())
                     current_date += timedelta(days=1)
 
-        return Response(sorted(booked_dates), status=status.HTTP_200_OK)
+        return Response(
+            {"booked_dates": sorted(booked_dates)},
+            status=status.HTTP_200_OK
+        )
