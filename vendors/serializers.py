@@ -332,9 +332,9 @@ class BusSerializer(serializers.ModelSerializer):
                 BusTravelImage.objects.create(bus=instance, image=travel_img)
 
         if amenities is not None:
-            instance.amenities.set(amenities)
+            instance.amenities.set(int(amenities))
         if features is not None:
-            instance.features.set(features)
+            instance.features.set(int(features))
 
         return instance
 
