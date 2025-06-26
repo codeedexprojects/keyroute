@@ -563,7 +563,7 @@ class SinglePackageBookingSerilizer(serializers.ModelSerializer):
     def get_end_date(self, obj):
         night_count = obj.package.day_plans.filter(night=True).count()
         total_days = obj.package.days + night_count
-        end_date = obj.start_date + timedelta(days=total_days)
+        end_date = obj.start_date + timedelta(days=total_days - 1)
         return end_date
 
     def get_booking_type(self, obj):
@@ -645,7 +645,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
         user = self.context['request'].user
         
         # Calculate total amount based on package price and travelers
-        calculated_total_amount = total_travelers * package.price_per_person
+        calculated_total_amount = package.buses.first().capacity * package.price_per_person
         
         # Check if this is user's first booking and apply 10% discount
         is_first_booking = self.is_first_user_booking(user)
