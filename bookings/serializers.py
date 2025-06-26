@@ -804,14 +804,18 @@ class PackageFilterSerializer(serializers.ModelSerializer):
     package_bus_name = serializers.SerializerMethodField()
     package_bus_id = serializers.SerializerMethodField()
     travels_name = serializers.SerializerMethodField()
+    refund_amount = serializers.SerializerMethodField()
     
     class Meta:
         model = PackageBooking
         fields = ['booking_id','advance_amount','booking_status','package_name','total_travelers','start_date','total_amount','from_location',
-                  'to_location','created_at','average_rating', 'total_reviews','package_images','capacity','package_bus_name','package_id','package_bus_id','travels_name']
+                  'to_location','created_at','average_rating', 'total_reviews','package_images','capacity','package_bus_name','package_id','refund_amount','package_bus_id','travels_name']
 
     def get_package_name(self, obj):
         return obj.package.places
+    
+    def get_refund_amount(self,obj):
+        return 0
     
     def get_travels_name(self, obj):
         return obj.package.vendor.travels_name
@@ -853,10 +857,11 @@ class BusFilterSerializer(serializers.ModelSerializer):
     average_rating = serializers.SerializerMethodField()
     total_reviews = serializers.SerializerMethodField()
     travels_name = serializers.SerializerMethodField()
+    refund_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = BusBooking
-        fields = ['booking_id','advance_amount','booking_status','bus_name','total_travelers','start_date','total_amount','from_location',
+        fields = ['booking_id','advance_amount','booking_status','refund_amount','bus_name','total_travelers','start_date','total_amount','from_location',
                   'to_location','created_at','average_rating', 'total_reviews','bus_images','capacity','bus_id','travels_name']
 
     def get_bus_name(self, obj):
@@ -864,6 +869,9 @@ class BusFilterSerializer(serializers.ModelSerializer):
     
     def get_travels_name(self, obj):
         return obj.bus.vendor.travels_name
+    
+    def get_refund_amount(self,obj):
+        return 0
     
     def get_bus_id(self, obj):
         return obj.bus.id
