@@ -208,14 +208,17 @@ class BusSummarySerializer(serializers.ModelSerializer):
 
 # -----------------------
 
-
 class BusSerializer(serializers.ModelSerializer):
-    features = serializers.PrimaryKeyRelatedField(
-        queryset=BusFeature.objects.all(), many=True, required=False
+    features = serializers.SerializerMethodField()
+    features_ids = serializers.PrimaryKeyRelatedField(
+        queryset=BusFeature.objects.all(), many=True, write_only=True, required=False
     )
-    amenities = serializers.PrimaryKeyRelatedField(
-        queryset=Amenity.objects.all(), many=True, required=False
+
+    amenities = serializers.SerializerMethodField()
+    amenities_ids = serializers.PrimaryKeyRelatedField(
+        queryset=Amenity.objects.all(), many=True, write_only=True, required=False
     )
+
     is_favorite = serializers.SerializerMethodField()
     bus_view_images = serializers.SerializerMethodField()
     bus_travel_images = serializers.SerializerMethodField()
@@ -237,45 +240,43 @@ class BusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Bus
         fields = [
-            'id', 'average_rating', 'total_reviews', 'features', 'minimum_fare',
-            'bus_travel_images', 'bus_name', 'bus_number', 'capacity', 'vehicle_description',
-            'travels_logo', 'rc_certificate', 'license', 'contract_carriage_permit',
-            'passenger_insurance', 'vehicle_insurance', 'bus_view_images', 'amenities',
-            'base_price', 'price_per_km', 'location', 'is_favorite', 'bus_type', 'longitude',
-            'latitude', 'base_price_km', 'is_popular', 'bus_view_images_upload',
-            'bus_travel_images_upload', 'night_allowance'
+            'id', 'average_rating', 'total_reviews', 'features', 'features_ids',
+            'minimum_fare', 'bus_travel_images', 'bus_name', 'bus_number', 'capacity',
+            'vehicle_description', 'travels_logo', 'rc_certificate', 'license',
+            'contract_carriage_permit', 'passenger_insurance', 'vehicle_insurance',
+            'bus_view_images', 'amenities', 'amenities_ids',
+            'base_price', 'price_per_km', 'location', 'is_favorite', 'bus_type',
+            'longitude', 'latitude', 'base_price_km', 'is_popular',
+            'bus_view_images_upload', 'bus_travel_images_upload', 'night_allowance'
         ]
 
     def get_features(self, obj):
         return BusFeatureSerializer(obj.features.all(), many=True).data
-    
+
+    def get_amenities(self, obj):
+        return AmenitySerializer(obj.amenities.all(), many=True).data
+
     def get_is_favorite(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             return Favourite.objects.filter(user=request.user, bus=obj).exists()
         return False
 
-    def get_amenities(self, obj):
-        return AmenitySerializer(obj.amenities.all(), many=True).data
-
     def get_bus_view_images(self, obj):
-        """Return list of bus view image URLs"""
         request = self.context.get('request')
-        images = obj.images.all()  # Using related_name='images' from BusImage model
+        images = obj.images.all()  # related_name='images'
         if request:
             return [request.build_absolute_uri(image.bus_view_image.url) for image in images if image.bus_view_image]
         return [image.bus_view_image.url for image in images if image.bus_view_image]
 
     def get_bus_travel_images(self, obj):
-        """Return list of bus travel image URLs"""
         request = self.context.get('request')
-        images = obj.travel_images.all()  # Using related_name='travel_images' from BusTravelImage model
+        images = obj.travel_images.all()  # related_name='travel_images'
         if request:
             return [request.build_absolute_uri(image.image.url) for image in images if image.image]
         return [image.image.url for image in images if image.image]
 
     def validate_bus_number(self, value):
-        # Fixed validation to exclude current instance during updates
         instance = getattr(self, 'instance', None)
         queryset = Bus.objects.filter(bus_number=value)
         if instance:
@@ -290,57 +291,46 @@ class BusSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        # Fixed: Use get() with default empty list to avoid KeyError
         bus_images = validated_data.pop('bus_view_images_upload', [])
         travel_images = validated_data.pop('bus_travel_images_upload', [])
-        amenities = validated_data.pop('amenities', [])
-        features = validated_data.pop('features', [])
-        
+        amenities = validated_data.pop('amenities_ids', [])
+        features = validated_data.pop('features_ids', [])
+
         vendor = self.context['vendor']
 
         bus = Bus.objects.create(vendor=vendor, **validated_data)
 
-        # Create bus view images
         for image in bus_images:
             BusImage.objects.create(bus=bus, bus_view_image=image)
 
-        # Create bus travel images
         for travel_img in travel_images:
             BusTravelImage.objects.create(bus=bus, image=travel_img)
 
-        # Set many-to-many relationships
         bus.amenities.set(amenities)
         bus.features.set(features)
-        
+
         return bus
 
     def update(self, instance, validated_data):
-        # Handle image updates
         bus_images = validated_data.pop('bus_view_images_upload', None)
         travel_images = validated_data.pop('bus_travel_images_upload', None)
-        amenities = validated_data.pop('amenities', None)
-        features = validated_data.pop('features', None)
+        amenities = validated_data.pop('amenities_ids', None)
+        features = validated_data.pop('features_ids', None)
 
-        # Update basic fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
-        # Update bus view images if provided
         if bus_images is not None:
-            # Clear existing images and add new ones
-            instance.images.all().delete()  # Using related_name='images'
+            instance.images.all().delete()
             for image in bus_images:
                 BusImage.objects.create(bus=instance, bus_view_image=image)
 
-        # Update bus travel images if provided
         if travel_images is not None:
-            # Clear existing images and add new ones
-            instance.travel_images.all().delete()  # Using related_name='travel_images'
+            instance.travel_images.all().delete()
             for travel_img in travel_images:
                 BusTravelImage.objects.create(bus=instance, image=travel_img)
 
-        # Update many-to-many relationships if provided
         if amenities is not None:
             instance.amenities.set(amenities)
         if features is not None:
