@@ -1352,6 +1352,13 @@ class UnpaidBookingsAPI(APIView):
                 return bank_detail.ifsc_code
             except VendorBankDetail.DoesNotExist:
                 return ''
+            
+        def get_vendor_account(vendor):
+            try:
+                bank_detail = VendorBankDetail.objects.get(vendor=vendor)
+                return bank_detail.account_number
+            except VendorBankDetail.DoesNotExist:
+                return ''
 
         # Serialize bus bookings
         bus_data = []
@@ -1364,6 +1371,9 @@ class UnpaidBookingsAPI(APIView):
                 'vendor_phone': b.bus.vendor.phone_no,
                 'vendor_name': b.bus.vendor.full_name,
                 'vendor_ifsc_code': get_vendor_ifsc(b.bus.vendor),
+                'vendor_account_number':get_vendor_account(b.bus.vendor),
+                'reward':0,
+                'payout_mode':"account",
                 'date': b.start_date,
                 'amount': b.total_amount,
                 'admin_commission': admin_commission,
@@ -1383,6 +1393,9 @@ class UnpaidBookingsAPI(APIView):
                 'vendor_phone': p.package.vendor.phone_no,
                 'vendor_name': p.package.vendor.full_name,
                 'vendor_ifsc_code': get_vendor_ifsc(p.package.vendor),
+                'vendor_account_number':get_vendor_account(p.package.vendor),
+                'reward':0,
+                'payout_mode':"account",
                 'date': p.start_date,
                 'amount': p.total_amount,
                 'admin_commission': admin_commission,
