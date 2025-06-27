@@ -4,7 +4,7 @@ import random
 import re
 
 
-API_KEY = "15b274f8-8600-11ef-8b17-0200cd936042"
+API_KEY = "4657d099-5270-11f0-a562-0200cd936042"
 
 def is_valid_email(value):
     return re.match(r"[^@]+@[^@]+\.[^@]+", value)
