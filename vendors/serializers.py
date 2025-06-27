@@ -208,40 +208,22 @@ class BusSummarySerializer(serializers.ModelSerializer):
 
 # -----------------------
 
-class FlexiblePrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
-    def to_internal_value(self, data):
-        try:
-            data = int(data)
-        except (ValueError, TypeError):
-            self.fail('incorrect_type', data_type=type(data).__name__)
-        return super().to_internal_value(data)
-
 class BusSerializer(serializers.ModelSerializer):
     features = serializers.SerializerMethodField()
-    features_ids = FlexiblePrimaryKeyRelatedField(
-        queryset=BusFeature.objects.all(), many=True, write_only=True, required=False
-    )
-
+    features_ids = serializers.CharField(write_only=True, required=False)  # Accept as comma-separated string
     amenities = serializers.SerializerMethodField()
-    amenities_ids = FlexiblePrimaryKeyRelatedField(
-        queryset=Amenity.objects.all(), many=True, write_only=True, required=False
+    amenities_ids = serializers.CharField(write_only=True, required=False)
+
+    bus_view_images = serializers.SerializerMethodField()
+    bus_travel_images = serializers.SerializerMethodField()
+    bus_view_images_upload = serializers.ListField(
+        child=serializers.ImageField(), write_only=True, required=False
+    )
+    bus_travel_images_upload = serializers.ListField(
+        child=serializers.ImageField(), write_only=True, required=False
     )
 
     is_favorite = serializers.SerializerMethodField()
-    bus_view_images = serializers.SerializerMethodField()
-    bus_travel_images = serializers.SerializerMethodField()
-
-    bus_view_images_upload = serializers.ListField(
-        child=serializers.ImageField(),
-        write_only=True,
-        required=False
-    )
-    bus_travel_images_upload = serializers.ListField(
-        child=serializers.ImageField(),
-        write_only=True,
-        required=False
-    )
-
     average_rating = serializers.ReadOnlyField()
     total_reviews = serializers.ReadOnlyField()
 
@@ -258,6 +240,30 @@ class BusSerializer(serializers.ModelSerializer):
             'bus_view_images_upload', 'bus_travel_images_upload', 'night_allowance'
         ]
 
+
+    def _parse_id_string(self, value):
+        print("RAW VALUE:", repr(value))
+        if not value:
+            return []
+        
+        try:
+            # If passed as JSON string like '"[1,2]"' or '[1,2]'
+            if isinstance(value, str) and value.startswith("[") and value.endswith("]"):
+                parsed = json.loads(value)
+                return [int(i) for i in parsed]
+            
+            # If passed like '"1,2"', remove outer quotes
+            if value.startswith('"') and value.endswith('"'):
+                value = value[1:-1]
+
+            result = [int(pk.strip()) for pk in value.split(',') if pk.strip().isdigit()]
+            print("PARSED IDS:", result)
+            return result
+        except Exception as e:
+            print("Error parsing IDs:", e)
+            return []
+
+
     def get_features(self, obj):
         return BusFeatureSerializer(obj.features.all(), many=True).data
 
@@ -272,17 +278,21 @@ class BusSerializer(serializers.ModelSerializer):
 
     def get_bus_view_images(self, obj):
         request = self.context.get('request')
-        images = obj.images.all()  # related_name='images'
-        if request:
-            return [request.build_absolute_uri(image.bus_view_image.url) for image in images if image.bus_view_image]
-        return [image.bus_view_image.url for image in images if image.bus_view_image]
+        images = obj.images.all()
+        return [
+            request.build_absolute_uri(image.bus_view_image.url)
+            if request else image.bus_view_image.url
+            for image in images if image.bus_view_image
+        ]
 
     def get_bus_travel_images(self, obj):
         request = self.context.get('request')
-        images = obj.travel_images.all()  # related_name='travel_images'
-        if request:
-            return [request.build_absolute_uri(image.image.url) for image in images if image.image]
-        return [image.image.url for image in images if image.image]
+        images = obj.travel_images.all()
+        return [
+            request.build_absolute_uri(image.image.url)
+            if request else image.image.url
+            for image in images if image.image
+        ]
 
     def validate_bus_number(self, value):
         instance = getattr(self, 'instance', None)
@@ -301,11 +311,11 @@ class BusSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         bus_images = validated_data.pop('bus_view_images_upload', [])
         travel_images = validated_data.pop('bus_travel_images_upload', [])
-        amenities = validated_data.pop('amenities_ids', [])
-        features = validated_data.pop('features_ids', [])
+
+        features_ids = self._parse_id_string(self.initial_data.get('features_ids', ''))
+        amenities_ids = self._parse_id_string(self.initial_data.get('amenities_ids', ''))
 
         vendor = self.context['vendor']
-
         bus = Bus.objects.create(vendor=vendor, **validated_data)
 
         for image in bus_images:
@@ -314,21 +324,25 @@ class BusSerializer(serializers.ModelSerializer):
         for travel_img in travel_images:
             BusTravelImage.objects.create(bus=bus, image=travel_img)
 
-        bus.amenities.set(amenities)
-        bus.features.set(features)
+        bus.features.set(BusFeature.objects.filter(id__in=features_ids))
+        bus.amenities.set(Amenity.objects.filter(id__in=amenities_ids))
 
         return bus
 
     def update(self, instance, validated_data):
         bus_images = validated_data.pop('bus_view_images_upload', None)
         travel_images = validated_data.pop('bus_travel_images_upload', None)
-        amenities = validated_data.pop('amenities_ids', None)
-        features = validated_data.pop('features_ids', None)
 
+        # IMPORTANT: Read from self.initial_data (raw data), not validated_data
+        features_ids = self._parse_id_string(self.initial_data.get('features_ids', ''))
+        amenities_ids = self._parse_id_string(self.initial_data.get('amenities_ids', ''))
+
+        # Update normal fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
+        # Update images if provided
         if bus_images is not None:
             instance.images.all().delete()
             for image in bus_images:
@@ -339,10 +353,11 @@ class BusSerializer(serializers.ModelSerializer):
             for travel_img in travel_images:
                 BusTravelImage.objects.create(bus=instance, image=travel_img)
 
-        if amenities is not None:
-            instance.amenities.set(amenities)
-        if features is not None:
-            instance.features.set(features)
+        # Update M2M fields only if data is passed
+        if features_ids:
+            instance.features.set(BusFeature.objects.filter(id__in=features_ids))
+        if amenities_ids:
+            instance.amenities.set(Amenity.objects.filter(id__in=amenities_ids))
 
         return instance
 
