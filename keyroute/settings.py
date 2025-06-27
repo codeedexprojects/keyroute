@@ -48,6 +48,8 @@ pymysql.install_as_MySQLdb()
 load_dotenv()
 
 GOOGLE_MAPS_API_KEY = "AIzaSyCnNixdBmNb0cOCet3HofxffjMSKOsAm4w"
+RAZORPAY_KEY_ID = 'rzp_test_GG0WUzE2ULN0el'
+RAZORPAY_KEY_SECRET = 'GN1rZHDi4IlAYOOdZTbaUfEb'
 
 
 # Quick-start development settings - unsuitable for production
@@ -90,8 +92,8 @@ EMAIL_BACKEND =  "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587 
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = "praveen.codeedex@gmail.com "
-EMAIL_HOST_PASSWORD = "fbmq ueku gkav mygc"
+EMAIL_HOST_USER = "keyroutebus@gmail.com"
+EMAIL_HOST_PASSWORD = "glfe sqzv rlcc yyiz"
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -149,12 +151,12 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
 
 
@@ -183,19 +185,19 @@ DATABASES = {
 
 
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.mysql',
-#         'NAME': 'keyroute_db',  
-#         'USER': 'keyroute',
-#         'PASSWORD': 'admin123',
-#         'HOST': 'keyroute-db.cp86aus24g28.ap-south-1.rds.amazonaws.com',
-#         'PORT': '3306',
-#         'OPTIONS': {
-#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
-#         },
-#     }
-# }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'keyroute_db',  
+        'USER': 'keyroute',
+        'PASSWORD': 'admin123',
+        'HOST': 'keyroute-db.cp86aus24g28.ap-south-1.rds.amazonaws.com',
+        'PORT': '3306',
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
+        },
+    }
+}
 
 # }
 # DATABASES['default']['CONN_MAX_AGE'] = 600  # Keep connections alive for 10 minutes
