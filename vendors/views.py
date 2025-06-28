@@ -4412,18 +4412,35 @@ class VendorBookedDaysView(APIView):
         if not vendor:
             return Response({"error": "Vendor not found for the current user."}, status=status.HTTP_404_NOT_FOUND)
 
-        bookings = BusBooking.objects.filter(
-            bus__vendor=vendor
+        bus_bookings = BusBooking.objects.filter(
+            bus__vendor=vendor,
+            trip_status='ongoing'
+        ).exclude(booking_status='cancelled')
+
+        package_bookings = PackageBooking.objects.filter(
+            package__vendor=vendor,
+            trip_status='ongoing'
         ).exclude(booking_status='cancelled')
 
         booked_dates = set()
 
-        for booking in bookings:
+        for booking in bus_bookings:
             if booking.start_date and booking.end_date:
                 current_date = booking.start_date
                 while current_date <= booking.end_date:
                     booked_dates.add(current_date.isoformat())
                     current_date += timedelta(days=1)
+            elif booking.start_date:
+                booked_dates.add(booking.start_date.isoformat())
+
+        for booking in package_bookings:
+            if booking.start_date and hasattr(booking, 'end_date') and booking.end_date:
+                current_date = booking.start_date
+                while current_date <= booking.end_date:
+                    booked_dates.add(current_date.isoformat())
+                    current_date += timedelta(days=1)
+            elif booking.start_date:
+                booked_dates.add(booking.start_date.isoformat())
 
         return Response(
             {"booked_dates": sorted(booked_dates)},
