@@ -1122,7 +1122,7 @@ class ListPackageSerializer(serializers.ModelSerializer):
         return night_count
     
     def get_days_count(self, obj):
-        return obj.day_plans.filter(night=False).count()
+        return obj.day_plans.count()
 
     def get_travels_name(self, obj):
         return obj.vendor.travels_name
@@ -1238,7 +1238,7 @@ class ListingUserPackageSerializer(serializers.ModelSerializer):
         return obj.vendor.travels_name
 
     def get_days_count(self, obj):
-        return obj.day_plans.filter(night=False).count()
+        return obj.day_plans.count()
     
     def get_night(self, obj):
         night_count = obj.day_plans.filter(night=True).count()
@@ -1683,7 +1683,7 @@ class PackageSerializer(serializers.ModelSerializer):
         return night_count
     
     def get_days_count(self, obj):
-        return obj.day_plans.filter(night=False).count()
+        return obj.day_plans.count()
 
     def get_travels_name(self, obj):
         return obj.vendor.travels_name
