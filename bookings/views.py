@@ -2301,37 +2301,48 @@ class VerifyPaymentAPIView(APIView):
             try:
                 razorpay_client.utility.verify_payment_signature(params_dict)
                 signature_verified = True
-            except:
+            except Exception as e:
+                print(f"Signature verification failed: {e}")  # Add logging for debugging
                 signature_verified = False
             
+            # Get transaction first
+            transaction = get_object_or_404(
+                PaymentTransaction, 
+                razorpay_order_id=razorpay_order_id,
+                user=request.user
+            )
+            
             if signature_verified:
-                # Get transaction
-                transaction = get_object_or_404(
-                    PaymentTransaction, 
-                    razorpay_order_id=razorpay_order_id,
-                    user=request.user
-                )
-                
+                # Update transaction
                 transaction.razorpay_payment_id = razorpay_payment_id
                 transaction.razorpay_signature = razorpay_signature
                 transaction.status = 'success'
                 transaction.save()
                 
-                # Update booking payment
+                # Update booking payment - Fixed logic
+                booking = None
+                booking_serializer_class = None
+                
                 if transaction.booking:
                     booking = transaction.booking
                     booking_serializer_class = BusBookingSerializer
                 elif transaction.package_booking:
                     booking = transaction.package_booking
                     booking_serializer_class = PackageBookingSerializer
+                else:
+                    return Response({
+                        'success': False,
+                        'error': 'No booking associated with this transaction'
+                    }, status=status.HTTP_400_BAD_REQUEST)
                 
+                # Update booking details
                 booking.paid_amount += transaction.amount
                 booking.razorpay_order_id = razorpay_order_id
                 booking.razorpay_payment_id = razorpay_payment_id
                 booking.razorpay_signature = razorpay_signature
                 booking.save()  # This will auto-update payment_status
                 
-                booking_serializer = booking_serializer_class(booking)
+                booking_serializer = booking_serializer_class(booking, context={'request': request})
                 
                 return Response({
                     'success': True,
@@ -2341,11 +2352,6 @@ class VerifyPaymentAPIView(APIView):
                 }, status=status.HTTP_200_OK)
             else:
                 # Mark transaction as failed
-                transaction = get_object_or_404(
-                    PaymentTransaction, 
-                    razorpay_order_id=razorpay_order_id,
-                    user=request.user
-                )
                 transaction.status = 'failed'
                 transaction.save()
                 
@@ -2360,6 +2366,7 @@ class VerifyPaymentAPIView(APIView):
                 'error': 'Transaction not found'
             }, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
+            print(f"Error in payment verification: {e}")
             return Response({
                 'success': False, 
                 'error': str(e)
