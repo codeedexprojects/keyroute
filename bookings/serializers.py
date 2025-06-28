@@ -1105,11 +1105,12 @@ class ListPackageSerializer(serializers.ModelSerializer):
     is_favorite = serializers.SerializerMethodField()
     travels_name = serializers.SerializerMethodField()
     night = serializers.SerializerMethodField()
+    days_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Package
         fields = [
-            'id',
+            'id','days_count',
             'header_image','package_images','places', 'days',
             'price_per_person',
             'average_rating', 'total_reviews', 'buses_location_data','is_favorite','travels_name',
@@ -1119,6 +1120,9 @@ class ListPackageSerializer(serializers.ModelSerializer):
     def get_night(self, obj):
         night_count = obj.day_plans.filter(night=True).count()
         return night_count
+    
+    def get_days_count(self, obj):
+        return obj.day_plans.filter(night=False).count()
 
     def get_travels_name(self, obj):
         return obj.vendor.travels_name
@@ -1219,11 +1223,12 @@ class ListingUserPackageSerializer(serializers.ModelSerializer):
     average_rating = serializers.SerializerMethodField()
     total_reviews = serializers.SerializerMethodField()
     night = serializers.SerializerMethodField()
+    days_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
         fields = [
-            'id','package_images','vendor_name', 'sub_category_name', 'header_image', 'places', 'days', 'night',
+            'id','package_images','days_count','vendor_name', 'sub_category_name', 'header_image', 'places', 'days', 'night',
             'ac_available', 'guide_included', 'buses', 'bus_location', 'price_per_person',
             'extra_charge_per_km', 'status', 'average_rating', 'total_reviews',
             'day_plans', 'created_at', 'updated_at', 'travels_name', 'is_favorite'
@@ -1231,6 +1236,9 @@ class ListingUserPackageSerializer(serializers.ModelSerializer):
 
     def get_travels_name(self, obj):
         return obj.vendor.travels_name
+
+    def get_days_count(self, obj):
+        return obj.day_plans.filter(night=False).count()
     
     def get_night(self, obj):
         night_count = obj.day_plans.filter(night=True).count()
@@ -1657,17 +1665,26 @@ class PackageSerializer(serializers.ModelSerializer):
     average_rating = serializers.ReadOnlyField()
     total_reviews = serializers.ReadOnlyField()
     price_per_person = serializers.SerializerMethodField()
+    night = serializers.SerializerMethodField()
+    days_count = serializers.SerializerMethodField()
     package_images = PackageImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = Package
         fields = [
             'id',
-            'sub_category', 'header_image', 'places', 'days',
+            'sub_category','night','days_count','header_image', 'places', 'days',
             'ac_available', 'guide_included', 'buses', 
             'day_plans','day_plans_read','average_rating', 'total_reviews','price_per_person','is_favorite','travels_name','travels_location','package_images'
         ]
     
+    def get_night(self, obj):
+        night_count = obj.day_plans.filter(night=True).count()
+        return night_count
+    
+    def get_days_count(self, obj):
+        return obj.day_plans.filter(night=False).count()
+
     def get_travels_name(self, obj):
         return obj.vendor.travels_name
     
