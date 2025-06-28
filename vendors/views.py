@@ -1899,7 +1899,7 @@ class VendorBankDetailView(APIView):
 
         if VendorBankDetail.objects.filter(vendor=vendor).exists():
             return Response(
-                {"message": "Bank details already exist for this vendor."},
+                {"error": "Bank details already exist for this vendor."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -1945,7 +1945,7 @@ class VendorBankDetailView(APIView):
                     status=status.HTTP_201_CREATED
                 )
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
     
     def get(self, request):
         try:
@@ -1957,7 +1957,7 @@ class VendorBankDetailView(APIView):
             }, status=status.HTTP_200_OK)
         except VendorBankDetail.DoesNotExist:
             return Response({
-                "message": "Bank details not found"
+                "error": "Bank details not found"
             }, status=status.HTTP_404_NOT_FOUND)
 
     def patch(self, request):
@@ -2007,7 +2007,7 @@ class VendorBankDetailView(APIView):
                     status=status.HTTP_200_OK
                 )
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
