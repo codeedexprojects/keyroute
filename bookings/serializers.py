@@ -236,6 +236,22 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
         """Check if this is the user's first booking"""
         return not BusBooking.objects.filter(user=user).exists()
 
+    def calculate_first_time_discount(self, total_amount, is_first_booking):
+        """
+        Calculate first-time user discount:
+        - 10% discount if total > ₹20,000, capped at ₹1,000
+        - Only for first-time users
+        """
+        if not is_first_booking:
+            return Decimal('0.00')
+        
+        if total_amount > Decimal('20000'):
+            discount = total_amount * Decimal('0.10')  # 10% discount
+            # Cap the discount at ₹1,000
+            return min(discount, Decimal('1000'))
+        
+        return Decimal('0.00')
+
     def create(self, validated_data):
         import logging
         logger = logging.getLogger(__name__)
@@ -302,7 +318,7 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
         })
 
         # Use comprehensive price calculation from the mixin
-        total_amount = self.calculate_comprehensive_trip_price(
+        original_amount = self.calculate_comprehensive_trip_price(
             bus=bus,
             from_lat=bus_search.from_lat,
             from_lon=bus_search.from_lon,
@@ -313,15 +329,18 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
             stops_data=stops_data if stops_data else None
         )
 
-        # Check if this is user's first booking and apply 10% discount
+        # Check if this is user's first booking and calculate discount
         is_first_booking = self.is_first_user_booking(user)
-        discount_amount = Decimal('0.00')
-        original_amount = total_amount
+        first_time_discount = self.calculate_first_time_discount(original_amount, is_first_booking)
         
-        if is_first_booking:
-            discount_amount = total_amount * Decimal('0.10')  # 10% discount
-            total_amount = total_amount - discount_amount
-            logger.info(f"First booking discount applied: ₹{discount_amount}. New total: ₹{total_amount}")
+        # Apply discount
+        total_amount = original_amount - first_time_discount
+        
+        logger.info(f"=== DISCOUNT CALCULATION ===")
+        logger.info(f"Original Amount: ₹{original_amount}")
+        logger.info(f"Is First Booking: {is_first_booking}")
+        logger.info(f"First Time Discount: ₹{first_time_discount}")
+        logger.info(f"Final Amount: ₹{total_amount}")
 
         # Calculate trip metrics for database storage
         total_distance_km = self.calculate_total_distance_with_stops(
@@ -349,7 +368,7 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
         logger.info(f"Nights: {nights}")
         logger.info(f"Night Allowance: ₹{night_allowance_total}")
         logger.info(f"Original Amount: ₹{original_amount}")
-        logger.info(f"Discount Applied: ₹{discount_amount}")
+        logger.info(f"First Time Discount: ₹{first_time_discount}")
         logger.info(f"Final Amount: ₹{total_amount}")
         logger.info(f"First Booking: {is_first_booking}")
 
@@ -426,7 +445,16 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
                 logger.info(f"Created optimized stop {i+1}: {stop_data['location_name']} - "
                         f"Distance from previous: {distance_from_previous} km")
 
-        # Create admin commission record with original revenue
+        # Get referral reward amount for commission calculation
+        referral_reward_amount = Decimal('0.00')
+        try:
+            referral_config = ReferAndEarn.objects.first()
+            if referral_config:
+                referral_reward_amount = referral_config.price
+        except:
+            logger.warning("No referral config found, using default amount ₹0")
+
+        # Create admin commission record with original revenue and discount tracking
         AdminCommission.objects.create(
             booking_type='bus',
             booking_id=booking.booking_id,
@@ -434,7 +462,9 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
             commission_percentage=commission_percent,
             revenue_to_admin=revenue,
             original_revenue=revenue,
-            referral_deduction=Decimal('0.00')
+            referral_deduction=Decimal('0.00'),  # Will be updated when referral is processed
+            first_time_discount=first_time_discount,
+            referral_amount=referral_reward_amount
         )
 
         # Process referral rewards ONLY for first booking
@@ -450,20 +480,13 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
                     ).first()
 
                     if referrer:
-                        try:
-                            # Get referral reward amount
-                            referral_config = ReferAndEarn.objects.first()
-                            reward_amount = referral_config.price
-                        except:
-                            logger.error("No referral config found, using default amount")
-
                         # Create referral reward transaction (will be credited only after trip completion)
                         ReferralRewardTransaction.objects.create(
                             referrer=referrer,
                             referred_user=user,
                             booking_type='bus',
                             booking_id=booking.booking_id,
-                            reward_amount=reward_amount,
+                            reward_amount=referral_reward_amount,
                             status='pending'
                         )
                         
@@ -629,6 +652,22 @@ class PackageBookingSerializer(BaseBookingSerializer):
         
         return not (has_bus_booking or has_package_booking)
 
+    def calculate_first_time_discount(self, total_amount, is_first_booking):
+        """
+        Calculate first-time user discount:
+        - 10% discount if total > ₹20,000, capped at ₹1,000
+        - Only for first-time users
+        """
+        if not is_first_booking:
+            return Decimal('0.00')
+        
+        if total_amount > Decimal('20000'):
+            discount = total_amount * Decimal('0.10')  # 10% discount
+            # Cap the discount at ₹1,000
+            return min(discount, Decimal('1000'))
+        
+        return Decimal('0.00')
+
     def create(self, validated_data):
         import logging
         logger = logging.getLogger(__name__)
@@ -642,16 +681,21 @@ class PackageBookingSerializer(BaseBookingSerializer):
         
         user = self.context['request'].user
         
-        # Calculate total amount based on package price and travelers
-        calculated_total_amount = package.buses.first().capacity * package.price_per_person
+        # Calculate original total amount based on package price and travelers
+        original_amount = package.buses.first().capacity * package.price_per_person
         
-        # Check if this is user's first booking and apply 10% discount
+        # Check if this is user's first booking and calculate discount
         is_first_booking = self.is_first_user_booking(user)
-        discount_amount = Decimal('0.00')
-        if is_first_booking:
-            discount_amount = calculated_total_amount * Decimal('0.10')  # 10% discount
-            calculated_total_amount = calculated_total_amount - discount_amount
-            logger.info(f"First booking discount applied: ₹{discount_amount}. New total: ₹{calculated_total_amount}")
+        first_time_discount = self.calculate_first_time_discount(original_amount, is_first_booking)
+        
+        # Apply discount
+        calculated_total_amount = original_amount - first_time_discount
+        
+        logger.info(f"=== PACKAGE DISCOUNT CALCULATION ===")
+        logger.info(f"Original Amount: ₹{original_amount}")
+        logger.info(f"Is First Booking: {is_first_booking}")
+        logger.info(f"First Time Discount: ₹{first_time_discount}")
+        logger.info(f"Final Amount: ₹{calculated_total_amount}")
         
         validated_data['total_amount'] = calculated_total_amount
 
@@ -681,7 +725,6 @@ class PackageBookingSerializer(BaseBookingSerializer):
         validated_data['rooms'] = rooms_required
 
         # Calculate commission (using original amount before discount)
-        original_amount = calculated_total_amount + discount_amount if is_first_booking else calculated_total_amount
         commission_percent, revenue = get_admin_commission_from_db(original_amount)
         
         logger.info(f"=== PACKAGE BOOKING CALCULATION ===")
@@ -689,23 +732,24 @@ class PackageBookingSerializer(BaseBookingSerializer):
         logger.info(f"Total Travelers: {total_travelers}")
         logger.info(f"Rooms Required: {rooms_required}")
         logger.info(f"Original Amount: ₹{original_amount}")
-        logger.info(f"Discount Applied: ₹{discount_amount}")
+        logger.info(f"First Time Discount: ₹{first_time_discount}")
         logger.info(f"Final Amount: ₹{calculated_total_amount}")
         logger.info(f"First Booking: {is_first_booking}")
-        logger.info(f"Paid Amount: ₹{validated_data['paid_amount']}")
+        logger.info(f"Advance Amount: ₹{validated_data['advance_amount']}")
 
         # Create the booking with all calculated values
         booking = super().create(validated_data)
 
-        # Get referral reward amount
+        # Get referral reward amount for commission calculation
+        referral_reward_amount = Decimal('0.00')
         try:
             referral_config = ReferAndEarn.objects.first()
-            reward_amount = referral_config.price if referral_config else Decimal('0.00')
+            if referral_config:
+                referral_reward_amount = referral_config.price
         except:
-            reward_amount = Decimal('0.00')
-            logger.error("No referral config found")
+            logger.warning("No referral config found, using default amount ₹0")
 
-        # Create admin commission record (with original revenue)
+        # Create admin commission record with original revenue and discount tracking
         AdminCommission.objects.create(
             booking_type='package',
             booking_id=booking.booking_id,
@@ -713,7 +757,9 @@ class PackageBookingSerializer(BaseBookingSerializer):
             commission_percentage=commission_percent,
             revenue_to_admin=revenue,
             original_revenue=revenue,
-            referral_deduction=Decimal('0.00')
+            referral_deduction=Decimal('0.00'),  # Will be updated when referral is processed
+            first_time_discount=first_time_discount,
+            referral_amount=referral_reward_amount
         )
 
         # Process referral rewards ONLY for first booking
@@ -734,7 +780,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
                                 referred_user=user,
                                 booking_type='package',
                                 booking_id=booking.booking_id,
-                                reward_amount=reward_amount,
+                                reward_amount=referral_reward_amount,
                                 status='pending'
                             )
                             # Mark referral as used only when creating the transaction
