@@ -370,12 +370,10 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
                         f"the minimum advance amount (₹{min_advance_amount})."
                     )
                 validated_data['advance_amount'] = min_advance_amount
-                validated_data['paid_amount'] = partial_amount
             except (ValueError, TypeError):
                 raise serializers.ValidationError("Invalid partial amount format.")
         else:
             validated_data['advance_amount'] = min_advance_amount
-            validated_data['paid_amount'] = min_advance_amount
 
         # Calculate admin commission using original amount (before discount)
         commission_percent, revenue = get_admin_commission_from_db(original_amount)
@@ -673,12 +671,10 @@ class PackageBookingSerializer(BaseBookingSerializer):
                         f"Partial amount (₹{partial_amount}) must be >= minimum advance amount (₹{min_advance_amount})."
                     )
                 validated_data['advance_amount'] = min_advance_amount
-                validated_data['paid_amount'] = partial_amount
             except (ValueError, TypeError):
                 raise serializers.ValidationError("Invalid partial amount format.")
         else:
             validated_data['advance_amount'] = min_advance_amount
-            validated_data['paid_amount'] = min_advance_amount
 
         # Calculate rooms required
         rooms_required = (total_travelers + 2) // 3  # Ceiling of total_travelers / 3
@@ -1122,7 +1118,7 @@ class ListPackageSerializer(serializers.ModelSerializer):
         return night_count
     
     def get_days_count(self, obj):
-        return obj.day_plans.count()
+        return obj.day_plans.filter(night=False).count()
 
     def get_travels_name(self, obj):
         return obj.vendor.travels_name
@@ -1238,7 +1234,7 @@ class ListingUserPackageSerializer(serializers.ModelSerializer):
         return obj.vendor.travels_name
 
     def get_days_count(self, obj):
-        return obj.day_plans.count()
+        return obj.day_plans.filter(night=False).count()
     
     def get_night(self, obj):
         night_count = obj.day_plans.filter(night=True).count()
@@ -1683,7 +1679,7 @@ class PackageSerializer(serializers.ModelSerializer):
         return night_count
     
     def get_days_count(self, obj):
-        return obj.day_plans.count()
+        return obj.day_plans.filter(night=False).count()
 
     def get_travels_name(self, obj):
         return obj.vendor.travels_name
