@@ -932,7 +932,7 @@ class PackageReadSerializer(serializers.ModelSerializer):
         return obj.day_plans.filter(night=True).count()
     
     def get_days_count(self, obj):
-        return obj.day_plans.count()
+        return obj.day_plans.filter(night=False).count()
 
     def get_category(self, obj):
         return obj.sub_category.category.name
