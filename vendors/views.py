@@ -4115,7 +4115,7 @@ class PreAcceptPackageBookingDetailView(APIView):
 
             if package_booking:
                 night_count = package_booking.package.day_plans.filter(night=True).count()
-                total_days = package_booking.package.days + night_count
+                total_days = package_booking.package.day_plans.filter(night=False).count() + night_count
                 end_date = package_booking.start_date + timedelta(days=total_days)
                 data = {
                     "booking_type": "package",
@@ -4175,9 +4175,8 @@ class BookingDetailByIdView(APIView):
                     "male": bus_booking.male,
                     "female": bus_booking.female,
                     "children": bus_booking.children,
-
+                    "end_date":bus_booking.end_date,
                     "passenger": traveler_data,
-
                     "total_fare": bus_booking.total_amount,
                     "paid_amount": bus_booking.paid_amount,
                     "balance_amount": bus_booking.balance_amount,
@@ -4197,11 +4196,16 @@ class BookingDetailByIdView(APIView):
                     "id_proof": traveler.id_proof.url if traveler and traveler.id_proof else None,
                 }
 
+                night_count = package_booking.package.day_plans.filter(night=True).count()
+                total_days = package_booking.package.day_plans.filter(night=False).count() + night_count
+                end_date = package_booking.start_date + timedelta(days=total_days - 1)
+
                 data = {
                     "booking_type": "package",
                     "from_location": package_booking.from_location,
                     "to_location": package_booking.to_location,
                     "start_date": package_booking.start_date,
+                    "end_date":end_date,
                     "way": getattr(package_booking, 'way', 'round-trip'),
                     "total_travelers": package_booking.total_travelers,
                     "male": package_booking.male,
