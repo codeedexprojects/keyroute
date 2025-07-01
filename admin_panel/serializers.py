@@ -92,6 +92,7 @@ class VendorFullSerializer(serializers.ModelSerializer):
             'user_id',
             'email_address',
             'full_name',
+            'phone_no',
             'travels_name',
             'location',
             'landmark',
