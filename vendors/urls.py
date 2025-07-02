@@ -2,6 +2,7 @@ from django.urls import path
 from .views import *
 from bookings.views import CompleteTripAPIView,VendorPackageBookingAPI,VendorBusBookingByStatusAPI,VendorPackageBookingByStatusAPI,BookingFilterByDate
 from reviews.views import VendorAllReviewsView
+from users.views import UpdateDistrictAPIView
 urlpatterns = [
    path('api/vendor/signup/', VendorSignupAPIView.as_view(), name='vendor_signup'),
    path('api/vendor/verify-signup-otp/', VerifySignupOtpAPIView.as_view(), name='verify_signup_otp'),
@@ -213,5 +214,7 @@ urlpatterns = [
     path('api/vendor/verify-rc/', VehicleRCVerificationView.as_view(), name='verify-rc'),
 
     path('api/vendor/booked-days/', VendorBookedDaysView.as_view(), name='vendor-booked-days'),
+
+    path('api/vendor/update-district/', UpdateDistrictAPIView.as_view(), name='update-district'),
 
 ]
