@@ -75,6 +75,7 @@ class VendorBusyDateSerializer(serializers.ModelSerializer):
 
 class VendorFullSerializer(serializers.ModelSerializer):
     user_id = serializers.IntegerField(source='user.id')
+    phone = serializers.CharField(source='user.mobile')
     buses = BusSerializer(source='bus_set', many=True, read_only=True)
     packages = PackageSerializer(source='package_set', many=True, read_only=True)
     # busy_dates = VendorBusyDateSerializer(source='busy_dates', many=True, read_only=True)
@@ -92,6 +93,7 @@ class VendorFullSerializer(serializers.ModelSerializer):
             'user_id',
             'email_address',
             'full_name',
+            'phone',
             'travels_name',
             'location',
             'landmark',

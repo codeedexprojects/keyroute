@@ -1303,6 +1303,8 @@ class CreatePackageAndDayPlanAPIView(APIView):
 
 
 
+def str_to_bool(value):
+    return str(value).lower() in ['true', '1', 'yes']
 class EditDayPlanAPIView(APIView):
     parser_classes = [MultiPartParser, JSONParser]
     authentication_classes = [JWTAuthentication]
@@ -1318,6 +1320,11 @@ class EditDayPlanAPIView(APIView):
             files = request.FILES
 
             day_plan.description = data.get("description", day_plan.description)
+
+            night_value = data.get("night_option")
+            if night_value is not None:
+                day_plan.night = str_to_bool(night_value)
+
             day_plan.save()
 
             # ----------------- PLACE -----------------
