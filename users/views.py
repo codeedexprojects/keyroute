@@ -848,3 +848,82 @@ class UpdateDistrictAPIView(APIView):
                 'city': user.city
             }
         }, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+class RegisterFCMTokenView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        fcm_token = request.data.get('fcm_token')
+        
+        if not fcm_token:
+            return Response(
+                {
+                    "success": False,
+                    "message": "FCM token is required"
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Get or create user profile
+            profile, created = User.objects.get_or_create(user=request.user)
+            profile.fcm_token = fcm_token
+            profile.save()
+            
+            return Response(
+                {
+                    "success": True,
+                    "message": "FCM token registered successfully",
+                    "created": created
+                },
+                status=status.HTTP_200_OK
+            )
+            
+        except Exception as e:
+            return Response(
+                {
+                    "success": False,
+                    "message": f"Error registering FCM token: {str(e)}"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def delete(self, request):
+        """
+        Remove FCM token for the authenticated user (useful for logout)
+        """
+        try:
+            profile = User.objects.get(user=request.user)
+            profile.fcm_token = None
+            profile.save()
+            
+            return Response(
+                {
+                    "success": True,
+                    "message": "FCM token removed successfully"
+                },
+                status=status.HTTP_200_OK
+            )
+            
+        except User.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": "User profile not found"
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {
+                    "success": False,
+                    "message": f"Error removing FCM token: {str(e)}"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

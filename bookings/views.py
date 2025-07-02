@@ -443,7 +443,9 @@ class PackageBookingListCreateAPIView(APIView):
             package_name = booking.package.places if hasattr(booking.package, 'places') else "Tour package"
             send_notification(
                 user=request.user,
-                message=f"Your booking for {package_name} has been successfully created! Booking ID: {booking.booking_id}"
+                message=f"Your booking for {package_name} has been successfully created! Booking ID: {booking.booking_id}",
+                title="Package Booked",
+                data={"message_id": booking.booking_id, "type": "booking"}
             )
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
