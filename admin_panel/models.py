@@ -85,7 +85,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     referral_code = models.CharField(max_length=7, unique=True, null=True, blank=True)
     
     firebase_uid = models.CharField(max_length=128, unique=True, null=True, blank=True)
-
+    fcm_token = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(default=timezone.now)
     city = models.CharField(max_length=255, null=True, blank=True)
 
