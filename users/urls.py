@@ -4,7 +4,8 @@ from .views import (UserLogoutView, UserProfileAPIView,  AuthenticationView,
                     GetWalletView,OngoingReferralsView,ReferralHistoryView,
                     SightDetailView,ExperienceView,ExperienceDetailView,RemoveFavouriteAPIView,SeasonTimeDetailView,
                     SeasonTimeView,SightView,GreetingAPIView,ResendOTPView,
-                    SimilarExperienceView,LimitedDealListAPIView,GetLocationAPIView,FirebaseGoogleAuthView,DeleteUserAccountView,UpdateDistrictAPIView)
+                    SimilarExperienceView,LimitedDealListAPIView,GetLocationAPIView,FirebaseGoogleAuthView,DeleteUserAccountView,UpdateDistrictAPIView,
+                    RegisterFCMTokenView)
 
 urlpatterns = [
     path('auth/', AuthenticationView.as_view(), name='authentication'),
@@ -50,4 +51,6 @@ urlpatterns = [
     path('delete-account/', DeleteUserAccountView.as_view(), name='delete-user-account'),
 
     path('update-district/', UpdateDistrictAPIView.as_view(), name='update-district'),
+
+    path('register-fcm-token/', RegisterFCMTokenView.as_view(), name='register-fcm-token'),
 ]

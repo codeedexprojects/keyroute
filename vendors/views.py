@@ -4122,7 +4122,7 @@ class PreAcceptPackageBookingDetailView(APIView):
 
             if package_booking:
                 night_count = package_booking.package.day_plans.filter(night=True).count()
-                total_days = package_booking.package.day_plans.filter(night=False).count() + night_count
+                total_days = package_booking.package.count() + night_count
                 end_date = package_booking.start_date + timedelta(days=total_days)
                 data = {
                     "booking_type": "package",
@@ -4204,7 +4204,7 @@ class BookingDetailByIdView(APIView):
                 }
 
                 night_count = package_booking.package.day_plans.filter(night=True).count()
-                total_days = package_booking.package.day_plans.filter(night=False).count() + night_count
+                total_days = package_booking.package.count() + night_count
                 end_date = package_booking.start_date + timedelta(days=total_days - 1)
 
                 data = {
