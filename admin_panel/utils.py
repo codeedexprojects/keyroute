@@ -8,6 +8,8 @@ import re
 
 API_KEY = "4657d099-5270-11f0-a562-0200cd936042"
 TEMPLATE_NAME = "Keyroute OTP Verification"
+SENDER_ID = "KROUTE"  # Your approved sender ID
+
 def is_valid_email(value):
     return re.match(r"[^@]+@[^@]+\.[^@]+", value)
 
@@ -16,7 +18,20 @@ def generate_otp():
 
 def send_otp(mobile, username="User"):
     otp = generate_otp()
-    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{mobile}/{username}/{otp}/{TEMPLATE_NAME}"
+
+    # Ensure mobile number includes country code
+    if not mobile.startswith("91"):
+        mobile = "91" + mobile
+
+    # Construct the full API URL with sender ID
+    url = (
+        f"https://2factor.in/API/V1/{API_KEY}/SMS/"
+        f"{mobile}/{username}/{otp}/{TEMPLATE_NAME}"
+        f"?sender={SENDER_ID}"
+    )
+
+    print(f"[DEBUG] Request URL: {url}")  # Optional logging
+
     response = requests.get(url)
 
     try:
