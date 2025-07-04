@@ -4496,7 +4496,6 @@ class VendorWalletView(APIView):
                 transaction_list.append({
                     'id': txn.id,
                     'type': txn.transaction_type,
-                    'mode': txn.transaction_mode,
                     'amount': float(txn.amount),
                     'description': txn.description,
                     'reference_id': txn.reference_id,
@@ -4662,15 +4661,12 @@ class VendorTransactionsView(APIView):
 
             # Get query parameters for filtering
             transaction_type = request.query_params.get('type', None)
-            transaction_mode = request.query_params.get('mode', None)
 
             # Get wallet transactions
             transactions = VendorWalletTransaction.objects.filter(wallet=wallet)
             
             if transaction_type:
                 transactions = transactions.filter(transaction_type=transaction_type)
-            if transaction_mode:
-                transactions = transactions.filter(transaction_mode=transaction_mode)
             
             transactions = transactions.order_by('-created_at')
 
@@ -4679,7 +4675,6 @@ class VendorTransactionsView(APIView):
                 transaction_list.append({
                     'id': txn.id,
                     'type': txn.transaction_type,
-                    'mode': txn.transaction_mode,
                     'amount': float(txn.amount),
                     'description': txn.description,
                     'reference_id': txn.reference_id,
@@ -4687,22 +4682,11 @@ class VendorTransactionsView(APIView):
                     'date': txn.created_at.strftime('%Y-%m-%d %H:%M:%S')
                 })
 
-            # Calculate summary statistics
-            total_credits = transactions.filter(transaction_mode='credit').aggregate(
-                total=Sum('amount'))['total'] or 0
-            total_debits = transactions.filter(transaction_mode='debit').aggregate(
-                total=Sum('amount'))['total'] or 0
-
             return Response({
                 "transactions": transaction_list,
                 "total_count": len(transaction_list),
                 "current_balance": float(wallet.balance),
-                "available_balance": float(wallet.available_balance),
-                "summary": {
-                    "total_credits": float(total_credits),
-                    "total_debits": float(total_debits),
-                    "net_balance": float(total_credits - total_debits)
-                }
+                "available_balance": float(wallet.available_balance)
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
