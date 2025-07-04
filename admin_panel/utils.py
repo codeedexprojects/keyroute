@@ -2,7 +2,6 @@ import requests
 import string
 import random
 import re
-import urllib.parse
 
 
 
