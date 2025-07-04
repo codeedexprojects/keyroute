@@ -8,50 +8,17 @@ import urllib.parse
 
 
 API_KEY = "4657d099-5270-11f0-a562-0200cd936042"
-TEMPLATE_NAME = "Keyroute OTP Verification"
-SENDER_ID = "KROUTE"  # Your approved sender ID
 
 def is_valid_email(value):
     return re.match(r"[^@]+@[^@]+\.[^@]+", value)
 
-def generate_otp():
-    return str(random.randint(100000, 999999))
-
 def send_otp(mobile):
-    otp = generate_otp()
-
-    # Ensure mobile number includes country code
-    if not mobile.startswith("91"):
-        mobile = "91" + mobile
-
-    encoded_template = urllib.parse.quote(TEMPLATE_NAME)
-
-    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{mobile}/{otp}/{encoded_template}"
-
-    print("[DEBUG] Sending OTP using URL:", url)
-
+    """
+    Sends OTP to the given mobile number using 2Factor API.
+    """
+    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{mobile}/AUTOGEN"
     response = requests.get(url)
-
-    try:
-        data = response.json()
-    except ValueError:
-        return {
-            "status": "failed",
-            "response_text": response.text
-        }
-
-    if response.status_code == 200 and data.get("Status") == "Success":
-        return {
-            "status": "success",
-            "otp": otp,
-            "response": data
-        }
-    else:
-        return {
-            "status": "failed",
-            "reason": data.get("Details") or data.get("error"),
-            "response": data
-        }
+    return response.json()
 
 
 
