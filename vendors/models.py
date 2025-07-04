@@ -365,7 +365,6 @@ class VendorWallet(models.Model):
                 wallet=self,
                 transaction_type=transaction_type,
                 amount=amount,
-                transaction_mode='credit',
                 reference_id=reference_id,
                 description=description,
                 balance_after=self.balance
@@ -385,7 +384,6 @@ class VendorWallet(models.Model):
                 wallet=self,
                 transaction_type=transaction_type,
                 amount=amount,
-                transaction_mode='debit',
                 reference_id=reference_id,
                 description=description,
                 balance_after=self.balance
@@ -404,28 +402,23 @@ class VendorWallet(models.Model):
 
 class VendorWalletTransaction(models.Model):
     TRANSACTION_TYPES = [
-        ('trip_completion', 'Trip Completion'),
-        ('payout_processed', 'Payout Processed'),
-        ('refund', 'Refund'),
-        ('adjustment', 'Manual Adjustment'),
-    ]
-    
-    TRANSACTION_MODES = [
-        ('credit', 'Credit'),
-        ('debit', 'Debit'),
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('completed', 'Completed'),
+
     ]
 
     wallet = models.ForeignKey(VendorWallet, on_delete=models.CASCADE, related_name='transactions')
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
-    transaction_mode = models.CharField(max_length=10, choices=TRANSACTION_MODES)
     amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
-    reference_id = models.CharField(max_length=100, blank=True, null=True)  # booking_id, payout_id, etc.
+    reference_id = models.CharField(max_length=100, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     balance_after = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
-        return f"{self.wallet.vendor.full_name} - {self.transaction_mode} ₹{self.amount}"
+        return f"{self.wallet.vendor.full_name} - ₹{self.amount}"
 
     class Meta:
         verbose_name = "Vendor Wallet Transaction"
