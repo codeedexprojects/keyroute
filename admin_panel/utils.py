@@ -7,52 +7,17 @@ import re
 
 
 API_KEY = "4657d099-5270-11f0-a562-0200cd936042"
-TEMPLATE_NAME = "Keyroute OTP Verification"  # Must match your DLT template exactly
 
 def is_valid_email(value):
     return re.match(r"[^@]+@[^@]+\.[^@]+", value)
 
-def generate_otp():
-    return str(random.randint(100000, 999999))
-
 def send_otp(mobile):
-    otp = generate_otp()
-
-    # Ensure country code is included
-    if not mobile.startswith("91"):
-        mobile = "91" + mobile
-
-    # Use the template-based SMS API
-    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{mobile}/{otp}/{TEMPLATE_NAME}"
-
-    # Recommended headers
-    headers = {
-        "User-Agent": "axios/0.27.2",
-        "Accept": "application/json, text/plain, */*"
-    }
-
-    response = requests.get(url, headers=headers)
-
-    try:
-        data = response.json()
-    except ValueError:
-        return {
-            "status": "failed",
-            "raw_response": response.text
-        }
-
-    if response.status_code == 200 and data.get("Status") == "Success":
-        return {
-            "status": "success",
-            "otp": otp,
-            "response": data
-        }
-    else:
-        return {
-            "status": "failed",
-            "reason": data.get("Details") or data.get("error"),
-            "response": data
-        }
+    """
+    Sends OTP to the given mobile number using 2Factor API.
+    """
+    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{mobile}/AUTOGEN"
+    response = requests.get(url)
+    return response.json()
 
 
 def verify_otp(mobile, otp):
