@@ -6,6 +6,8 @@ from datetime import timedelta
 from django.utils import timezone
 import random
 from admin_panel.models import *
+from django.db import transaction
+
 
 class OTP(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -338,6 +340,99 @@ class SignupOTP(models.Model):
 
 
 
+
+class VendorWallet(models.Model):
+    vendor = models.OneToOneField(Vendor, on_delete=models.CASCADE, related_name='wallet')
+    balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.vendor.full_name} - Balance: ₹{self.balance}"
+
+    class Meta:
+        verbose_name = "Vendor Wallet"
+        verbose_name_plural = "Vendor Wallets"
+
+    def credit(self, amount, transaction_type, reference_id=None, description=None):
+        """Credit amount to wallet"""
+        with transaction.atomic():
+            self.balance += amount
+            self.save()
+            
+            # Create transaction record
+            VendorWalletTransaction.objects.create(
+                wallet=self,
+                transaction_type=transaction_type,
+                amount=amount,
+                transaction_mode='credit',
+                reference_id=reference_id,
+                description=description,
+                balance_after=self.balance
+            )
+
+    def debit(self, amount, transaction_type, reference_id=None, description=None):
+        """Debit amount from wallet"""
+        if self.balance < amount:
+            raise ValueError("Insufficient wallet balance")
+        
+        with transaction.atomic():
+            self.balance -= amount
+            self.save()
+            
+            # Create transaction record
+            VendorWalletTransaction.objects.create(
+                wallet=self,
+                transaction_type=transaction_type,
+                amount=amount,
+                transaction_mode='debit',
+                reference_id=reference_id,
+                description=description,
+                balance_after=self.balance
+            )
+
+    @property
+    def available_balance(self):
+        """Calculate available balance (current balance - pending payouts)"""
+        pending_payouts = PayoutRequest.objects.filter(
+            vendor=self.vendor,
+            status__in=['pending', 'approved']
+        ).aggregate(total=models.Sum('request_amount'))['total'] or 0
+        
+        return self.balance - pending_payouts
+
+
+class VendorWalletTransaction(models.Model):
+    TRANSACTION_TYPES = [
+        ('trip_completion', 'Trip Completion'),
+        ('payout_processed', 'Payout Processed'),
+        ('refund', 'Refund'),
+        ('adjustment', 'Manual Adjustment'),
+    ]
+    
+    TRANSACTION_MODES = [
+        ('credit', 'Credit'),
+        ('debit', 'Debit'),
+    ]
+
+    wallet = models.ForeignKey(VendorWallet, on_delete=models.CASCADE, related_name='transactions')
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    transaction_mode = models.CharField(max_length=10, choices=TRANSACTION_MODES)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    reference_id = models.CharField(max_length=100, blank=True, null=True)  # booking_id, payout_id, etc.
+    description = models.TextField(blank=True, null=True)
+    balance_after = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"{self.wallet.vendor.full_name} - {self.transaction_mode} ₹{self.amount}"
+
+    class Meta:
+        verbose_name = "Vendor Wallet Transaction"
+        verbose_name_plural = "Vendor Wallet Transactions"
+        ordering = ['-created_at']
+
+
 class PayoutRequest(models.Model):
     PAYOUT_STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -347,7 +442,7 @@ class PayoutRequest(models.Model):
     ]
 
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='payout_requests')
-    bank_details = models.ForeignKey(VendorBankDetail, on_delete=models.CASCADE)
+    bank_detail = models.ForeignKey(VendorBankDetail, on_delete=models.CASCADE, related_name='payout_requests')
     request_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
     remarks = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=PAYOUT_STATUS_CHOICES, default='pending')
