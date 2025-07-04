@@ -10,7 +10,7 @@ TEMPLATE_ID ="Keyroute OTP Verification"
 def is_valid_email(value):
     return re.match(r"[^@]+@[^@]+\.[^@]+", value)
 
-def send_otp(mobile, name):
+def send_otp(mobile, name="User"):
     """
     Sends OTP to the given mobile number using a custom SMS template on 2Factor.
     """
