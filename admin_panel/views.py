@@ -2431,7 +2431,7 @@ class AdminPayoutRequestView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    def put(self, request, payout_id):
+    def patch(self, request, payout_id):
         """Update payout request status (approve/reject/process)"""
         if request.user.role != 'admin':
             return Response({"error": "Access denied. Admin only."}, status=status.HTTP_403_FORBIDDEN)
