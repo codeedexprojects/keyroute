@@ -151,12 +151,12 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
 
 
 
@@ -185,19 +185,19 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'keyroute_db',  
-        'USER': 'keyroute',
-        'PASSWORD': 'admin123',
-        'HOST': 'keyroute-db.cp86aus24g28.ap-south-1.rds.amazonaws.com',
-        'PORT': '3306',
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
-        },
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': 'keyroute_db',  
+#         'USER': 'keyroute',
+#         'PASSWORD': 'admin123',
+#         'HOST': 'keyroute-db.cp86aus24g28.ap-south-1.rds.amazonaws.com',
+#         'PORT': '3306',
+#         'OPTIONS': {
+#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
+#         },
+#     }
+# }
 
 # }
 # DATABASES['default']['CONN_MAX_AGE'] = 600  # Keep connections alive for 10 minutes
@@ -284,4 +284,4 @@ RAZORPAY_KEY_ID = 'rzp_test_GG0WUzE2ULN0el'
 RAZORPAY_KEY_SECRET = 'GN1rZHDi4IlAYOOdZTbaUfEb'
 
 
-FIREBASE_SERVER_KEY = 'BD3AfQV-3O8zHTDbdPPZUT59SVSvhdbjEBERKUnKyBp4RrZs166DO6ROUqcJKueji6WQ5nwxvJQfy4peqND7Fog'
+FIREBASE_PROJECT_ID = "BD3AfQV-3O8zHTDbdPPZUT59SVSvhdbjEBERKUnKyBp4RrZs166DO6ROUqcJKueji6WQ5nwxvJQfy4peqND7Fog"

@@ -201,4 +201,8 @@ urlpatterns = [
     path('api/admin/rewards/', ReferralRewardListView.as_view(), name='reward-list'),
     path('api/admin/rewards/<int:id>/', ReferralRewardDetailView.as_view(), name='reward-detail'),
 
+
+    path('api/admin/payout-requests/', AdminPayoutRequestView.as_view(), name='admin-payout-requests'),
+    path('api/admin/payout-requests/<int:payout_id>/', AdminPayoutRequestView.as_view(), name='admin-payout-request-detail'),
+
 ] 

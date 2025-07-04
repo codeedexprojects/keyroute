@@ -217,4 +217,7 @@ urlpatterns = [
 
     path('api/vendor/update-district/', UpdateDistrictAPIView.as_view(), name='update-district'),
 
+    path('api/vendor/wallet/', VendorWalletView.as_view(), name='vendor-wallet'),
+    path('api/vendor/payout-request/', PayoutRequestView.as_view(), name='vendor-payout-request'),
+    
 ]

@@ -565,9 +565,10 @@ class BusBookingListCreateAPIView(APIView):
                     stops_info = f" with stops at {', '.join(stop_names)}"
                 
                 send_notification(
-                    user=user,
-                    message=f"Your bus booking for {bus_name} {route_info}{stops_info} has been confirmed! "
-                           f"Booking ID: {booking.booking_id}"
+                    user=request.user,
+                    message=f"Your booking for has been successfully created! Booking ID: {booking.booking_id}",
+                    title="Package Booked",
+                    data={"message_id": booking.booking_id, "type": "booking"}
                 )
                 
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
