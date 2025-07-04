@@ -10,17 +10,21 @@ TEMPLATE_NAME = "Keyroute OTP Verification"  # exact match, case-sensitive
 def is_valid_email(value):
     return re.match(r"[^@]+@[^@]+\.[^@]+", value)
 
-def send_otp(mobile, username, otp):
-    """
-    Sends OTP using 2Factor with approved template and variables.
-    """
-    # URL encode the template name (space to %20)
+def generate_otp():
+    """Generate a 6-digit numeric OTP"""
+    return str(random.randint(100000, 999999))
+
+def send_otp(mobile, username="User", otp=None):
+    """Send OTP to mobile using 2Factor's DLT template-based SMS"""
+    if otp is None:
+        otp = generate_otp()
+
+    # Template name must be URL-encoded (space becomes %20)
     encoded_template = TEMPLATE_NAME.replace(" ", "%20")
     url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{mobile}/AUTOGEN/{encoded_template}/{username}/{otp}"
 
     response = requests.get(url)
 
-    # For debugging and error tracking
     try:
         return response.json()
     except Exception:
