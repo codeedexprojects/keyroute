@@ -15,14 +15,15 @@ def send_otp(mobile, name="User"):
     """
     Sends OTP via SMS using DLT registered template with 2Factor API.
     """
-    # Your DLT registered template
-    template = "Dear #VAR1#, your OTP for verification on KEYROUTE EXPEDO PVT LTD is #VAR2# Do not share this with anyone. It is valid for 5 minutes. Visit keyrouteexpedo.com for more info."
+    # Your DLT approved template (Template ID: 1207175136913023304)
+    template = "Dear {#var#}, your OTP for verification on KEYROUTE EXPEDO PVT LTD is {#var#}. Do not share this with anyone. It is valid for 5 minutes. Visit keyrouteexpedo.com for more info."
     
-    # Use SMS specific endpoint
-    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{mobile}/AUTOGEN/OTP1"
+    # Use the template ID from your DLT registration
+    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{mobile}/AUTOGEN"
     params = {
-        'template': template,
-        'VAR1': name
+        'template_id': '1207175136913023304',
+        'var1': name,
+        # var2 will be auto-filled with OTP by 2Factor
     }
     
     response = requests.get(url, params=params)
