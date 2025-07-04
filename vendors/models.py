@@ -1,7 +1,7 @@
 from django.db import models
 from django.core.validators import FileExtensionValidator
 from django.db.models import Avg
-# Create your models here.
+from django.core.validators import MinValueValidator
 from datetime import timedelta
 from django.utils import timezone
 import random
@@ -314,7 +314,7 @@ class VendorBusyDate(models.Model):
 
 
 class SignupOTP(models.Model):
-    identifier = models.CharField(max_length=100)  # email or mobile
+    identifier = models.CharField(max_length=100)
     otp_code = models.CharField(max_length=6)
     signup_data = models.JSONField()  # Store the entire signup data
     otp_type = models.CharField(max_length=10, choices=[('mobile', 'Mobile'), ('email', 'Email')])
@@ -331,3 +331,37 @@ class SignupOTP(models.Model):
     
     class Meta:
         db_table = 'signup_otp'
+
+
+
+
+
+
+
+class PayoutRequest(models.Model):
+    PAYOUT_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('processed', 'Processed'),
+    ]
+
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='payout_requests')
+    bank_details = models.ForeignKey(VendorBankDetail, on_delete=models.CASCADE)
+    request_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    remarks = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=PAYOUT_STATUS_CHOICES, default='pending')
+    admin_remarks = models.TextField(blank=True, null=True)
+    processed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='processed_payouts')
+    transaction_id = models.CharField(max_length=100, blank=True, null=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Payout Request #{self.id} - {self.vendor.full_name} - ₹{self.request_amount}"
+
+    class Meta:
+        verbose_name = "Payout Request"
+        verbose_name_plural = "Payout Requests"
+        ordering = ['-created_at']
