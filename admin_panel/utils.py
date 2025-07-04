@@ -12,29 +12,34 @@ def is_valid_email(value):
     return re.match(r"[^@]+@[^@]+\.[^@]+", value)
 
 def generate_otp():
-    """Generate a 6-digit numeric OTP."""
     return str(random.randint(100000, 999999))
 
-def send_otp(mobile):
-    """
-    Sends OTP via SMS using 2Factor API and DLT-approved template.
-    """
+def send_otp(mobile, username="User"):
     otp = generate_otp()
-    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{mobile}/{otp}/{TEMPLATE_NAME}"
+    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{mobile}/{username}/{otp}/{TEMPLATE_NAME}"
     response = requests.get(url)
-    
-    # Optional: log or handle response for delivery status
-    if response.status_code == 200:
+
+    try:
+        data = response.json()
+    except ValueError:
+        return {
+            "status": "failed",
+            "reason": "Invalid response",
+            "response_text": response.text
+        }
+
+    if response.status_code == 200 and data.get("Status") == "Success":
         return {
             "status": "success",
             "otp": otp,
-            "response": response.json()
+            "response": data
         }
     else:
         return {
             "status": "failed",
-            "otp": otp,
-            "response": response.json()
+            "reason": data.get("Details") or data.get("error"),
+            "http_status": response.status_code,
+            "response": data
         }
 
 
