@@ -29,3 +29,7 @@ admin.site.register(VendorNotification)
 admin.site.register(BusTravelImage)
 admin.site.register(PackageImage)
 admin.site.register(VendorBusyDate)
+
+admin.site.register(VendorWalletTransaction)
+admin.site.register(PayoutRequest)
+admin.site.register(VendorWallet)
