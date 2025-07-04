@@ -1303,6 +1303,8 @@ class CreatePackageAndDayPlanAPIView(APIView):
 
 
 
+def str_to_bool(value):
+    return str(value).lower() in ['true', '1', 'yes']
 class EditDayPlanAPIView(APIView):
     parser_classes = [MultiPartParser, JSONParser]
     authentication_classes = [JWTAuthentication]
@@ -1318,6 +1320,11 @@ class EditDayPlanAPIView(APIView):
             files = request.FILES
 
             day_plan.description = data.get("description", day_plan.description)
+
+            night_value = data.get("night_option")
+            if night_value is not None:
+                day_plan.night = str_to_bool(night_value)
+
             day_plan.save()
 
             # ----------------- PLACE -----------------
@@ -4753,3 +4760,71 @@ class VendorTransactionsView(APIView):
                 {"error": f"An error occurred: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
+
+
+
+
+
+
+
+class VendorTransactionsView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            vendor = Vendor.objects.filter(user=request.user).first()
+            if not vendor:
+                return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            # Get query parameters for filtering
+            status_filter = request.query_params.get('status', None)
+
+            transactions = []
+
+            # Get Bus Bookings
+            bus_bookings = BusBooking.objects.filter(bus__vendor=vendor)
+            if status_filter:
+                bus_bookings = bus_bookings.filter(trip_status=status_filter)
+            
+            for booking in bus_bookings:
+                transactions.append({
+                    'id': booking.booking_id,
+                    'type': 'Bus',
+                    'amount': float(booking.total_amount),
+                    'status': booking.trip_status,
+                    'date': booking.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'payment_status': booking.payment_status
+                })
+
+            # Get Package Bookings
+            package_bookings = PackageBooking.objects.filter(package__vendor=vendor)
+            if status_filter:
+                package_bookings = package_bookings.filter(trip_status=status_filter)
+            
+            for booking in package_bookings:
+                transactions.append({
+                    'id': booking.booking_id,
+                    'type': 'Package',
+                    'amount': float(booking.total_amount),
+                    'status': booking.trip_status,
+                    'date': booking.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'payment_status': booking.payment_status
+                })
+
+            # Sort all transactions by date (most recent first)
+            transactions.sort(key=lambda x: x['date'], reverse=True)
+
+            return Response({
+                "transactions": transactions,
+                "total_count": len(transactions),
+                "filter_applied": status_filter if status_filter else "all"
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": f"An error occurred: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
