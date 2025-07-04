@@ -2367,3 +2367,120 @@ class ReferralRewardDetailView(APIView):
 
         serializer = ReferralRewardDetailSerializer(reward)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+
+
+class AdminPayoutRequestView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get all payout requests for admin"""
+        # Check if user is admin
+        if request.user.role != 'admin':
+            return Response({"error": "Access denied. Admin only."}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            status_filter = request.query_params.get('status', None)
+            payout_requests = PayoutRequest.objects.all()
+            
+            if status_filter:
+                payout_requests = payout_requests.filter(status=status_filter)
+            
+            payout_requests = payout_requests.order_by('-created_at')
+            
+            payout_list = []
+            for payout in payout_requests:
+                payout_list.append({
+                    'id': payout.id,
+                    'vendor_name': payout.vendor.full_name,
+                    'vendor_travels': payout.vendor.travels_name,
+                    'request_amount': float(payout.request_amount),
+                    'status': payout.status,
+                    'remarks': payout.remarks,
+                    'admin_remarks': payout.admin_remarks,
+                    'transaction_id': payout.transaction_id,
+                    'requested_at': payout.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'processed_at': payout.processed_at.strftime('%Y-%m-%d %H:%M:%S') if payout.processed_at else None,
+                    'bank_details': {
+                        'account_holder_name': payout.bank_details.account_holder_name,
+                        'account_number': payout.bank_details.account_number,
+                        'ifsc_code': payout.bank_details.ifsc_code,
+                        'bank_name': payout.bank_details.bank_name,
+                        'branch_name': payout.bank_details.branch_name
+                    }
+                })
+
+            return Response({
+                "payout_requests": payout_list,
+                "total_requests": len(payout_list)
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": f"An error occurred: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def put(self, request, payout_id):
+        """Update payout request status (approve/reject/process)"""
+        # Check if user is admin
+        if request.user.role != 'admin':
+            return Response({"error": "Access denied. Admin only."}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            payout_request = PayoutRequest.objects.get(id=payout_id)
+            
+            new_status = request.data.get('status')
+            admin_remarks = request.data.get('admin_remarks', '')
+            transaction_id = request.data.get('transaction_id', '')
+
+            if new_status not in ['approved', 'rejected', 'processed']:
+                return Response(
+                    {"error": "Invalid status. Must be 'approved', 'rejected', or 'processed'."}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Update payout request
+            payout_request.status = new_status
+            payout_request.admin_remarks = admin_remarks
+            payout_request.processed_by = request.user
+            
+            if new_status == 'processed':
+                payout_request.transaction_id = transaction_id
+                payout_request.processed_at = timezone.now()
+
+            payout_request.save()
+
+            return Response({
+                "message": f"Payout request {new_status} successfully.",
+                "payout_request": {
+                    'id': payout_request.id,
+                    'vendor_name': payout_request.vendor.full_name,
+                    'request_amount': float(payout_request.request_amount),
+                    'status': payout_request.status,
+                    'admin_remarks': payout_request.admin_remarks,
+                    'transaction_id': payout_request.transaction_id,
+                    'processed_at': payout_request.processed_at.strftime('%Y-%m-%d %H:%M:%S') if payout_request.processed_at else None
+                }
+            }, status=status.HTTP_200_OK)
+
+        except PayoutRequest.DoesNotExist:
+            return Response(
+                {"error": "Payout request not found."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"An error occurred: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
