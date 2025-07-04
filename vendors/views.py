@@ -4773,53 +4773,60 @@ class VendorTransactionsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        """Get all payout request transactions for vendor"""
         try:
             vendor = Vendor.objects.filter(user=request.user).first()
             if not vendor:
                 return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
             # Get query parameters for filtering
-            status_filter = request.query_params.get('status', None)
+            status_filter = request.query_params.get('status', None)  # 'pending', 'approved', 'rejected', 'processed'
+
+            # Get Payout Requests
+            payout_requests = PayoutRequest.objects.filter(vendor=vendor)
+            if status_filter:
+                payout_requests = payout_requests.filter(status=status_filter)
+            
+            payout_requests = payout_requests.order_by('-created_at')
 
             transactions = []
-
-            # Get Bus Bookings
-            bus_bookings = BusBooking.objects.filter(bus__vendor=vendor)
-            if status_filter:
-                bus_bookings = bus_bookings.filter(trip_status=status_filter)
-            
-            for booking in bus_bookings:
+            for payout in payout_requests:
                 transactions.append({
-                    'id': booking.booking_id,
-                    'type': 'Bus',
-                    'amount': float(booking.total_amount),
-                    'status': booking.trip_status,
-                    'date': booking.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                    'payment_status': booking.payment_status
+                    'id': payout.id,
+                    'type': 'Payout Request',
+                    'amount': float(payout.request_amount),
+                    'status': payout.status,
+                    'date': payout.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'remarks': payout.remarks,
+                    'admin_remarks': payout.admin_remarks,
+                    'transaction_id': payout.transaction_id,
+                    'processed_at': payout.processed_at.strftime('%Y-%m-%d %H:%M:%S') if payout.processed_at else None,
+                    'bank_details': {
+                        'account_holder_name': payout.bank_details.account_holder_name,
+                        'account_number': payout.bank_details.account_number[-4:].rjust(len(payout.bank_details.account_number), '*'),  # Mask account number
+                        'bank_name': payout.bank_details.bank_name,
+                        'ifsc_code': payout.bank_details.ifsc_code
+                    }
                 })
 
-            # Get Package Bookings
-            package_bookings = PackageBooking.objects.filter(package__vendor=vendor)
-            if status_filter:
-                package_bookings = package_bookings.filter(trip_status=status_filter)
-            
-            for booking in package_bookings:
-                transactions.append({
-                    'id': booking.booking_id,
-                    'type': 'Package',
-                    'amount': float(booking.total_amount),
-                    'status': booking.trip_status,
-                    'date': booking.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                    'payment_status': booking.payment_status
-                })
-
-            # Sort all transactions by date (most recent first)
-            transactions.sort(key=lambda x: x['date'], reverse=True)
+            # Calculate summary statistics
+            total_requested = sum(float(payout.request_amount) for payout in payout_requests)
+            pending_count = payout_requests.filter(status='pending').count()
+            approved_count = payout_requests.filter(status='approved').count()
+            processed_count = payout_requests.filter(status='processed').count()
+            rejected_count = payout_requests.filter(status='rejected').count()
 
             return Response({
                 "transactions": transactions,
                 "total_count": len(transactions),
-                "filter_applied": status_filter if status_filter else "all"
+                "filter_applied": status_filter if status_filter else "all",
+                "summary": {
+                    "total_amount_requested": total_requested,
+                    "pending_requests": pending_count,
+                    "approved_requests": approved_count,
+                    "processed_requests": processed_count,
+                    "rejected_requests": rejected_count
+                }
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
@@ -4827,4 +4834,3 @@ class VendorTransactionsView(APIView):
                 {"error": f"An error occurred: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
