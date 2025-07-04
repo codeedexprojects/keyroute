@@ -2385,7 +2385,6 @@ class AdminPayoutRequestView(APIView):
 
     def get(self, request):
         """Get all payout requests for admin"""
-        # Check if user is admin
         if request.user.role != 'admin':
             return Response({"error": "Access denied. Admin only."}, status=status.HTTP_403_FORBIDDEN)
 
@@ -2411,12 +2410,13 @@ class AdminPayoutRequestView(APIView):
                     'transaction_id': payout.transaction_id,
                     'requested_at': payout.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                     'processed_at': payout.processed_at.strftime('%Y-%m-%d %H:%M:%S') if payout.processed_at else None,
-                    'bank_details': {
-                        'account_holder_name': payout.bank_details.account_holder_name,
-                        'account_number': payout.bank_details.account_number,
-                        'ifsc_code': payout.bank_details.ifsc_code,
-                        'bank_name': payout.bank_details.bank_name,
-                        'branch_name': payout.bank_details.branch_name
+                    'bank_detail': {
+                        'holder_name': payout.bank_detail.holder_name,
+                        'account_number': payout.bank_detail.account_number,
+                        'ifsc_code': payout.bank_detail.ifsc_code,
+                        'payout_mode': payout.bank_detail.payout_mode,
+                        'phone_number': payout.bank_detail.phone_number,
+                        'email_id': payout.bank_detail.email_id
                     }
                 })
 
@@ -2433,7 +2433,6 @@ class AdminPayoutRequestView(APIView):
 
     def put(self, request, payout_id):
         """Update payout request status (approve/reject/process)"""
-        # Check if user is admin
         if request.user.role != 'admin':
             return Response({"error": "Access denied. Admin only."}, status=status.HTTP_403_FORBIDDEN)
 
@@ -2449,6 +2448,25 @@ class AdminPayoutRequestView(APIView):
                     {"error": "Invalid status. Must be 'approved', 'rejected', or 'processed'."}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
+
+            # Handle wallet debit when payout is processed
+            if new_status == 'processed' and payout_request.status != 'processed':
+                # Get vendor wallet
+                wallet, created = VendorWallet.objects.get_or_create(vendor=payout_request.vendor)
+                
+                # Debit amount from wallet
+                try:
+                    wallet.debit(
+                        amount=payout_request.request_amount,
+                        transaction_type='payout_processed',
+                        reference_id=str(payout_request.id),
+                        description=f"Payout processed - Request #{payout_request.id}"
+                    )
+                except ValueError as e:
+                    return Response(
+                        {"error": str(e)}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
 
             # Update payout request
             payout_request.status = new_status

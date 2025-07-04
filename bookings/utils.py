@@ -2,6 +2,7 @@ from datetime import datetime, time, timedelta
 from django.db.models import Q
 from vendors.models import *
 from bookings.models import *
+from users.models import *
 
 def is_bus_busy(bus, start_date, end_date=None, start_time=None, end_time=None):
     """
@@ -431,3 +432,173 @@ class BusPriceCalculatorMixin:
             user_search.to_lat, user_search.to_lon, 
             start_date, end_date, stops_data
         )
+    
+
+
+
+
+
+
+
+
+
+# Updated utils functions to handle admin commission deduction
+
+def get_vendor_payout_amount(booking):
+    """Calculate vendor payout amount (total amount - admin commission)"""
+    try:
+        # Determine booking type
+        if isinstance(booking, BusBooking):
+            booking_type = 'bus'
+        elif isinstance(booking, PackageBooking):
+            booking_type = 'package'
+        else:
+            return booking.total_amount
+        
+        # Get admin commission
+        try:
+            admin_commission = AdminCommission.objects.get(
+                booking_type=booking_type,
+                booking_id=booking.booking_id
+            )
+            commission_amount = admin_commission.revenue_to_admin
+        except AdminCommission.DoesNotExist:
+            commission_amount = Decimal('0.00')
+        
+        # Calculate vendor payout (total amount - admin commission)
+        vendor_payout = booking.total_amount - commission_amount
+        return vendor_payout
+        
+    except Exception as e:
+        print(f"Error calculating vendor payout: {str(e)}")
+        return booking.total_amount
+
+
+# Updated helper function to credit wallet when trips are completed
+def credit_wallet_on_trip_completion(vendor, amount, booking_id, trip_type='bus'):
+    """Credit vendor wallet when trip is completed"""
+    try:
+        wallet, created = VendorWallet.objects.get_or_create(vendor=vendor)
+        
+        description = f"{trip_type.title()} trip completed - Booking #{booking_id}"
+        
+        wallet.credit(
+            amount=amount,
+            transaction_type='trip_completion',
+            reference_id=booking_id,
+            description=description
+        )
+        
+        return True
+    except Exception as e:
+        print(f"Error crediting wallet: {str(e)}")
+        return False
+
+
+# Updated function to handle bus trip completion
+def handle_bus_trip_completion(booking):
+    """Handle bus trip completion and credit wallet with amount after admin commission"""
+    try:
+        # Update trip status to completed
+        booking.trip_status = 'completed'
+        booking.save()
+        
+        # Calculate vendor payout (total amount - admin commission)
+        vendor_payout = get_vendor_payout_amount(booking)
+        
+        # Credit vendor wallet
+        if booking.bus and booking.bus.vendor:
+            success = credit_wallet_on_trip_completion(
+                vendor=booking.bus.vendor,
+                amount=vendor_payout,
+                booking_id=booking.booking_id,
+                trip_type='bus'
+            )
+            
+            # Process referral rewards if any
+            process_referral_rewards_on_completion(booking, 'bus')
+            
+            return success
+        
+        return False
+        
+    except Exception as e:
+        print(f"Error in handle_bus_trip_completion: {str(e)}")
+        return False
+
+
+# Updated function to handle package trip completion
+def handle_package_trip_completion(booking):
+    """Handle package trip completion and credit wallet with amount after admin commission"""
+    try:
+        # Update trip status to completed
+        booking.trip_status = 'completed'
+        booking.save()
+        
+        # Calculate vendor payout (total amount - admin commission)
+        vendor_payout = get_vendor_payout_amount(booking)
+        
+        # Credit vendor wallet
+        if booking.package and hasattr(booking.package, 'vendor') and booking.package.vendor:
+            success = credit_wallet_on_trip_completion(
+                vendor=booking.package.vendor,
+                amount=vendor_payout,
+                booking_id=booking.booking_id,
+                trip_type='package'
+            )
+            
+            # Process referral rewards if any
+            process_referral_rewards_on_completion(booking, 'package')
+            
+            return success
+        
+        return False
+        
+    except Exception as e:
+        print(f"Error in handle_package_trip_completion: {str(e)}")
+        return False
+
+
+def process_referral_rewards_on_completion(booking, booking_type):
+    """Process referral rewards when trip is completed"""
+    try:
+        # Find pending referral rewards for this booking
+        referral_transactions = ReferralRewardTransaction.objects.filter(
+            booking_type=booking_type,
+            booking_id=booking.booking_id,
+            status='pending'
+        )
+        
+        for transaction in referral_transactions:
+            try:
+                # Credit referrer's wallet
+                referrer_wallet, created = Wallet.objects.get_or_create(user=transaction.referrer)
+                referrer_wallet.credit(
+                    amount=transaction.reward_amount,
+                    transaction_type='referral_reward',
+                    reference_id=booking.booking_id,
+                    description=f"Referral reward for {booking_type} booking #{booking.booking_id}"
+                )
+                
+                # Update transaction status
+                transaction.status = 'credited'
+                transaction.credited_at = timezone.now()
+                transaction.save()
+                
+                # Update admin commission to reflect referral deduction
+                try:
+                    admin_commission = AdminCommission.objects.get(
+                        booking_type=booking_type,
+                        booking_id=booking.booking_id
+                    )
+                    admin_commission.referral_deduction = transaction.reward_amount
+                    admin_commission.revenue_to_admin = admin_commission.original_revenue - transaction.reward_amount
+                    admin_commission.save()
+                except AdminCommission.DoesNotExist:
+                    pass
+                
+            except Exception as e:
+                print(f"Error processing referral reward for transaction {transaction.id}: {str(e)}")
+                
+    except Exception as e:
+        print(f"Error processing referral rewards: {str(e)}")
