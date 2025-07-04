@@ -25,7 +25,7 @@ from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from notifications.utils import send_notification
 from .models import BusBookingStop,UserBusSearchStop
-from .utils import BusPriceCalculatorMixin
+from .utils import BusPriceCalculatorMixin,credit_wallet_on_trip_completion,handle_bus_trip_completion,handle_package_trip_completion
 
 
 User = get_user_model()
@@ -2189,7 +2189,7 @@ class PayoutHistorySerializer(serializers.ModelSerializer):
 
 
 
-class  TripStatusUpdateSerializer(serializers.Serializer):
+class TripStatusUpdateSerializer(serializers.Serializer):
     booking_type = serializers.ChoiceField(choices=['bus', 'package'])
     booking_id = serializers.IntegerField()
     
@@ -2223,6 +2223,16 @@ class  TripStatusUpdateSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "Booking must be accepted before trip can be completed"
             )
+        
+        if booking_type == 'bus':
+            handle_bus_trip_completion(booking)
+        elif booking_type == 'package':
+            handle_package_trip_completion(booking)
+        else:
+            raise serializers.ValidationError("Invalid booking type")
+        
+        # Credit wallet on trip completion
+        credit_wallet_on_trip_completion(booking)
         
         data['booking'] = booking
         return data

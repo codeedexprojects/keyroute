@@ -4470,6 +4470,9 @@ class VendorBookedDaysView(APIView):
 
 
 
+
+
+
 class VendorWalletView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -4480,78 +4483,38 @@ class VendorWalletView(APIView):
             if not vendor:
                 return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
-            # Calculate wallet balance from completed trips only
-            bus_revenue = BusBooking.objects.filter(
-                bus__vendor=vendor,
-                trip_status='completed'
-            ).aggregate(
-                total=Sum('total_amount'), 
-                count=Count('id')
-            )
+            # Get or create wallet
+            wallet, created = VendorWallet.objects.get_or_create(vendor=vendor)
 
-            package_revenue = PackageBooking.objects.filter(
-                package__vendor=vendor,
-                trip_status='completed'
-            ).aggregate(
-                total=Sum('total_amount'), 
-                count=Count('id')
-            )
+            # Get recent wallet transactions
+            recent_transactions = VendorWalletTransaction.objects.filter(
+                wallet=wallet
+            ).order_by('-created_at')[:10]
 
-            # Calculate total wallet balance
-            total_wallet_balance = float(bus_revenue['total'] or 0) + float(package_revenue['total'] or 0)
-            total_completed_bookings = (bus_revenue['count'] or 0) + (package_revenue['count'] or 0)
+            transaction_list = []
+            for txn in recent_transactions:
+                transaction_list.append({
+                    'id': txn.id,
+                    'type': txn.transaction_type,
+                    'mode': txn.transaction_mode,
+                    'amount': float(txn.amount),
+                    'description': txn.description,
+                    'reference_id': txn.reference_id,
+                    'balance_after': float(txn.balance_after),
+                    'date': txn.created_at.strftime('%Y-%m-%d %H:%M:%S')
+                })
 
-            # Calculate pending payout requests
+            # Calculate pending payout amount
             pending_payout_amount = PayoutRequest.objects.filter(
                 vendor=vendor,
                 status__in=['pending', 'approved']
             ).aggregate(total=Sum('request_amount'))['total'] or 0
 
-            # Calculate available balance (wallet balance - pending payouts)
-            available_balance = total_wallet_balance - float(pending_payout_amount)
-
-            # Get recent transactions (completed bookings)
-            recent_bus_bookings = BusBooking.objects.filter(
-                bus__vendor=vendor,
-                trip_status='completed'
-            ).order_by('-created_at')[:5]
-
-            recent_package_bookings = PackageBooking.objects.filter(
-                package__vendor=vendor,
-                trip_status='completed'
-            ).order_by('-created_at')[:5]
-
-            # Combine and sort recent transactions
-            recent_transactions = []
-            
-            for booking in recent_bus_bookings:
-                recent_transactions.append({
-                    'id': booking.booking_id,
-                    'type': 'bus',
-                    'amount': float(booking.total_amount),
-                    'date': booking.created_at.strftime('%Y-%m-%d'),
-                    'description': f"Bus booking from {booking.from_location} to {booking.to_location}"
-                })
-
-            for booking in recent_package_bookings:
-                recent_transactions.append({
-                    'id': booking.booking_id,
-                    'type': 'package',
-                    'amount': float(booking.total_amount),
-                    'date': booking.created_at.strftime('%Y-%m-%d'),
-                    'description': f"Package booking - {booking.package.places}"
-                })
-
-            # Sort by date (most recent first)
-            recent_transactions.sort(key=lambda x: x['date'], reverse=True)
-            recent_transactions = recent_transactions[:10]  # Limit to 10 recent transactions
-
             return Response({
-                "wallet_balance": total_wallet_balance,
-                "available_balance": available_balance,
+                "wallet_balance": float(wallet.balance),
+                "available_balance": float(wallet.available_balance),
                 "pending_payout_amount": float(pending_payout_amount),
-                "total_completed_bookings": total_completed_bookings,
-                "recent_transactions": recent_transactions
+                "recent_transactions": transaction_list
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
@@ -4571,9 +4534,18 @@ class PayoutRequestView(APIView):
             if not vendor:
                 return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
+            # Get or create wallet
+            wallet, created = VendorWallet.objects.get_or_create(vendor=vendor)
+
             # Check if vendor has bank details
             try:
-                bank_details = VendorBankDetail.objects.get(vendor=vendor)
+                bank_detail = VendorBankDetail.objects.get(vendor=vendor)
+                # Check if essential bank details are provided
+                if not bank_detail.holder_name or not bank_detail.account_number or not bank_detail.ifsc_code:
+                    return Response(
+                        {"error": "Please complete your bank details (holder name, account number, IFSC code) before requesting payout."}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
             except VendorBankDetail.DoesNotExist:
                 return Response(
                     {"error": "Please add your bank details first before requesting payout."}, 
@@ -4603,40 +4575,18 @@ class PayoutRequestView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Calculate current wallet balance
-            bus_revenue = BusBooking.objects.filter(
-                bus__vendor=vendor,
-                trip_status='completed'
-            ).aggregate(total=Sum('total_amount'))['total'] or 0
-
-            package_revenue = PackageBooking.objects.filter(
-                package__vendor=vendor,
-                trip_status='completed'
-            ).aggregate(total=Sum('total_amount'))['total'] or 0
-
-            total_wallet_balance = float(bus_revenue) + float(package_revenue)
-
-            # Calculate pending payout requests
-            pending_payout_amount = PayoutRequest.objects.filter(
-                vendor=vendor,
-                status__in=['pending', 'approved']
-            ).aggregate(total=Sum('request_amount'))['total'] or 0
-
-            # Calculate available balance
-            available_balance = total_wallet_balance - float(pending_payout_amount)
-
             # Check if request amount is available in wallet
-            if float(request_amount) > available_balance:
+            if float(request_amount) > float(wallet.available_balance):
                 return Response({
                     "error": "Insufficient wallet balance.",
-                    "available_balance": available_balance,
+                    "available_balance": float(wallet.available_balance),
                     "requested_amount": float(request_amount)
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             # Create payout request
             payout_request = PayoutRequest.objects.create(
                 vendor=vendor,
-                bank_details=bank_details,
+                bank_detail=bank_detail,
                 request_amount=request_amount,
                 remarks=remarks,
                 status='pending'
@@ -4647,7 +4597,7 @@ class PayoutRequestView(APIView):
                 "payout_request_id": payout_request.id,
                 "request_amount": float(request_amount),
                 "status": "pending",
-                "available_balance_after_request": available_balance - float(request_amount)
+                "available_balance_after_request": float(wallet.available_balance) - float(request_amount)
             }, status=status.HTTP_201_CREATED)
 
         except Exception as e:
@@ -4676,10 +4626,11 @@ class PayoutRequestView(APIView):
                     'transaction_id': payout.transaction_id,
                     'requested_at': payout.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                     'processed_at': payout.processed_at.strftime('%Y-%m-%d %H:%M:%S') if payout.processed_at else None,
-                    'bank_details': {
-                        'account_holder_name': payout.bank_details.account_holder_name,
-                        'account_number': payout.bank_details.account_number[-4:].rjust(len(payout.bank_details.account_number), '*'),  # Mask account number
-                        'bank_name': payout.bank_details.bank_name
+                    'bank_detail': {
+                        'holder_name': payout.bank_detail.holder_name,
+                        'account_number': payout.bank_detail.account_number[-4:].rjust(len(payout.bank_detail.account_number), '*') if payout.bank_detail.account_number else None,
+                        'ifsc_code': payout.bank_detail.ifsc_code,
+                        'payout_mode': payout.bank_detail.payout_mode
                     }
                 })
 
@@ -4693,12 +4644,6 @@ class PayoutRequestView(APIView):
                 {"error": f"An error occurred: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        
-
-
-
-
-
 
 
 class VendorTransactionsView(APIView):
@@ -4706,126 +4651,57 @@ class VendorTransactionsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        """Get all wallet transactions for vendor"""
         try:
             vendor = Vendor.objects.filter(user=request.user).first()
             if not vendor:
                 return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
-            # Get query parameters for filtering
-            status_filter = request.query_params.get('status', None)
-
-            transactions = []
-
-            # Get Bus Bookings
-            bus_bookings = BusBooking.objects.filter(bus__vendor=vendor)
-            if status_filter:
-                bus_bookings = bus_bookings.filter(trip_status=status_filter)
-            
-            for booking in bus_bookings:
-                transactions.append({
-                    'id': booking.booking_id,
-                    'type': 'Bus',
-                    'amount': float(booking.total_amount),
-                    'status': booking.trip_status,
-                    'date': booking.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                    'payment_status': booking.payment_status
-                })
-
-            # Get Package Bookings
-            package_bookings = PackageBooking.objects.filter(package__vendor=vendor)
-            if status_filter:
-                package_bookings = package_bookings.filter(trip_status=status_filter)
-            
-            for booking in package_bookings:
-                transactions.append({
-                    'id': booking.booking_id,
-                    'type': 'Package',
-                    'amount': float(booking.total_amount),
-                    'status': booking.trip_status,
-                    'date': booking.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                    'payment_status': booking.payment_status
-                })
-
-            # Sort all transactions by date (most recent first)
-            transactions.sort(key=lambda x: x['date'], reverse=True)
-
-            return Response({
-                "transactions": transactions,
-                "total_count": len(transactions),
-                "filter_applied": status_filter if status_filter else "all"
-            }, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            return Response(
-                {"error": f"An error occurred: {str(e)}"}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-        
-
-
-
-
-
-
-
-class VendorTransactionsView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        """Get all payout request transactions for vendor"""
-        try:
-            vendor = Vendor.objects.filter(user=request.user).first()
-            if not vendor:
-                return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
+            # Get or create wallet
+            wallet, created = VendorWallet.objects.get_or_create(vendor=vendor)
 
             # Get query parameters for filtering
-            status_filter = request.query_params.get('status', None)  # 'pending', 'approved', 'rejected', 'processed'
+            transaction_type = request.query_params.get('type', None)
+            transaction_mode = request.query_params.get('mode', None)
 
-            # Get Payout Requests
-            payout_requests = PayoutRequest.objects.filter(vendor=vendor)
-            if status_filter:
-                payout_requests = payout_requests.filter(status=status_filter)
+            # Get wallet transactions
+            transactions = VendorWalletTransaction.objects.filter(wallet=wallet)
             
-            payout_requests = payout_requests.order_by('-created_at')
+            if transaction_type:
+                transactions = transactions.filter(transaction_type=transaction_type)
+            if transaction_mode:
+                transactions = transactions.filter(transaction_mode=transaction_mode)
+            
+            transactions = transactions.order_by('-created_at')
 
-            transactions = []
-            for payout in payout_requests:
-                transactions.append({
-                    'id': payout.id,
-                    'type': 'Payout Request',
-                    'amount': float(payout.request_amount),
-                    'status': payout.status,
-                    'date': payout.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                    'remarks': payout.remarks,
-                    'admin_remarks': payout.admin_remarks,
-                    'transaction_id': payout.transaction_id,
-                    'processed_at': payout.processed_at.strftime('%Y-%m-%d %H:%M:%S') if payout.processed_at else None,
-                    'bank_details': {
-                        'account_holder_name': payout.bank_details.account_holder_name,
-                        'account_number': payout.bank_details.account_number[-4:].rjust(len(payout.bank_details.account_number), '*'),  # Mask account number
-                        'bank_name': payout.bank_details.bank_name,
-                        'ifsc_code': payout.bank_details.ifsc_code
-                    }
+            transaction_list = []
+            for txn in transactions:
+                transaction_list.append({
+                    'id': txn.id,
+                    'type': txn.transaction_type,
+                    'mode': txn.transaction_mode,
+                    'amount': float(txn.amount),
+                    'description': txn.description,
+                    'reference_id': txn.reference_id,
+                    'balance_after': float(txn.balance_after),
+                    'date': txn.created_at.strftime('%Y-%m-%d %H:%M:%S')
                 })
 
             # Calculate summary statistics
-            total_requested = sum(float(payout.request_amount) for payout in payout_requests)
-            pending_count = payout_requests.filter(status='pending').count()
-            approved_count = payout_requests.filter(status='approved').count()
-            processed_count = payout_requests.filter(status='processed').count()
-            rejected_count = payout_requests.filter(status='rejected').count()
+            total_credits = transactions.filter(transaction_mode='credit').aggregate(
+                total=Sum('amount'))['total'] or 0
+            total_debits = transactions.filter(transaction_mode='debit').aggregate(
+                total=Sum('amount'))['total'] or 0
 
             return Response({
-                "transactions": transactions,
-                "total_count": len(transactions),
-                "filter_applied": status_filter if status_filter else "all",
+                "transactions": transaction_list,
+                "total_count": len(transaction_list),
+                "current_balance": float(wallet.balance),
+                "available_balance": float(wallet.available_balance),
                 "summary": {
-                    "total_amount_requested": total_requested,
-                    "pending_requests": pending_count,
-                    "approved_requests": approved_count,
-                    "processed_requests": processed_count,
-                    "rejected_requests": rejected_count
+                    "total_credits": float(total_credits),
+                    "total_debits": float(total_debits),
+                    "net_balance": float(total_credits - total_debits)
                 }
             }, status=status.HTTP_200_OK)
 
