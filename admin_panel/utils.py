@@ -14,7 +14,7 @@ def send_otp(mobile, name="User"):
     from urllib.parse import quote
 
     encoded_template_name = quote("Keyroute OTP Verification")  # safer URL format
-    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{mobile}/AUTOGEN2/{encoded_template_name}/{name}"
+    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{mobile}/AUTOGEN/{encoded_template_name}/{name}"
     
     response = requests.get(url)
     print("Status:", response.status_code)
