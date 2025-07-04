@@ -5,15 +5,16 @@ import re
 
 
 API_KEY = "4657d099-5270-11f0-a562-0200cd936042"
+TEMPLATE_ID ="Keyroute OTP Verification"
 
 def is_valid_email(value):
     return re.match(r"[^@]+@[^@]+\.[^@]+", value)
 
-def send_otp(mobile):
+def send_otp(mobile, name):
     """
-    Sends OTP to the given mobile number using 2Factor API.
+    Sends OTP to the given mobile number using a custom SMS template on 2Factor.
     """
-    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{mobile}/AUTOGEN"
+    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{mobile}/AUTOGEN/{TEMPLATE_ID}/{name}"
     response = requests.get(url)
     return response.json()
 
