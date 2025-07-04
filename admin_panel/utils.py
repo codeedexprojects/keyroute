@@ -6,28 +6,18 @@ import re
 
 
 
-API_KEY = "15b274f8-8600-11ef-8b17-0200cd936042"
+API_KEY = "4657d099-5270-11f0-a562-0200cd936042"
 
 def is_valid_email(value):
     return re.match(r"[^@]+@[^@]+\.[^@]+", value)
 
-def send_otp(mobile, name="User"):
+def send_otp(mobile):
     """
-    Sends OTP via SMS using DLT registered template with 2Factor API.
+    Sends OTP to the given mobile number using 2Factor API.
     """
-    # Your DLT registered template
-    template = "Dear #VAR1#, your OTP for verification on KEYROUTE EXPEDO PVT LTD is #VAR2# Do not share this with anyone. It is valid for 5 minutes. Visit keyrouteexpedo.com for more info."
-    
-    # Use SMS specific endpoint
-    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{mobile}/AUTOGEN/OTP1"
-    params = {
-        'template': template,
-        'VAR1': name
-    }
-    
-    response = requests.get(url, params=params)
+    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{mobile}/AUTOGEN"
+    response = requests.get(url)
     return response.json()
-
 
 
 def verify_otp(mobile, otp):
