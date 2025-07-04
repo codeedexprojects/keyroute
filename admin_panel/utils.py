@@ -13,49 +13,14 @@ SENDER_ID = "KROUTE"  # Your approved sender ID
 def is_valid_email(value):
     return re.match(r"[^@]+@[^@]+\.[^@]+", value)
 
-def generate_otp():
-    return str(random.randint(100000, 999999))
-
-def send_otp(mobile, username="User"):
-    otp = generate_otp()
-
-    # Ensure mobile number includes country code
-    if not mobile.startswith("91"):
-        mobile = "91" + mobile
-
-    # Construct the full API URL with sender ID
-    url = (
-        f"https://2factor.in/API/V1/{API_KEY}/SMS/"
-        f"{mobile}/{username}/{otp}/{TEMPLATE_NAME}"
-        f"?sender={SENDER_ID}"
-    )
-
-    print(f"[DEBUG] Request URL: {url}")  # Optional logging
-
+def send_otp(mobile):
+    """
+    Sends OTP to the given mobile number using 2Factor API.
+    """
+    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{mobile}/AUTOGEN"
     response = requests.get(url)
+    return response.json()
 
-    try:
-        data = response.json()
-    except ValueError:
-        return {
-            "status": "failed",
-            "reason": "Invalid response",
-            "response_text": response.text
-        }
-
-    if response.status_code == 200 and data.get("Status") == "Success":
-        return {
-            "status": "success",
-            "otp": otp,
-            "response": data
-        }
-    else:
-        return {
-            "status": "failed",
-            "reason": data.get("Details") or data.get("error"),
-            "http_status": response.status_code,
-            "response": data
-        }
 
 
 def verify_otp(mobile, otp):
