@@ -219,5 +219,4 @@ urlpatterns = [
 
     path('api/vendor/wallet/', VendorWalletView.as_view(), name='vendor-wallet'),
     path('api/vendor/payout-request/', PayoutRequestView.as_view(), name='vendor-payout-request'),
-    path('api/vendor/transactions/', VendorTransactionsView.as_view(), name='vendor-transactions'),
 ]
