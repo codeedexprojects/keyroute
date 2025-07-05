@@ -4606,14 +4606,23 @@ class PayoutRequestView(APIView):
             )
 
     def get(self, request):
-        """Get vendor's payout request history"""
+        """Get vendor's payout request history, optionally filtered by status"""
         try:
             vendor = Vendor.objects.filter(user=request.user).first()
             if not vendor:
                 return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
 
-            payout_requests = PayoutRequest.objects.filter(vendor=vendor).order_by('-created_at')
-            
+            # Get status from query param, e.g., ?status=approved
+            status_param = request.query_params.get('status', None)
+
+            # Filter payout requests by vendor and optional status
+            payout_requests = PayoutRequest.objects.filter(vendor=vendor)
+            if status_param:
+                payout_requests = payout_requests.filter(status=status_param)
+
+            # Always order by latest created_at first
+            payout_requests = payout_requests.order_by('-created_at')
+
             payout_history = []
             for payout in payout_requests:
                 payout_history.append({
@@ -4636,57 +4645,6 @@ class PayoutRequestView(APIView):
             return Response({
                 "payout_requests": payout_history,
                 "total_requests": len(payout_history)
-            }, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            return Response(
-                {"error": f"An error occurred: {str(e)}"}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-
-class VendorTransactionsView(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        """Get all wallet transactions for vendor"""
-        try:
-            vendor = Vendor.objects.filter(user=request.user).first()
-            if not vendor:
-                return Response({"error": "Vendor not found."}, status=status.HTTP_404_NOT_FOUND)
-
-            # Get or create wallet
-            wallet, created = VendorWallet.objects.get_or_create(vendor=vendor)
-
-            # Get query parameters for filtering
-            transaction_type = request.query_params.get('type', None)
-
-            # Get wallet transactions
-            transactions = VendorWalletTransaction.objects.filter(wallet=wallet)
-            
-            if transaction_type:
-                transactions = transactions.filter(transaction_type=transaction_type)
-            
-            transactions = transactions.order_by('-created_at')
-
-            transaction_list = []
-            for txn in transactions:
-                transaction_list.append({
-                    'id': txn.id,
-                    'type': txn.transaction_type,
-                    'amount': float(txn.amount),
-                    'description': txn.description,
-                    'reference_id': txn.reference_id,
-                    'balance_after': float(txn.balance_after),
-                    'date': txn.created_at.strftime('%Y-%m-%d %H:%M:%S')
-                })
-
-            return Response({
-                "transactions": transaction_list,
-                "total_count": len(transaction_list),
-                "current_balance": float(wallet.balance),
-                "available_balance": float(wallet.available_balance)
             }, status=status.HTTP_200_OK)
 
         except Exception as e:
