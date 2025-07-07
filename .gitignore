@@ -32,7 +32,6 @@ venv
 
 keyroute/settings.py
 
-keyrouteuser-firebase-adminsdk-fbsvc-2b142f3163.json
 
 *settings.py
 
@@ -41,8 +40,6 @@ firbase/*.json
         
 
 media
-
-keyrouteuser-firebase-adminsdk-fbsvc-2b142f3163.json
 
 .env
 

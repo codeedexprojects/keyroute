@@ -267,7 +267,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if not firebase_admin._apps:
     try:
-        FIREBASE_KEY_PATH = os.path.join(BASE_DIR, 'firbase', 'keyroutproject-firebase-adminsdk-fbsvc-ea737454d9.json')
+        FIREBASE_KEY_PATH = os.path.join(BASE_DIR, 'keyroutevendor-firebase-adminsdk-fbsvc-40f50c4af4.json')
         
         if os.path.exists(FIREBASE_KEY_PATH):
             cred = credentials.Certificate(FIREBASE_KEY_PATH)
@@ -280,9 +280,9 @@ if not firebase_admin._apps:
 
 
 
+FIREBASE_SERVICE_ACCOUNT_KEY_PATH = os.path.join(BASE_DIR, 'keyroutevendor-firebase-adminsdk-fbsvc-40f50c4af4.json')
+FIREBASE_PROJECT_ID="keyroutevendor"
 
 
-FIREBASE_PROJECT_ID = "BD3AfQV-3O8zHTDbdPPZUT59SVSvhdbjEBERKUnKyBp4RrZs166DO6ROUqcJKueji6WQ5nwxvJQfy4peqND7Fog"
-FIREBASE_SERVER_KEY = 'BD3AfQV-3O8zHTDbdPPZUT59SVSvhdbjEBERKUnKyBp4RrZs166DO6ROUqcJKueji6WQ5nwxvJQfy4peqND7Fog'
 RAZORPAY_KEY_ID = 'rzp_live_xAgEAw1FD7Xhp6'
 RAZORPAY_KEY_SECRET = 'MeJwJ804gRHeBWEZozuEYWbg'

@@ -39,6 +39,10 @@ from .serializers import *
 from admin_panel.models import OTPSession
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.utils.timezone import now
+import logging
+from django.core.exceptions import ValidationError
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -879,10 +883,34 @@ class RegisterFCMTokenView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Basic validation - FCM tokens are typically long strings
+        if len(fcm_token) < 50:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Invalid FCM token format"
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         try:
+            # Check if this is actually a new token
+            old_token = request.user.fcm_token
+            if old_token == fcm_token:
+                return Response(
+                    {
+                        "success": True,
+                        "message": "FCM token is already registered"
+                    },
+                    status=status.HTTP_200_OK
+                )
+            
             # Update FCM token directly on User model
             request.user.fcm_token = fcm_token
             request.user.save(update_fields=['fcm_token'])
+            
+            # Log the token update for debugging
+            logger.info(f"FCM token updated for user {request.user.id}")
             
             return Response(
                 {
@@ -892,11 +920,21 @@ class RegisterFCMTokenView(APIView):
                 status=status.HTTP_200_OK
             )
             
-        except Exception as e:
+        except ValidationError as e:
+            logger.error(f"Validation error updating FCM token for user {request.user.id}: {str(e)}")
             return Response(
                 {
                     "success": False,
-                    "message": f"Error registering FCM token: {str(e)}"
+                    "message": "Invalid FCM token"
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f"Error updating FCM token for user {request.user.id}: {str(e)}")
+            return Response(
+                {
+                    "success": False,
+                    "message": "Error registering FCM token"
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -906,8 +944,21 @@ class RegisterFCMTokenView(APIView):
         Remove FCM token for the authenticated user (useful for logout)
         """
         try:
+            # Check if user already has no token
+            if not request.user.fcm_token:
+                return Response(
+                    {
+                        "success": True,
+                        "message": "No FCM token to remove"
+                    },
+                    status=status.HTTP_200_OK
+                )
+            
             request.user.fcm_token = None
             request.user.save(update_fields=['fcm_token'])
+            
+            # Log the token removal
+            logger.info(f"FCM token removed for user {request.user.id}")
             
             return Response(
                 {
@@ -918,10 +969,37 @@ class RegisterFCMTokenView(APIView):
             )
             
         except Exception as e:
+            logger.error(f"Error removing FCM token for user {request.user.id}: {str(e)}")
             return Response(
                 {
                     "success": False,
-                    "message": f"Error removing FCM token: {str(e)}"
+                    "message": "Error removing FCM token"
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def get(self, request):
+        """
+        Get the current FCM token status for the authenticated user
+        """
+        try:
+            has_token = bool(request.user.fcm_token)
+            
+            return Response(
+                {
+                    "success": True,
+                    "has_fcm_token": has_token,
+                    "message": "FCM token status retrieved successfully"
+                },
+                status=status.HTTP_200_OK
+            )
+            
+        except Exception as e:
+            logger.error(f"Error getting FCM token status for user {request.user.id}: {str(e)}")
+            return Response(
+                {
+                    "success": False,
+                    "message": "Error getting FCM token status"
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
