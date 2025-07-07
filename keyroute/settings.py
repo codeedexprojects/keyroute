@@ -189,9 +189,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'keyroute_db',  
-        'USER': 'admin',
+        'USER': 'keyroute',
         'PASSWORD': 'admin123',
-        'HOST': 'mysql.prodkeyrouteexpedo.com',
+        'HOST': 'keyroute-db.cp86aus24g28.ap-south-1.rds.amazonaws.com',
         'PORT': '3306',
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
