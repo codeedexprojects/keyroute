@@ -1201,11 +1201,44 @@ class PackageDriverDetailListAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 
-
 class FooterSectionListAPIView(APIView):
     def get(self, request, *args, **kwargs):
-        footer_sections = FooterSection.objects.all()
-        serializer = FooterSectionSerializer(footer_sections, many=True, context={'request': request})
+        lat = request.query_params.get('lat')
+        lon = request.query_params.get('lon')
+
+        if not lat or not lon:
+            return Response(
+                {"error": "Latitude (lat) and Longitude (lon) are required as query parameters."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user_coords = (float(lat), float(lon))
+        except ValueError:
+            return Response(
+                {"error": "Latitude and Longitude must be valid float values."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        nearby_footers = []
+        footer_sections = FooterSection.objects.select_related('package').all()
+
+        for footer in footer_sections:
+            package = footer.package
+
+            if not package:
+                continue
+
+            buses = package.buses.filter(latitude__isnull=False, longitude__isnull=False)
+
+            for bus in buses:
+                bus_coords = (bus.latitude, bus.longitude)
+                distance_km = geodesic(user_coords, bus_coords).kilometers
+                if distance_km <= 30:
+                    nearby_footers.append(footer)
+                    break 
+
+        serializer = FooterSectionSerializer(nearby_footers, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 
