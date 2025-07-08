@@ -1260,8 +1260,14 @@ class AdminBookingListView(APIView):
     authentication_classes = [JWTAuthentication]
 
     def get(self, request):
-        bus_bookings = list(BusBooking.objects.select_related('user').all())
-        package_bookings = list(PackageBooking.objects.select_related('user', 'package').all())
+        bus_bookings = list(
+            BusBooking.objects.select_related('user')
+            .exclude(trip_status='not_started')
+        )
+        package_bookings = list(
+            PackageBooking.objects.select_related('user', 'package')
+            .exclude(trip_status='not_started')
+        )
 
         combined = bus_bookings + package_bookings
         combined_sorted = sorted(combined, key=lambda x: x.created_at, reverse=True)
@@ -1629,28 +1635,33 @@ class TopVendorsAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-
     def get(self, request):
+        # Exclude not_started bookings from bus
         bus_booking_counts = (
             BusBooking.objects
+            .exclude(trip_status='not_started')
             .values('bus__vendor')
             .annotate(count=Count('id'))
         )
         bus_counts_map = {item['bus__vendor']: item['count'] for item in bus_booking_counts}
 
+        # Exclude not_started bookings from package
         package_booking_counts = (
             PackageBooking.objects
+            .exclude(trip_status='not_started')
             .values('package__vendor')
             .annotate(count=Count('id'))
         )
         package_counts_map = {item['package__vendor']: item['count'] for item in package_booking_counts}
 
+        # Merge counts from both
         total_counts = {}
         for vendor_id, count in bus_counts_map.items():
             total_counts[vendor_id] = total_counts.get(vendor_id, 0) + count
         for vendor_id, count in package_counts_map.items():
             total_counts[vendor_id] = total_counts.get(vendor_id, 0) + count
 
+        # Get vendor info
         vendors = Vendor.objects.filter(user__id__in=total_counts.keys())
 
         vendor_data = []
@@ -1727,12 +1738,19 @@ class DashboardStatsAPIView(APIView):
     def get(self, request):
         today = date.today()
 
-        total_bus_bookings = BusBooking.objects.count()
-        total_package_bookings = PackageBooking.objects.count()
+        # Exclude 'not_started' from total and today bookings
+        total_bus_bookings = BusBooking.objects.exclude(trip_status='not_started').count()
+        total_package_bookings = PackageBooking.objects.exclude(trip_status='not_started').count()
         total_bookings = total_bus_bookings + total_package_bookings
 
-        today_bus_bookings = BusBooking.objects.filter(created_at__date=today).count()
-        today_package_bookings = PackageBooking.objects.filter(created_at__date=today).count()
+        today_bus_bookings = BusBooking.objects.filter(
+            created_at__date=today
+        ).exclude(trip_status='not_started').count()
+
+        today_package_bookings = PackageBooking.objects.filter(
+            created_at__date=today
+        ).exclude(trip_status='not_started').count()
+
         today_bookings = today_bus_bookings + today_package_bookings
 
         total_vendors = Vendor.objects.count()

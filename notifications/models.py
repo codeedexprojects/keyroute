@@ -6,6 +6,7 @@ User = get_user_model()
 
 class Notification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=300,null=True,blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     message = models.TextField()
 

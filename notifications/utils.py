@@ -24,16 +24,22 @@ def send_notification(user, message, title="Notification", data=None, send_push=
         send_push: Whether to send push notification (default: True)
     """
     # Create in-app notification (existing functionality)
-    notification = Notification.objects.create(user=user, message=message)
+    notification = Notification.objects.create(user=user, message=message, title=title)
     
     # Send push notification if enabled and user has FCM token
-    if send_push and user.fcm_token:
-        send_push_notification(
+    if send_push and hasattr(user, 'fcm_token') and user.fcm_token:
+        success = send_push_notification(
             fcm_token=user.fcm_token,
             title=title,
             message=message,
             data=data
         )
+        
+        # If push notification failed due to invalid token, clear the token
+        if not success:
+            print(f"Push notification failed for user {user.id}, clearing FCM token")
+            user.fcm_token = None
+            user.save()
     
     return notification
 
@@ -65,6 +71,10 @@ def send_push_notification(fcm_token, title, message, data=None):
     Send push notification using Firebase Admin SDK (recommended)
     Falls back to HTTP v1 API if Admin SDK not available
     """
+    
+    # Convert all data values to strings
+    if data:
+        data = {k: str(v) for k, v in data.items()}
     
     # Try Firebase Admin SDK first (recommended approach)
     if FIREBASE_ADMIN_AVAILABLE and initialize_firebase():
@@ -107,6 +117,12 @@ def send_push_notification(fcm_token, title, message, data=None):
             print(f"Push notification sent successfully (Admin SDK): {response}")
             return True
             
+        except messaging.UnregisteredError:
+            print(f"FCM token is invalid or unregistered: {fcm_token}")
+            return False
+        except messaging.SenderIdMismatchError:
+            print(f"FCM token sender ID mismatch: {fcm_token}")
+            return False
         except Exception as e:
             print(f"Error sending push notification (Admin SDK): {e}")
             # Fall back to HTTP v1 API
@@ -162,6 +178,10 @@ def send_push_notification_http_v1(fcm_token, title, message, data=None):
         "Content-Type": "application/json"
     }
     
+    # Convert all data values to strings
+    if data:
+        data = {k: str(v) for k, v in data.items()}
+    
     payload = {
         "message": {
             "token": fcm_token,
@@ -201,6 +221,17 @@ def send_push_notification_http_v1(fcm_token, title, message, data=None):
         print(f"Error sending push notification (HTTP v1): {e}")
         if hasattr(e, 'response') and e.response is not None:
             print(f"Response content: {e.response.text}")
+            
+            # Check if it's an unregistered token error
+            if e.response.status_code == 404:
+                try:
+                    error_data = e.response.json()
+                    if (error_data.get('error', {}).get('status') == 'NOT_FOUND' or 
+                        'UNREGISTERED' in str(error_data)):
+                        print(f"FCM token is invalid or unregistered: {fcm_token}")
+                        return False
+                except:
+                    pass
         return False
 
 def send_bulk_push_notification(fcm_tokens, title, message, data=None):
@@ -213,6 +244,10 @@ def send_bulk_push_notification(fcm_tokens, title, message, data=None):
         message: Notification message
         data: Additional data payload (optional)
     """
+    
+    # Convert all data values to strings
+    if data:
+        data = {k: str(v) for k, v in data.items()}
     
     url = "https://fcm.googleapis.com/fcm/send"
     
@@ -258,6 +293,10 @@ def send_topic_notification(topic, title, message, data=None):
         data: Additional data payload (optional)
     """
     
+    # Convert all data values to strings
+    if data:
+        data = {k: str(v) for k, v in data.items()}
+    
     url = "https://fcm.googleapis.com/fcm/send"
     
     headers = {
@@ -290,3 +329,58 @@ def send_topic_notification(topic, title, message, data=None):
     except requests.exceptions.RequestException as e:
         print(f"Error sending topic notification: {e}")
         return None
+
+def validate_fcm_token(fcm_token):
+    """
+    Validate if an FCM token is still valid by sending a test message
+    
+    Args:
+        fcm_token: FCM registration token to validate
+    
+    Returns:
+        bool: True if token is valid, False otherwise
+    """
+    
+    if FIREBASE_ADMIN_AVAILABLE and initialize_firebase():
+        try:
+            # Create a test message (dry run)
+            msg = messaging.Message(
+                notification=messaging.Notification(
+                    title="Test",
+                    body="Test"
+                ),
+                token=fcm_token
+            )
+            
+            # Send with dry_run=True to validate without actually sending
+            response = messaging.send(msg, dry_run=True)
+            return True
+            
+        except messaging.UnregisteredError:
+            return False
+        except Exception as e:
+            print(f"Error validating FCM token: {e}")
+            return False
+    
+    return True  # Assume valid if we can't validate
+
+def cleanup_invalid_tokens():
+    """
+    Clean up invalid FCM tokens from the database
+    This function can be called periodically to maintain token hygiene
+    """
+    from django.contrib.auth import get_user_model
+    
+    User = get_user_model()
+    users_with_tokens = User.objects.filter(fcm_token__isnull=False).exclude(fcm_token='')
+    
+    invalid_count = 0
+    for user in users_with_tokens:
+        if not validate_fcm_token(user.fcm_token):
+            print(f"Clearing invalid FCM token for user {user.id}")
+            user.fcm_token = None
+            user.save()
+            invalid_count += 1
+    
+    print(f"Cleaned up {invalid_count} invalid FCM tokens")
+    return invalid_count
