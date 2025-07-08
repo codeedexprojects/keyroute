@@ -58,41 +58,57 @@ class Bus(models.Model):
         ('maintenance', 'Under Maintenance'),
     )
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE)
-    bus_name = models.CharField(max_length=255)
-    bus_number = models.CharField(max_length=20, unique=True)
-    capacity = models.IntegerField()
-    vehicle_description = models.TextField()
-    travels_logo = models.ImageField(upload_to='travels_logos/', null=True, blank=True)   
-    rc_certificate = models.FileField(upload_to='rc_certificates/')
-    license = models.FileField(upload_to='licenses/')
-    contract_carriage_permit = models.FileField(upload_to='permits/')
+
+    bus_name = models.CharField(max_length=255, null=True, blank=True)
+    bus_number = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    capacity = models.IntegerField(null=True, blank=True)
+    vehicle_description = models.TextField(null=True, blank=True)
+
+    travels_logo = models.ImageField(upload_to='travels_logos/', null=True, blank=True)
+    rc_certificate = models.FileField(upload_to='rc_certificates/', null=True, blank=True)
+    license = models.FileField(upload_to='licenses/', null=True, blank=True)
+    contract_carriage_permit = models.FileField(upload_to='permits/', null=True, blank=True)
     passenger_insurance = models.FileField(upload_to='insurance/', null=True, blank=True)
-    vehicle_insurance = models.FileField(upload_to='insurance/')
+    vehicle_insurance = models.FileField(upload_to='insurance/', null=True, blank=True)
+
     amenities = models.ManyToManyField(Amenity, related_name='buses', blank=True)
     base_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    base_price_km = models.DecimalField(max_digits=10, decimal_places=2, default=100.00, help_text="KM included per day in base price")
+    base_price_km = models.DecimalField(
+        max_digits=10, decimal_places=2, default=100.00, 
+        null=True, blank=True,
+        help_text="KM included per day in base price"
+    )
     price_per_km = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    night_allowance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Additional charge per night",null=True, blank=True)
+    night_allowance = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        default=0.00, null=True, blank=True,
+        help_text="Additional charge per night"
+    )
     features = models.ManyToManyField(BusFeature, related_name='buses', blank=True)
     minimum_fare = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
+
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, 
+        default='available', null=True, blank=True
+    )
+
     location = models.CharField(max_length=255, null=True, blank=True)
-    latitude = models.FloatField()
-    longitude = models.FloatField()
-    bus_type = models.CharField(max_length=50, blank=True, null=True)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    bus_type = models.CharField(max_length=50, null=True, blank=True)
     is_popular = models.BooleanField(default=False)
 
     @property
     def average_rating(self):
         avg = self.bus_reviews.aggregate(avg=Avg('rating'))['avg']
         return round(avg, 1) if avg else 0.0
-    
+
     @property
     def total_reviews(self):
         return self.bus_reviews.count()
-    
+
     def __str__(self):
-        return self.bus_name
+        return self.bus_name or "Unnamed Bus"
 
 
 class BusTravelImage(models.Model):
