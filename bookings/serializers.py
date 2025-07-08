@@ -62,14 +62,17 @@ class TravelerSerializer(serializers.ModelSerializer):
 
 class BaseBookingSerializer(serializers.ModelSerializer):
     balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    original_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    first_time_discount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     
     class Meta:
         abstract = True
         fields = ['booking_id', 'user', 'start_date','total_amount', 'advance_amount', 
                  'payment_status', 'booking_status', 'trip_status', 'created_at', 
                  'balance_amount', 'cancellation_reason', 'total_travelers', 
-                 'male', 'female', 'children', 'from_location', 'to_location']
-        read_only_fields = ['id', 'created_at', 'balance_amount']
+                 'male', 'female', 'children', 'from_location', 'to_location',
+                 'original_amount', 'first_time_discount']
+        read_only_fields = ['id', 'created_at', 'balance_amount', 'original_amount', 'first_time_discount']
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
             'advance_amount': {'write_only': False, 'required': False},
@@ -355,6 +358,8 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
 
         # Update validated_data with calculated values
         validated_data.update({
+            'original_amount': original_amount,
+            'first_time_discount': first_time_discount,
             'total_amount': total_amount,
             'night_allowance_total': night_allowance_total,
             'base_price_days': total_days,
@@ -697,6 +702,9 @@ class PackageBookingSerializer(BaseBookingSerializer):
         logger.info(f"First Time Discount: ₹{first_time_discount}")
         logger.info(f"Final Amount: ₹{calculated_total_amount}")
         
+        # Store both original and final amounts
+        validated_data['original_amount'] = original_amount
+        validated_data['first_time_discount'] = first_time_discount
         validated_data['total_amount'] = calculated_total_amount
 
         # Calculate advance amount

@@ -1426,8 +1426,10 @@ class CombinedBookingSerializer(serializers.Serializer):
     payment_status = serializers.CharField()
     created_at = serializers.DateTimeField()
     members_count = serializers.SerializerMethodField()
-    phone_number = serializers.SerializerMethodField() 
+    phone_number = serializers.SerializerMethodField()
     cancellation_reason = serializers.CharField()
+    user_name = serializers.SerializerMethodField()
+    user_phone = serializers.SerializerMethodField()
 
     def get_type(self, obj):
         return "bus" if isinstance(obj, BusBooking) else "package"
@@ -1444,6 +1446,12 @@ class CombinedBookingSerializer(serializers.Serializer):
     def get_phone_number(self, obj):
         traveler = obj.travelers.order_by('created_at').first()
         return traveler.mobile if traveler and traveler.mobile else ""
+
+    def get_user_name(self, obj):
+        return obj.user.name if obj.user and obj.user.name else ""
+
+    def get_user_phone(self, obj):
+        return obj.user.mobile if obj.user and obj.user.mobile else ""
 
 
 

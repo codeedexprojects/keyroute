@@ -344,7 +344,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'name', 'email', 'mobile', 'place', 'is_active','district']
+        fields = ['id', 'name', 'email', 'mobile', 'place', 'is_active','district','state','created_at']
 
 
 
@@ -473,7 +473,8 @@ class SightListSerializer(serializers.ModelSerializer):
 
 class AdminBookingSerializer(serializers.Serializer):
     id = serializers.IntegerField()
-    name = serializers.CharField(source='user.full_name')
+    name = serializers.CharField(source='user.name')
+    mobile = serializers.CharField(source='user.mobile')
     date = serializers.DateField(source='start_date')
     category = serializers.SerializerMethodField()
     trip = serializers.SerializerMethodField()
@@ -486,7 +487,7 @@ class AdminBookingSerializer(serializers.Serializer):
         if isinstance(obj, BusBooking):
             return f"{obj.from_location} to {obj.to_location}"
         elif isinstance(obj, PackageBooking):
-            return f"{obj.package.places}"   
+            return f"{obj.package.places}"
         return ""
 
 
