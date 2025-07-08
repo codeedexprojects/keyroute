@@ -748,28 +748,29 @@ class UpdateDistrictAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get_district_from_coordinates(self, lat, lon):
-        district = None
-        
+        """
+        Fetch district and state from latitude and longitude using OpenStreetMap's Nominatim API.
+        """
         try:
-            nominatim_url = f"https://nominatim.openstreetmap.org/reverse"
+            nominatim_url = "https://nominatim.openstreetmap.org/reverse"
             params = {
                 'lat': lat,
                 'lon': lon,
                 'format': 'json',
                 'addressdetails': 1,
                 'zoom': 10,
-                'countrycodes': 'in'  # Restrict to India
+                'countrycodes': 'in'  # India only
             }
             headers = {
-                'User-Agent': 'keyroute/1.0'  # Replace with your app name
+                'User-Agent': 'keyroute/1.0'
             }
-            
+
             response = requests.get(nominatim_url, params=params, headers=headers, timeout=10)
             
             if response.status_code == 200:
                 data = response.json()
                 address = data.get('address', {})
-                
+
                 district = (
                     address.get('state_district') or 
                     address.get('district') or 
@@ -777,14 +778,18 @@ class UpdateDistrictAPIView(APIView):
                     address.get('suburb') or
                     address.get('city_district')
                 )
-                
-                if district:
-                    return district
-                    
+                state = address.get('state')
+
+                return district, state
         except Exception as e:
             print(f"Nominatim geocoding failed: {str(e)}")
+        
+        return None, None
 
     def post(self, request):
+        """
+        POST endpoint to update user's district and state based on coordinates.
+        """
         serializer = UpdateDistrictSerializer(data=request.data)
         
         if not serializer.is_valid():
@@ -797,7 +802,6 @@ class UpdateDistrictAPIView(APIView):
         latitude = serializer.validated_data['latitude']
         longitude = serializer.validated_data['longitude']
         
-        # Check if coordinates are within India's approximate bounds
         if not (6.0 <= latitude <= 37.6 and 68.7 <= longitude <= 97.25):
             return Response({
                 'success': False,
@@ -805,8 +809,7 @@ class UpdateDistrictAPIView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            # Get district from coordinates
-            district = self.get_district_from_coordinates(latitude, longitude)
+            district, state = self.get_district_from_coordinates(latitude, longitude)
             
             if not district:
                 return Response({
@@ -814,17 +817,18 @@ class UpdateDistrictAPIView(APIView):
                     'message': 'Could not determine district from provided coordinates'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Update user's district
             user = request.user
             user.district = district
-            user.save(update_fields=['district'])
+            user.state = state
+            user.save(update_fields=['district', 'state'])
             
             return Response({
                 'success': True,
-                'message': 'District updated successfully',
+                'message': 'District and state updated successfully',
                 'data': {
                     'user_id': user.id,
                     'district': district,
+                    'state': state,
                     'coordinates': {
                         'latitude': latitude,
                         'longitude': longitude
@@ -840,7 +844,7 @@ class UpdateDistrictAPIView(APIView):
     
     def get(self, request):
         """
-        Get current user's district information
+        GET endpoint to return current user's district, state, and city.
         """
         user = request.user
         return Response({
@@ -849,10 +853,10 @@ class UpdateDistrictAPIView(APIView):
                 'user_id': user.id,
                 'name': user.name,
                 'district': user.district,
+                'state': user.state,
                 'city': user.city
             }
         }, status=status.HTTP_200_OK)
-
 
 
 

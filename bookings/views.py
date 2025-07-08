@@ -1153,9 +1153,43 @@ class PackageSubCategoryListAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class PopularBusApi(APIView):
-    def get(self,request):
-        buses = Bus.objects.filter(is_popular=True)
-        serializer = PopularBusSerializer(buses,many=True, context={'request': request})
+    def get(self, request):
+        lat = request.query_params.get('lat')
+        lon = request.query_params.get('lon')
+
+        if not lat or not lon:
+            return Response(
+                {"error": "Latitude and Longitude are required as query parameters."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user_coords = (float(lat), float(lon))
+        except ValueError:
+            return Response(
+                {"error": "Invalid latitude or longitude format."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        buses = Bus.objects.filter(is_popular=True, latitude__isnull=False, longitude__isnull=False)
+
+        buses_within_30km = []
+        for bus in buses:
+            bus_coords = (bus.latitude, bus.longitude)
+            distance_km = geodesic(user_coords, bus_coords).kilometers
+            if distance_km <= 30:
+                buses_within_30km.append((bus, distance_km))
+
+        if not buses_within_30km:
+            return Response({"message": "No popular buses found within 30 km."}, status=200)
+
+        # Optional sorting by distance
+        buses_within_30km.sort(key=lambda x: x[1])
+
+        # Extract buses for serialization
+        buses_only = [bus for bus, _ in buses_within_30km]
+
+        serializer = PopularBusSerializer(buses_only, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
     
 
