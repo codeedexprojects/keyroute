@@ -521,7 +521,7 @@ class SingleBusBookingSerializer(serializers.ModelSerializer):
     class Meta:
         model = BusBooking
         fields = [
-            'booking_id','tax' ,'total_distance','base_fare','from_location', 'refunded_amount','advance_amount','pick_up_time','to_location', 'start_date', 
+            'booking_id','tax' ,'original_amount','first_time_discount','total_distance','base_fare','from_location', 'refunded_amount','advance_amount','pick_up_time','to_location', 'start_date', 
             'end_date', 'total_travelers', 'total_amount', 'price_per_km',
             'paid_amount', 'bus_name', 'booking_type','trip_status','balance_amount','stops'
         ]
@@ -569,7 +569,7 @@ class SinglePackageBookingSerilizer(serializers.ModelSerializer):
     class Meta:
         model = PackageBooking
         fields = [
-            'booking_id','tax','base_fare','rooms','from_location','refunded_amount','advance_amount' ,'to_location',
+            'booking_id','original_amount','first_time_discount','tax','base_fare','rooms','from_location','refunded_amount','advance_amount' ,'to_location',
             'start_date', 'end_date', 'total_travelers',
             'total_amount', 'paid_amount', 'bus_name',
             'booking_type', 'male', 'female', 'children',
