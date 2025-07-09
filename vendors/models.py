@@ -13,6 +13,7 @@ class OTP(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     otp_code = models.CharField(max_length=6)
     created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True,blank=True)
 
     def generate_otp(self):
         otp = str(random.randint(100000, 999999))  
@@ -338,6 +339,8 @@ class SignupOTP(models.Model):
     otp_type = models.CharField(max_length=10, choices=[('mobile', 'Mobile'), ('email', 'Email')])
     created_at = models.DateTimeField(auto_now_add=True)
     is_verified = models.BooleanField(default=False)
+    expires_at = models.DateTimeField(null=True,blank=True)
+    role = models.CharField(max_length=10, choices=User.ROLE_CHOICES, default=User.VENDOR)
     
     def is_expired(self):
         return timezone.now() > self.created_at + timedelta(minutes=5)
