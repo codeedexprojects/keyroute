@@ -76,16 +76,17 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(null=True, blank=True)
     name = models.CharField(max_length=150)
     mobile = models.CharField(max_length=15, unique=True, null=True, blank=True)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES,default=USER)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=USER)
     is_google_user = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     district = models.CharField(max_length=300,null=True,blank=True)
+    state = models.CharField(max_length=300,null=True,blank=True)
     profile_image = models.ImageField(upload_to='profile_images/', null=True, blank=True)
     referral_code = models.CharField(max_length=7, unique=True, null=True, blank=True)
     
     firebase_uid = models.CharField(max_length=128, unique=True, null=True, blank=True)
-
+    fcm_token = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(default=timezone.now)
     city = models.CharField(max_length=255, null=True, blank=True)
 
@@ -106,28 +107,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         if self.mobile:
             return self.mobile
-        elif self.email:
-            return self.email
         else:
             return "Unnamed User"
-
-    class Meta:
-        # Add constraint to ensure unique email when not null
-        constraints = [
-            models.UniqueConstraint(
-                fields=['email'],
-                condition=models.Q(email__isnull=False),
-                name='unique_email_when_not_null'
-            )
-        ]
-
-
-
 
 class Vendor(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True)
     full_name = models.CharField(max_length=255)
-    email_address = models.EmailField(unique=True)
+    email_address = models.EmailField(unique=True,null=True,blank=True)
     # phone_no = models.CharField(max_length=15)
     phone_no = models.CharField(max_length=15, blank=True, null=True)
 
@@ -298,7 +284,40 @@ class AdminCommission(models.Model):
     revenue_to_admin = models.DecimalField(max_digits=10, decimal_places=2)
     original_revenue = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     referral_deduction = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    first_time_discount = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        default=0.00,
+        help_text="First-time user discount amount (10% for orders > ₹20,000, capped at ₹1,000)"
+    )
+    referral_amount = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        default=0.00,
+        help_text="Referral reward amount for the booking"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.booking_type} Booking ID {self.booking_id} - Admin Revenue {self.revenue_to_admin}"
+
+    class Meta:
+        verbose_name = "Admin Commission"
+        verbose_name_plural = "Admin Commissions"
+        ordering = ['-created_at']
+
+    @property
+    def net_admin_revenue(self):
+        """Calculate net admin revenue after all deductions"""
+        return self.revenue_to_admin - self.referral_deduction
+
+    @property
+    def total_discounts_given(self):
+        """Calculate total discounts/rewards given for this booking"""
+        return self.first_time_discount + self.referral_amount
+
+    def save(self, *args, **kwargs):
+        # Ensure original_revenue is set if not provided
+        if self.original_revenue is None:
+            self.original_revenue = self.revenue_to_admin
+        super().save(*args, **kwargs)
