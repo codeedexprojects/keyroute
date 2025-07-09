@@ -486,9 +486,11 @@ class AdminBookingSerializer(serializers.Serializer):
     name = serializers.CharField(source='user.name')
     mobile = serializers.CharField(source='user.mobile')
     date = serializers.DateField(source='start_date')
+    booking_date = serializers.DateField(source='created_at')
     category = serializers.SerializerMethodField()
     trip = serializers.SerializerMethodField()
     cost = serializers.DecimalField(source='total_amount', max_digits=10, decimal_places=2)
+    balance_amount = serializers.SerializerMethodField()  # New field
 
     def get_category(self, obj):
         return "Bus" if isinstance(obj, BusBooking) else "Package"
@@ -499,6 +501,9 @@ class AdminBookingSerializer(serializers.Serializer):
         elif isinstance(obj, PackageBooking):
             return f"{obj.package.places}"
         return ""
+
+    def get_balance_amount(self, obj):
+        return obj.balance_amount
 
 
 
