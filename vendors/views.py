@@ -584,51 +584,32 @@ class AmenityCreateAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# PACKAGE CATEGORY CREATED AND LISTED
 class PackageCategoryAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser,JSONParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
-   
     def get(self, request):
-       
-
         categories = PackageCategory.objects.all()
         serializer = PackageCategorySerializer(categories, many=True)
-
-        return Response({"message": "Package categories fetched successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
+        return Response({
+            "message": "Package categories fetched successfully!",
+            "data": serializer.data or []
+        }, status=status.HTTP_200_OK)
     
 
- 
-
-
-
-class PackageSubCategoryAPIView(APIView):
+class PackageCategoryAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]  
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
-    def get_vendor(self, request):
-        return Vendor.objects.filter(user=request.user).first()
-
-    def get_object(self, pk):
-        try:
-            return PackageCategory.objects.get(pk=pk)
-        except PackageCategory.DoesNotExist:
-            return None
-
-
-
-
-
-    def get(self, request, pk):  
-        subcategories = PackageSubCategory.objects.filter(category_id=pk)
-        if not subcategories.exists():
-            return Response({"error": "No subcategories found for this category."}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = PackageSubCategorySerializer(subcategories, many=True)
-        return Response({"subcategories": serializer.data}, status=status.HTTP_200_OK)
+    def get(self, request):
+        categories = PackageCategory.objects.all()
+        serializer = PackageCategorySerializer(categories, many=True)
+        return Response({
+            "message": "Package categories fetched successfully!",
+            "data": serializer.data or []
+        }, status=status.HTTP_200_OK)
 
 
 
