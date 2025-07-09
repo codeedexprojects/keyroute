@@ -74,7 +74,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     state = models.CharField(max_length=300,null=True,blank=True)
     profile_image = models.ImageField(upload_to='profile_images/', null=True, blank=True)
     referral_code = models.CharField(max_length=7, unique=True, null=True, blank=True)
-    mobile_role_id = models.CharField(max_length=50, unique=True, null=True, blank=True)
+    test = models.CharField(max_length=150)
+
+
     firebase_uid = models.CharField(max_length=128, unique=True, null=True, blank=True)
     fcm_token = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(default=timezone.now)
