@@ -1136,21 +1136,21 @@ class BookingFilterByDate(APIView):
 class PackageCategoryListAPIView(APIView):
     def get(self, request):
         search_query = request.query_params.get('search', '')
-        
+
         if search_query:
             categories = PackageCategory.objects.filter(name__icontains=search_query)
         else:
             categories = PackageCategory.objects.all()
 
         serializer = PackageCategorySerializer(categories, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.data or [], status=status.HTTP_200_OK)
 
 
 class PackageSubCategoryListAPIView(APIView):
-    def get(self, request,category):
+    def get(self, request, category):
         subcategories = PackageSubCategory.objects.filter(category=category)
         serializer = PackageSubCategorySerializer(subcategories, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.data or [], status=status.HTTP_200_OK)
 
 class PopularBusApi(APIView):
     def get(self, request):

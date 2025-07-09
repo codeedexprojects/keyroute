@@ -13,18 +13,27 @@ class VendorSerializer1(serializers.ModelSerializer):
 
 
 class AdminVendorSerializer(serializers.ModelSerializer):
-    mobile = serializers.CharField(write_only=True)  # Admin needs to input mobile
+    mobile = serializers.CharField(write_only=True)
     password = serializers.CharField(write_only=True)
     user_id = serializers.IntegerField(source='user.id', read_only=True)
 
     class Meta:
         model = Vendor
         fields = [
-            
             'user_id',
-            'mobile', 'email_address', 'password', 'full_name',
-            'travels_name', 'location', 'landmark', 'address',
-            'city', 'state', 'pincode', 'district','profile_image'
+            'mobile',
+            'password',
+            'email_address',
+            'full_name',
+            'travels_name',
+            'location',
+            'landmark',
+            'address',
+            'city',
+            'state',
+            'pincode',
+            'district',
+            'profile_image'
         ]
 
     def validate_mobile(self, value):
@@ -34,12 +43,12 @@ class AdminVendorSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Mobile number already registered.')
         return value
 
-    def validate_email_address(self, value):  # validate the actual model field
+    def validate_email_address(self, value):
         if value:
             if User.objects.filter(email=value).exists():
-                raise serializers.ValidationError('Email address already registered.')
+                raise serializers.ValidationError('Email already registered with a user.')
             if Vendor.objects.filter(email_address=value).exists():
-                raise serializers.ValidationError('Email address already registered with another vendor.')
+                raise serializers.ValidationError('Email already registered with another vendor.')
         return value
 
     def validate_password(self, value):
@@ -48,19 +57,23 @@ class AdminVendorSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        mobile = validated_data.pop('mobile', None)
-        password = validated_data.pop('password', None)
-        email = validated_data.get('email_address', None)  # pulling from vendor field directly
+        mobile = validated_data.pop('mobile')
+        password = validated_data.pop('password')
+        email = validated_data.get('email_address')
 
-        if not mobile or not password:
-            raise serializers.ValidationError('Mobile and Password are required.')
-
+        # Create user
         user = User.objects.create_user(
             mobile=mobile,
             email=email,
             password=password,
-            role=User.VENDOR
+            role=User.VENDOR,
         )
+
+        # Set optional fields if you want
+        user.state = validated_data.get('state')
+        user.district = validated_data.get('district')
+        user.city = validated_data.get('city')
+        user.save()
 
         validated_data['user'] = user
         return Vendor.objects.create(**validated_data)
@@ -76,12 +89,12 @@ class VendorBusyDateSerializer(serializers.ModelSerializer):
 class VendorFullSerializer(serializers.ModelSerializer):
     user_id = serializers.IntegerField(source='user.id')
     phone = serializers.CharField(source='user.mobile')
+    state = serializers.CharField(source='user.state')    
+    district = serializers.CharField(source='user.district')
+
     buses = BusSerializer(source='bus_set', many=True, read_only=True)
     packages = PackageSerializer(source='package_set', many=True, read_only=True)
-    # busy_dates = VendorBusyDateSerializer(source='busy_dates', many=True, read_only=True)
     busy_dates = VendorBusyDateSerializer(many=True, read_only=True)
-
-    
 
     bus_count = serializers.SerializerMethodField()
     package_count = serializers.SerializerMethodField()
@@ -99,7 +112,7 @@ class VendorFullSerializer(serializers.ModelSerializer):
             'landmark',
             'address',
             'city',
-            'state',
+            'state',         
             'pincode',
             'district',
             'bus_count',
@@ -107,7 +120,7 @@ class VendorFullSerializer(serializers.ModelSerializer):
             'buses',
             'ongoing_buses',
             'packages',
-            'busy_dates', 
+            'busy_dates',
         ]
 
     def get_bus_count(self, obj):
@@ -117,14 +130,12 @@ class VendorFullSerializer(serializers.ModelSerializer):
         return obj.package_set.count()
 
     def get_ongoing_buses(self, obj):
-        ongoing_buses = obj.bus_set.all()[:2]  # dummy logic for ongoing buses
+        ongoing_buses = obj.bus_set.all()[:2]
         return BusSerializer(ongoing_buses, many=True).data
-
 
     def get_available_packages(self, obj):
         available_packages = obj.package_set.filter(status='available')
         data = []
-
         for package in available_packages:
             data.append({
                 'package_name': f"{package.sub_category.name} - {package.places}",
@@ -141,7 +152,6 @@ class VendorFullSerializer(serializers.ModelSerializer):
                     for day in package.day_plans.all()
                 ]
             })
-
         return data
 
 
@@ -902,3 +912,59 @@ class ReferralRewardDetailSerializer(serializers.ModelSerializer):
         return f"#{obj.id:08d}"
 
 
+
+
+
+
+class AdminCreateBusSerializer(serializers.ModelSerializer):
+    vendor_id = serializers.IntegerField(write_only=True)
+
+    class Meta:
+        model = Bus
+        fields = [
+            'vendor_id',
+            'bus_name',
+            'bus_number',
+            'capacity',
+            'vehicle_description',
+            'travels_logo',
+            'rc_certificate',
+            'license',
+            'contract_carriage_permit',
+            'passenger_insurance',
+            'vehicle_insurance',
+            'base_price',
+            'base_price_km',
+            'price_per_km',
+            'night_allowance',
+            'minimum_fare',
+            'status',
+            'location',
+            'latitude',
+            'longitude',
+            'bus_type',
+            'is_popular',
+            'amenities',
+            'features'
+        ]
+
+    def validate_vendor_id(self, value):
+        try:
+            Vendor.objects.get(pk=value)
+        except Vendor.DoesNotExist:
+            raise serializers.ValidationError("Vendor not found.")
+        return value
+
+    def create(self, validated_data):
+        vendor_id = validated_data.pop('vendor_id')
+        vendor = Vendor.objects.get(pk=vendor_id)
+
+        amenities = validated_data.pop('amenities', [])
+        features = validated_data.pop('features', [])
+
+        bus = Bus.objects.create(vendor=vendor, **validated_data)
+
+        bus.amenities.set(amenities)
+        bus.features.set(features)
+
+        return bus
