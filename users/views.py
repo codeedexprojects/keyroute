@@ -54,7 +54,11 @@ class AuthenticationView(APIView):
         if str(mobile) == "1234567890":
             user, created = User.objects.get_or_create(
                 mobile="1234567890",
-                defaults={"name": "Guest User", "email": "guest@example.com"}
+                defaults={
+                    "name": "Guest User", 
+                    "email": "guest@example.com",
+                    "role": "user"  # Add this line to fix the error
+                }
             )
 
             refresh = RefreshToken.for_user(user)
