@@ -22,6 +22,12 @@ class BusReviewSerializer(serializers.ModelSerializer):
             else:
                 return image_url
         return None
+    
+
+
+
+
+    
 
 
 class PackageReviewSerializer(serializers.ModelSerializer):

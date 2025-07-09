@@ -6,7 +6,6 @@ __pycache__/
 
 
 # Django migrations
-*/migrations/
 *.sqlite3
 
 # IDE and editor files
@@ -22,6 +21,11 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Add this if not already present
+__pycache__/
+*.pyc
+
 
 # System files
 .DS_Store
