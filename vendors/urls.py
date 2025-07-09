@@ -28,7 +28,7 @@ urlpatterns = [
     # path('api/vendor/package-category/<int:pk>/', PackageCategoryAPIView.as_view(), name='package-category-update-delete'),
 
     # SUBCATEGORY LISTING
-    path('api/vendor/package-subcategory/<int:pk>/', PackageSubCategoryAPIView.as_view(), name='package-subcategory-list-create'),
+    path('api/vendor/package-subcategory/<int:pk>/', PackageCategoryAPIView.as_view(), name='package-subcategory-list-create'),
     # path('api/vendor/package-subcategory/<int:pk>/', PackageSubCategoryAPIView.as_view(), name='package-subcategory-detail'),
 
     # PACKAGE 
