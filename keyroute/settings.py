@@ -185,6 +185,10 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 
+
+
+
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
