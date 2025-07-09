@@ -2520,3 +2520,23 @@ class AdminPayoutRequestView(APIView):
                 {"error": f"An error occurred: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
+
+
+
+
+
+
+class AdminCreateBusAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = AdminCreateBusSerializer(data=request.data)
+        if serializer.is_valid():
+            bus = serializer.save()
+            return Response({
+                "message": "Bus created successfully for vendor.",
+                "data": AdminCreateBusSerializer(bus).data
+            }, status=status.HTTP_201_CREATED)
+        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
