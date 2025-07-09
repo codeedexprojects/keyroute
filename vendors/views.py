@@ -37,9 +37,9 @@ from bookings.serializers import BusBookingStopSerializer
 
 class VendorSignupAPIView(APIView):
     def post(self, request):
-        print(request.data, 'data')
+        # Add role to request data
+        request.data['role'] = User.VENDOR
         
-        # First validate the data without creating user
         serializer = VendorSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(
@@ -47,23 +47,26 @@ class VendorSignupAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Get mobile and email from validated data
         mobile = request.data.get('mobile')
         email = request.data.get('email_address')
         
-        # Determine where to send OTP
+        # Check if VENDOR already exists with this mobile
+        if mobile and User.objects.get_by_mobile_and_role(mobile, User.VENDOR):
+            return Response(
+                {"errors": "Vendor with this mobile number already exists."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # OTP logic remains the same...
         otp_sent_to = None
         
         if mobile and email:
-            # Both provided, send to mobile (priority)
             otp_sent_to = "mobile"
             identifier = mobile
         elif mobile:
-            # Only mobile provided
             otp_sent_to = "mobile"
             identifier = mobile
         elif email:
-            # Only email provided
             otp_sent_to = "email"
             identifier = email
         else:
@@ -72,20 +75,19 @@ class VendorSignupAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Delete any existing OTP for this identifier
-        SignupOTP.objects.filter(identifier=identifier).delete()
+        # Delete existing OTP and create new one with role
+        SignupOTP.objects.filter(identifier=identifier, role=User.VENDOR).delete()
         
-        # Create new OTP record
         signup_otp = SignupOTP.objects.create(
             identifier=identifier,
             signup_data=request.data,
-            otp_type=otp_sent_to
+            otp_type=otp_sent_to,
+            role=User.VENDOR
         )
         
-        # Generate OTP
         otp_code = signup_otp.generate_otp()
         
-        # Send OTP
+        # Send OTP logic remains the same...
         if otp_sent_to == "mobile":
             try:
                 otp_response = send_otp(identifier)
@@ -96,19 +98,18 @@ class VendorSignupAPIView(APIView):
                         "identifier": identifier
                     }, status=status.HTTP_200_OK)
                 else:
-                    signup_otp.delete()  # Clean up if failed
+                    signup_otp.delete()
                     return Response(
                         {"errors": "Failed to send OTP via SMS."},
                         status=status.HTTP_400_BAD_REQUEST
                     )
             except Exception as e:
-                signup_otp.delete()  # Clean up if failed
+                signup_otp.delete()
                 return Response(
                     {"errors": f"Failed to send OTP: {str(e)}"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-        
-        else:  # email
+        else:
             try:
                 subject = "Your OTP for Vendor Registration"
                 message = f"Your OTP code is {otp_code}. It is valid for 5 minutes."
@@ -124,7 +125,7 @@ class VendorSignupAPIView(APIView):
                 }, status=status.HTTP_200_OK)
                 
             except Exception as e:
-                signup_otp.delete()  # Clean up if failed
+                signup_otp.delete()
                 return Response(
                     {"errors": f"Failed to send OTP via email: {str(e)}"},
                     status=status.HTTP_400_BAD_REQUEST
@@ -221,7 +222,15 @@ class LoginAPIView(APIView):
             )
 
         try:
-            user = User.objects.get(Q(mobile=identifier) | Q(email=identifier))
+            # Only get users with VENDOR role
+            user = User.objects.filter(
+                Q(mobile=identifier, role=User.VENDOR) | 
+                Q(email=identifier, role=User.VENDOR)
+            ).first()
+            
+            if not user:
+                raise User.DoesNotExist()
+                
         except User.DoesNotExist:
             return Response(
                 {"errors": "Invalid credentials."},
@@ -234,15 +243,10 @@ class LoginAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if user.role != User.VENDOR:
-            return Response(
-                {"errors": "Unauthorized access. Only vendors can log in."},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
         refresh = RefreshToken.for_user(user)
         vendor_name = ""
         travels_name = ""
+        
         try:
             vendor_name = user.vendor.full_name
             travels_name = user.vendor.travels_name
@@ -288,6 +292,9 @@ class SendOtpAPIView(APIView):
         if is_valid_email(identifier):  
             try:
                 vendor = Vendor.objects.get(email_address=identifier)
+                if vendor.user.role != User.VENDOR:
+                    return Response({"error": "User is not a vendor."}, status=status.HTTP_403_FORBIDDEN)
+                    
                 otp_instance, _ = OTP.objects.get_or_create(user=vendor.user)
                 otp = otp_instance.generate_otp()
 
@@ -300,26 +307,23 @@ class SendOtpAPIView(APIView):
 
             except Vendor.DoesNotExist:
                 return Response({"error": "No vendor found with this email."}, status=status.HTTP_404_NOT_FOUND)
-
         else:
             try:
-                vendor = User.objects.get(mobile=identifier)
+                vendor = User.objects.get_by_mobile_and_role(identifier, User.VENDOR)
+                if not vendor:
+                    return Response({"error": "No vendor found with this phone number."}, status=status.HTTP_404_NOT_FOUND)
                 
-                if vendor.role.lower() == 'vendor':
-                    otp_response = send_otp(identifier)
+                otp_response = send_otp(identifier)
 
-                    if otp_response.get("Status") == "Success":
-                        return Response({"message": "OTP sent to phone!"}, status=status.HTTP_200_OK)
-                    else:
-                        return Response({"error": "Failed to send OTP via SMS."}, status=status.HTTP_400_BAD_REQUEST)
+                if otp_response.get("Status") == "Success":
+                    return Response({"message": "OTP sent to phone!"}, status=status.HTTP_200_OK)
                 else:
-                    return Response({"error": "User is not a vendor."}, status=status.HTTP_403_FORBIDDEN)
+                    return Response({"error": "Failed to send OTP via SMS."}, status=status.HTTP_400_BAD_REQUEST)
 
-            except User.DoesNotExist:
-                return Response({"error": "No vendor found with this phone number."}, status=status.HTTP_404_NOT_FOUND)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# OTP VERIFCATION
 class VerifyOtpAPIView(APIView):
     def post(self, request):
         identifier = request.data.get('email_phone')
@@ -328,9 +332,13 @@ class VerifyOtpAPIView(APIView):
         if not identifier or not otp:
             return Response({"error": "Email/Phone and OTP are required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        if is_valid_email(identifier):  # Verify Email OTP
+        if is_valid_email(identifier):
             try:
                 vendor = Vendor.objects.get(email_address=identifier)
+                
+                if vendor.user.role != User.VENDOR:
+                    return Response({"error": "User is not a vendor."}, status=status.HTTP_403_FORBIDDEN)
+                
                 otp_instance = OTP.objects.get(user=vendor.user)
 
                 if otp_instance.otp_code != otp:
@@ -343,23 +351,21 @@ class VerifyOtpAPIView(APIView):
 
             except (Vendor.DoesNotExist, OTP.DoesNotExist):
                 return Response({"error": "Invalid email or OTP."}, status=status.HTTP_404_NOT_FOUND)
-
-        else:  # Verify Phone OTP using 2Factor API
+        else:
             try:
-                user = User.objects.get(mobile=identifier)
+                user = User.objects.get_by_mobile_and_role(identifier, User.VENDOR)
+                if not user:
+                    return Response({"error": "Invalid phone number or OTP."}, status=status.HTTP_404_NOT_FOUND)
 
-                if user.role.lower() == 'vendor':
-                    verification_response = verify_otp(identifier, otp)
+                verification_response = verify_otp(identifier, otp)
 
-                    if verification_response.get("Status") == "Success":
-                        return Response({"message": "OTP verified successfully!"}, status=status.HTTP_200_OK)
-                    else:
-                        return Response({"error": "Invalid or expired OTP."}, status=status.HTTP_400_BAD_REQUEST)
+                if verification_response.get("Status") == "Success":
+                    return Response({"message": "OTP verified successfully!"}, status=status.HTTP_200_OK)
                 else:
-                    return Response({"error": "User is not a vendor."}, status=status.HTTP_403_FORBIDDEN)
+                    return Response({"error": "Invalid or expired OTP."}, status=status.HTTP_400_BAD_REQUEST)
 
-            except User.DoesNotExist:
-                return Response({"error": "Invalid phone number or OTP."}, status=status.HTTP_404_NOT_FOUND)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # RESET PASSWORD

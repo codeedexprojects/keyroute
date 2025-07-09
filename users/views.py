@@ -49,17 +49,22 @@ User = get_user_model()
 class AuthenticationView(APIView):
     def post(self, request):
         mobile = request.data.get('mobile')
+        role = request.data.get('role', User.USER)  # Default to USER role
 
-        # 🧪 Guest login shortcut
+        # Guest login shortcut
         if str(mobile) == "1234567890":
             user, created = User.objects.get_or_create(
-                mobile="1234567890",
-                defaults={"name": "Guest User", "email": "guest@example.com"}
+                mobile_role_id=f"1234567890_{role}",
+                defaults={
+                    "mobile": "1234567890",
+                    "name": "Guest User", 
+                    "email": "guest@example.com", 
+                    "role": role
+                }
             )
 
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
-
             login(request, user)
 
             return Response({
@@ -76,18 +81,24 @@ class AuthenticationView(APIView):
                 }
             }, status=status.HTTP_200_OK)
 
-        # 🧾 Check if user exists
-        user_exists = User.objects.filter(mobile=mobile).exists()
-        serializer = LoginSerializer(data=request.data) if user_exists else SignupSerializer(data=request.data)
+        # Check if user exists with this mobile and role
+        user_exists = User.objects.get_by_mobile_and_role(mobile, role) is not None
+        
+        # Add role to serializer data
+        serializer_data = request.data.copy()
+        serializer_data['role'] = role
+        
+        serializer = LoginSerializer(data=serializer_data) if user_exists else SignupSerializer(data=serializer_data)
 
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         mobile = serializer.validated_data['mobile']
+        role = serializer.validated_data.get('role', User.USER)
         is_new_user = serializer.validated_data.get('is_new_user', False)
 
-        # Clear any old OTP sessions
-        OTPSession.objects.filter(mobile=mobile).delete()
+        # Clear any old OTP sessions for this mobile-role combination
+        OTPSession.objects.filter(mobile=mobile, role=role).delete()
 
         # Send OTP
         try:
@@ -101,6 +112,7 @@ class AuthenticationView(APIView):
 
             OTPSession.objects.create(
                 mobile=mobile,
+                role=role,
                 session_id=session_id,
                 is_new_user=is_new_user,
                 name=serializer.validated_data.get('name'),
@@ -113,6 +125,7 @@ class AuthenticationView(APIView):
                 "message": "OTP sent to your mobile",
                 "session_id": session_id,
                 "is_new_user": is_new_user,
+                "role": role,
                 "temp_data": {
                     "name": serializer.validated_data.get('name'),
                     "mobile": mobile,
@@ -128,20 +141,25 @@ class VerifyOTPView(APIView):
         mobile = request.data.get("mobile")
         otp = request.data.get("otp")
         session_id = request.data.get("session_id")
+        role = request.data.get("role", User.USER)
 
         if not mobile or not otp or not session_id:
-            return Response({"error": "Mobile, OTP and session_id are required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Mobile, OTP, session_id and role are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # 🧪 Guest login shortcut
+        # Guest login shortcut
         if str(mobile) == "1234567890" and str(otp) == "123456":
             user, created = User.objects.get_or_create(
-                mobile="1234567890",
-                defaults={"name": "Guest User", "email": "guest@example.com"}
+                mobile_role_id=f"1234567890_{role}",
+                defaults={
+                    "mobile": "1234567890",
+                    "name": "Guest User", 
+                    "email": "guest@example.com", 
+                    "role": role
+                }
             )
 
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
-
             login(request, user)
 
             return Response({
@@ -158,16 +176,16 @@ class VerifyOTPView(APIView):
                 }
             }, status=status.HTTP_200_OK)
 
-        # 🔍 Get OTP session
+        # Get OTP session with mobile and role
         try:
-            otp_session = OTPSession.objects.get(mobile=mobile, session_id=session_id)
+            otp_session = OTPSession.objects.get(mobile=mobile, role=role, session_id=session_id)
         except OTPSession.DoesNotExist:
             return Response({
                 "error": "OTP session expired or invalid. Please request a new OTP.",
                 "code": "SESSION_NOT_FOUND"
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # ⏳ Check if expired
+        # Check if expired
         if now() > otp_session.expires_at:
             otp_session.delete()
             return Response({
@@ -175,7 +193,7 @@ class VerifyOTPView(APIView):
                 "code": "OTP_EXPIRED"
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # ✅ Verify OTP or allow 123456 for test/dev
+        # Verify OTP
         try:
             if str(otp) == "123456":
                 response = {"Status": "Success"}
@@ -194,6 +212,7 @@ class VerifyOTPView(APIView):
                 user_data = {
                     "name": otp_session.name,
                     "mobile": mobile,
+                    "role": role
                 }
 
                 serializer = UserCreateSerializer(data=user_data, context={"referrer": otp_session.referrer})
@@ -202,16 +221,14 @@ class VerifyOTPView(APIView):
                 else:
                     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             else:
-                try:
-                    user = User.objects.get(mobile=mobile)
-                except User.DoesNotExist:
+                user = User.objects.get_by_mobile_and_role(mobile, role)
+                if not user:
                     return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
             otp_session.delete()
 
             refresh = RefreshToken.for_user(user)
             access_token = str(refresh.access_token)
-
             login(request, user)
 
             return Response({
