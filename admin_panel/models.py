@@ -219,7 +219,7 @@ class ReferAndEarn(models.Model):
 
 
 class FooterSection(models.Model):
-    main_image  = models.ImageField(upload_to="footer_sections/")
+    main_image  = models.ImageField(upload_to="footer_sections/",null=True,blank=True)
     package = models.ForeignKey('vendors.Package', on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
