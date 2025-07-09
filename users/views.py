@@ -57,7 +57,7 @@ class AuthenticationView(APIView):
                 defaults={
                     "name": "Guest User", 
                     "email": "guest@example.com",
-                    "role": "user"  # Add this line to fix the error
+                    "role": "user" 
                 }
             )
 
