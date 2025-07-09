@@ -7,49 +7,59 @@ from .utils import generate_referral_code
 
 # Create your models here.
 class UserManager(BaseUserManager):
-    def create_user(self, mobile, role, password=None, **extra_fields):
-        if not mobile:
-            raise ValueError('The Mobile field must be set')
-        if not role:
-            raise ValueError('The Role field must be set')
-        
-        # Create mobile_role_id
-        mobile_role_id = f"{mobile}_{role}"
-        
-        user = self.model(
-            mobile=mobile,
-            role=role,
-            mobile_role_id=mobile_role_id,
-            **extra_fields
-        )
-        user.set_password(password)
+    def create_user(self, mobile=None, email=None, password=None, **extra_fields):
+        if not mobile and not email:
+            raise ValueError("Users must have a mobile number or email")
+
+        extra_fields.setdefault("role", "user")
+        user = self.model(mobile=mobile, email=self.normalize_email(email), **extra_fields)
+
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()
+
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, mobile, role=None, password=None, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('is_active', True)
-        
-        # Default role for superuser
-        if not role:
-            role = 'ADMIN'
-        
-        if extra_fields.get('is_staff') is not True:
-            raise ValueError('Superuser must have is_staff=True.')
-        if extra_fields.get('is_superuser') is not True:
-            raise ValueError('Superuser must have is_superuser=True.')
+    def create_superuser(self, mobile=None, email=None, password=None, **extra_fields):
+        """Creates and returns a superuser with admin privileges."""
+        extra_fields.setdefault("role", "admin")
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
 
-        return self.create_user(mobile, role, password, **extra_fields)
+        if not password:
+            raise ValueError("Superuser must have a password.")
 
-    def get_by_mobile_and_role(self, mobile, role):
-        """Helper method to get user by mobile and role"""
-        mobile_role_id = f"{mobile}_{role}"
-        try:
-            return self.get(mobile_role_id=mobile_role_id)
-        except self.model.DoesNotExist:
-            return None
+        return self.create_user(mobile=mobile, email=email, password=password, **extra_fields)
     
+
+class OTPSession(models.Model):
+    """
+    Model to store OTP session data instead of using cache
+    """
+    mobile = models.CharField(max_length=15)
+    session_id = models.CharField(max_length=100, unique=True)
+    is_new_user = models.BooleanField(default=False)
+    name = models.CharField(max_length=150, null=True, blank=True)
+    referral_code = models.CharField(max_length=10, null=True, blank=True)
+    referrer = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True, related_name='referred_otp_sessions')
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    
+    class Meta:
+        # Optional index to improve lookup performance
+        indexes = [
+            models.Index(fields=['mobile']),
+            models.Index(fields=['session_id']),
+        ]
+    
+    def __str__(self):
+        return f"OTP Session for {self.mobile} - {self.session_id}"
+        
+    def is_expired(self):
+        """Check if the OTP session has expired"""
+        return timezone.now() > self.expires_at
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -65,33 +75,26 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     email = models.EmailField(null=True, blank=True)
     name = models.CharField(max_length=150)
-    mobile = models.CharField(max_length=15, null=True, blank=True)
+    mobile = models.CharField(max_length=15, unique=True, null=True, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=USER)
     is_google_user = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     district = models.CharField(max_length=300,null=True,blank=True)
-    state = models.CharField(max_length=300,null=True,blank=True)
     profile_image = models.ImageField(upload_to='profile_images/', null=True, blank=True)
     referral_code = models.CharField(max_length=7, unique=True, null=True, blank=True)
-    test = models.CharField(max_length=150)
-
-
+    
     firebase_uid = models.CharField(max_length=128, unique=True, null=True, blank=True)
-    fcm_token = models.TextField(blank=True, null=True)
+
     created_at = models.DateTimeField(default=timezone.now)
     city = models.CharField(max_length=255, null=True, blank=True)
-    is_superuser = models.BooleanField(default=False)
 
     objects = UserManager()
 
-    USERNAME_FIELD = 'mobile_role_id'
-    REQUIRED_FIELDS = ['mobile', 'role']
+    USERNAME_FIELD = "mobile"
+    REQUIRED_FIELDS = []
 
     def save(self, *args, **kwargs):
-        if self.mobile and self.role:
-            self.mobile_role_id = f"{self.mobile}_{self.role}"
-
         if not self.referral_code:
             while True:
                 code = generate_referral_code()
@@ -103,25 +106,28 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         if self.mobile:
             return self.mobile
+        elif self.email:
+            return self.email
         else:
             return "Unnamed User"
-        
-    @property
-    def is_user(self):
-        return self.role == self.USER
-    
-    @property
-    def is_vendor(self):
-        return self.role == self.VENDOR
-    
-    @property
-    def is_admin(self):
-        return self.role == self.ADMIN
+
+    class Meta:
+        # Add constraint to ensure unique email when not null
+        constraints = [
+            models.UniqueConstraint(
+                fields=['email'],
+                condition=models.Q(email__isnull=False),
+                name='unique_email_when_not_null'
+            )
+        ]
+
+
+
 
 class Vendor(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True)
     full_name = models.CharField(max_length=255)
-    email_address = models.EmailField(unique=True,null=True,blank=True)
+    email_address = models.EmailField(unique=True)
     # phone_no = models.CharField(max_length=15)
     phone_no = models.CharField(max_length=15, blank=True, null=True)
 
@@ -139,38 +145,6 @@ class Vendor(models.Model):
 
     def __str__(self):
         return self.full_name
-
-
-class OTPSession(models.Model):
-    """
-    Model to store OTP session data instead of using cache
-    """
-    mobile = models.CharField(max_length=15)
-    session_id = models.CharField(max_length=100, unique=True)
-    is_new_user = models.BooleanField(default=False)
-    name = models.CharField(max_length=150, null=True, blank=True)
-    referral_code = models.CharField(max_length=10, null=True, blank=True)
-    referrer = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True, related_name='referred_otp_sessions')
-    created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField()
-    role = models.CharField(max_length=10, choices=User.ROLE_CHOICES, default=User.USER)
-    
-    class Meta:
-        # Optional index to improve lookup performance
-        indexes = [
-            models.Index(fields=['mobile']),
-            models.Index(fields=['session_id']),
-        ]
-    
-    def __str__(self):
-        return f"OTP Session for {self.mobile} - {self.session_id}"
-        
-    def is_expired(self):
-        """Check if the OTP session has expired"""
-        return timezone.now() > self.expires_at
-
-    class Meta:
-        unique_together = ['mobile', 'role']
 
 
 
@@ -221,7 +195,7 @@ class ReferAndEarn(models.Model):
 
 
 class FooterSection(models.Model):
-    main_image  = models.ImageField(upload_to="footer_sections/",null=True,blank=True)
+    main_image  = models.ImageField(upload_to="footer_sections/")
     package = models.ForeignKey('vendors.Package', on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -324,40 +298,7 @@ class AdminCommission(models.Model):
     revenue_to_admin = models.DecimalField(max_digits=10, decimal_places=2)
     original_revenue = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     referral_deduction = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    first_time_discount = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        default=0.00,
-        help_text="First-time user discount amount (10% for orders > ₹20,000, capped at ₹1,000)"
-    )
-    referral_amount = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        default=0.00,
-        help_text="Referral reward amount for the booking"
-    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.booking_type} Booking ID {self.booking_id} - Admin Revenue {self.revenue_to_admin}"
-
-    class Meta:
-        verbose_name = "Admin Commission"
-        verbose_name_plural = "Admin Commissions"
-        ordering = ['-created_at']
-
-    @property
-    def net_admin_revenue(self):
-        """Calculate net admin revenue after all deductions"""
-        return self.revenue_to_admin - self.referral_deduction
-
-    @property
-    def total_discounts_given(self):
-        """Calculate total discounts/rewards given for this booking"""
-        return self.first_time_discount + self.referral_amount
-
-    def save(self, *args, **kwargs):
-        # Ensure original_revenue is set if not provided
-        if self.original_revenue is None:
-            self.original_revenue = self.revenue_to_admin
-        super().save(*args, **kwargs)
