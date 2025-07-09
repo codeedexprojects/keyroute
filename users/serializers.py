@@ -36,18 +36,22 @@ class LoginSerializer(serializers.Serializer):
     mobile = serializers.CharField(max_length=15)
     name = serializers.CharField(max_length=150, required=False)
     referral_code = serializers.CharField(max_length=10, required=False, allow_blank=True, allow_null=True)
+    role = serializers.ChoiceField(choices=User.ROLE_CHOICES, default=User.USER)
 
     def validate(self, data):
         mobile = data.get('mobile')
+        role = data.get('role', User.USER)
+        
         if not mobile:
             raise serializers.ValidationError({"error": "Mobile number is required."})
 
-        try:
-            user = User.objects.get(mobile=mobile)
-            data['is_new_user'] = False
-        except User.DoesNotExist:
-            raise serializers.ValidationError({"error": "User with this mobile number does not exist."})
+        # Use custom manager method
+        user = User.objects.get_by_mobile_and_role(mobile, role)
+        if not user:
+            raise serializers.ValidationError({"error": f"{role.title()} with this mobile number does not exist."})
             
+        data['is_new_user'] = False
+        
         referral_code = data.get('referral_code')
         if referral_code:
             try:
@@ -65,14 +69,18 @@ class SignupSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=150)
     mobile = serializers.CharField(max_length=15)
     referral_code = serializers.CharField(max_length=10, required=False, allow_blank=True, allow_null=True)
+    role = serializers.ChoiceField(choices=User.ROLE_CHOICES, default=User.USER)
 
     def validate(self, data):
         mobile = data.get('mobile')
+        role = data.get('role', User.USER)
+        
         if not mobile:
             raise serializers.ValidationError({"error": "Mobile number is required."})
 
-        if User.objects.filter(mobile=mobile).exists():
-            raise serializers.ValidationError({"error": "User with this mobile number already exists."})
+        # Check if user exists with this mobile and role combination
+        if User.objects.get_by_mobile_and_role(mobile, role):
+            raise serializers.ValidationError({"error": f"{role.title()} with this mobile number already exists."})
         
         if not data.get('name'):
             raise serializers.ValidationError({"error": "Name is required for new users."})
@@ -94,19 +102,25 @@ class SignupSerializer(serializers.Serializer):
 class UserCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['name', 'mobile']
+        fields = ['name', 'mobile', 'role', 'email']
 
     def create(self, validated_data):
-        user = User.objects.create(**validated_data)
+        user = User.objects.create_user(**validated_data)
+        
+        # Handle referral logic
         referrer = self.context.get('referrer')
         if referrer:
+            # Import here to avoid circular import
+            from .models import Wallet
             Wallet.objects.create(
                 user=user, 
                 referred_by=referrer.mobile,
                 referral_used=False
             )
         else:
+            from .models import Wallet
             Wallet.objects.create(user=user)
+        
         return user
 
 

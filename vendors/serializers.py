@@ -12,12 +12,10 @@ from bookings.models import *
 
 
 class VendorSerializer(serializers.ModelSerializer):
-
     phone_number = serializers.CharField(source='user.mobile', read_only=True)
     mobile = serializers.CharField(write_only=True, required=False, allow_blank=True)
     email_address = serializers.EmailField(required=False, allow_blank=True)
-    password = serializers.CharField(write_only=True)
-    # profile_image = serializers.SerializerMethodField()
+    password = serializers.CharField(write_only=True, min_length=6)
     profile_image = serializers.ImageField(source='user.profile_image', allow_null=True, required=False)
 
     class Meta:
@@ -25,29 +23,66 @@ class VendorSerializer(serializers.ModelSerializer):
         fields = [
             'mobile', 'email_address', 'password', 'full_name',  
             'travels_name', 'location', 'landmark', 'address', 
-            'city', 'state', 'pincode','district','profile_image','phone_number'
+            'city', 'state', 'pincode', 'district', 'profile_image', 'phone_number'
         ]
 
     def validate_mobile(self, value):
         if not value:
             return value
-        if len(value) < 10:
+            
+        # Clean and validate mobile number
+        cleaned_mobile = ''.join(filter(str.isdigit, value))
+        if len(cleaned_mobile) < 10:
             raise serializers.ValidationError('Mobile number must be at least 10 digits long.')
-        if User.objects.filter(mobile=value).exists():
-            raise serializers.ValidationError('Mobile number already registered.')
+        
+        # For update operations, exclude current instance
+        if self.instance:
+            if User.objects.filter(mobile=value, role=User.VENDOR).exclude(id=self.instance.user.id).exists():
+                raise serializers.ValidationError('Vendor with this mobile number already exists.')
+        else:
+            # For create operations
+            if User.objects.filter(mobile=value, role=User.VENDOR).exists():
+                raise serializers.ValidationError('Vendor with this mobile number already exists.')
+        
         return value
 
-    def validate_email_address(self, value):  # Match the field name `email_address`
+    def validate_email_address(self, value):
         if not value:
             return value
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError('Email address already registered.')
-        if Vendor.objects.filter(email_address=value).exists():
-            raise serializers.ValidationError('Email address already registered with another vendor.')
+        
+        # For update operations, exclude current instance
+        if self.instance:
+            if User.objects.filter(email=value, role=User.VENDOR).exclude(id=self.instance.user.id).exists():
+                raise serializers.ValidationError('Vendor with this email address already exists.')
+            if Vendor.objects.filter(email_address=value).exclude(id=self.instance.id).exists():
+                raise serializers.ValidationError('Email address already registered with another vendor.')
+        else:
+            # For create operations
+            if User.objects.filter(email=value, role=User.VENDOR).exists():
+                raise serializers.ValidationError('Vendor with this email address already exists.')
+            if Vendor.objects.filter(email_address=value).exists():
+                raise serializers.ValidationError('Email address already registered with another vendor.')
+        
         return value
 
+    def validate_password(self, value):
+        if not value or len(value) < 6:
+            raise serializers.ValidationError('Password must be at least 6 characters long.')
+        return value
+
+    def validate(self, data):
+        """Cross-field validation"""
+        mobile = data.get('mobile')
+        email = data.get('email_address')
+        
+        # At least one contact method is required
+        if not mobile and not email:
+            raise serializers.ValidationError('Either mobile number or email address is required.')
+        
+        return data
 
     def get_profile_image(self, obj):
+        """Get absolute URL for profile image"""
         request = self.context.get('request')
         if obj.user.profile_image:
             image_url = obj.user.profile_image.url
@@ -56,50 +91,108 @@ class VendorSerializer(serializers.ModelSerializer):
             return image_url
         return None
 
-
-    def validate_password(self, value):
-        if not value or len(value) < 6:
-            raise serializers.ValidationError('Password must be at least 6 characters long.')
-        return value
-
-    
     def create(self, validated_data):
         mobile = validated_data.pop('mobile', None)
-        # email = validated_data.pop('email', None) 
         email = validated_data.get('email_address') or None  
         password = validated_data.pop('password')
         profile_image = validated_data.pop('user', {}).get('profile_image', None)
 
-        
-
-        user = User.objects.create_user(
-            mobile=mobile,
-            email=email if email else None,  
-            password=password,
-            role=User.VENDOR
-        )
-        if profile_image:
-            user.profile_image = profile_image
-            user.save()
-        
-
-        validated_data['user'] = user
-        validated_data['email_address'] = email if email else None   
-        vendor = Vendor.objects.create(**validated_data)
-        return vendor
+        try:
+            # Create user with VENDOR role
+            user = User.objects.create_user(
+                mobile=mobile,
+                email=email,
+                password=password,
+                name=validated_data.get('full_name', ''),
+                role=User.VENDOR
+            )
+            
+            if profile_image:
+                user.profile_image = profile_image
+                user.save()
+            
+            # Create vendor instance
+            validated_data['user'] = user
+            validated_data['phone_no'] = mobile
+            validated_data['email_address'] = email
+            vendor = Vendor.objects.create(**validated_data)
+            
+            return vendor
+            
+        except Exception as e:
+            # If vendor creation fails, cleanup user
+            if 'user' in locals():
+                user.delete()
+            raise serializers.ValidationError(f'Failed to create vendor: {str(e)}')
 
     def update(self, instance, validated_data):
-        user_data = validated_data.pop('user', {})
+        # Extract user-related data
+        user_data = {}
+        if 'user' in validated_data:
+            user_data = validated_data.pop('user')
+        
+        mobile = validated_data.pop('mobile', None)
+        password = validated_data.pop('password', None)
         profile_image = user_data.get('profile_image', None)
 
-        if profile_image:
-            instance.user.profile_image = profile_image
-            instance.user.save()
+        try:
+            # Update user fields
+            user = instance.user
+            
+            if mobile:
+                user.mobile = mobile
+            
+            if password:
+                user.set_password(password)
+            
+            if profile_image:
+                user.profile_image = profile_image
+            
+            # Update user name if full_name changed
+            if 'full_name' in validated_data:
+                user.name = validated_data['full_name']
+            
+            # Update email if changed
+            if 'email_address' in validated_data:
+                user.email = validated_data['email_address']
+            
+            user.save()
 
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        return instance
+            # Update vendor fields
+            if mobile:
+                validated_data['phone_no'] = mobile
+            
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            
+            instance.save()
+            
+            return instance
+            
+        except Exception as e:
+            raise serializers.ValidationError(f'Failed to update vendor: {str(e)}')
+
+    def to_representation(self, instance):
+        """Customize the output representation"""
+        representation = super().to_representation(instance)
+        
+        # Add profile image URL
+        representation['profile_image'] = self.get_profile_image(instance)
+        
+        # Add user ID for reference
+        representation['user_id'] = instance.user.id
+        
+        # Add full address
+        address_parts = [
+            instance.address,
+            instance.landmark,
+            instance.city,
+            instance.state,
+            instance.pincode
+        ]
+        representation['full_address'] = ', '.join(filter(None, address_parts))
+        
+        return representation
 
 
 
