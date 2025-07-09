@@ -6,7 +6,6 @@ __pycache__/
 
 
 # Django migrations
-*/migrations/
 *.sqlite3
 
 # IDE and editor files
