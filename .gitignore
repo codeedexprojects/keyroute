@@ -22,6 +22,11 @@ __pycache__/
 *.pyo
 *.pyd
 
+# Add this if not already present
+__pycache__/
+*.pyc
+
+
 # System files
 .DS_Store
 Thumbs.db
