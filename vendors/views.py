@@ -598,17 +598,26 @@ class PackageCategoryAPIView(APIView):
         }, status=status.HTTP_200_OK)
     
 
-class PackageCategoryAPIView(APIView):
+class PackageSubCategoryAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    parser_classes = [MultiPartParser, FormParser]
 
-    def get(self, request):
-        categories = PackageCategory.objects.all()
-        serializer = PackageCategorySerializer(categories, many=True)
+    def get_vendor(self, request):
+        return Vendor.objects.filter(user=request.user).first()
+
+    def get_object(self, pk):
+        try:
+            return PackageCategory.objects.get(pk=pk)
+        except PackageCategory.DoesNotExist:
+            return None
+
+    def get(self, request, pk):  
+        subcategories = PackageSubCategory.objects.filter(category_id=pk)
+        serializer = PackageSubCategorySerializer(subcategories, many=True)
         return Response({
-            "message": "Package categories fetched successfully!",
-            "data": serializer.data or []
+            "message": "Subcategories fetched successfully!",
+            "subcategories": serializer.data or []
         }, status=status.HTTP_200_OK)
 
 
