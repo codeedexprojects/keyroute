@@ -334,10 +334,12 @@ class VendorBusyDate(models.Model):
 class SignupOTP(models.Model):
     identifier = models.CharField(max_length=100)
     otp_code = models.CharField(max_length=6)
-    signup_data = models.JSONField()  # Store the entire signup data
+    signup_data = models.JSONField()
     otp_type = models.CharField(max_length=10, choices=[('mobile', 'Mobile'), ('email', 'Email')])
     created_at = models.DateTimeField(auto_now_add=True)
     is_verified = models.BooleanField(default=False)
+    role = models.CharField(max_length=10, choices=User.ROLE_CHOICES, default=User.VENDOR)
+    test = models.CharField(max_length=250,null=True,blank=True)
     
     def is_expired(self):
         return timezone.now() > self.created_at + timedelta(minutes=5)
