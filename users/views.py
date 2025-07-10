@@ -46,6 +46,35 @@ logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
+# views.py
+from django.shortcuts import render
+from django.contrib.auth import login, authenticate
+from django.contrib.auth.models import User
+from django.core.mail import send_mail
+from django.db.models import Q
+from django.utils import timezone
+from django.utils.timezone import now
+from datetime import timedelta
+import re
+
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.tokens import RefreshToken
+
+from .models import User
+from admin_panel.models import OTPSession
+from .serializers import (
+    LoginSerializer, SignupSerializer, UserCreateSerializer, UserProfileSerializer
+)
+
+
+from admin_panel.utils import send_otp, verify_otp, generate_referral_code, is_valid_email
+
+
 class AuthenticationView(APIView):
     def post(self, request):
         mobile = request.data.get('mobile')
@@ -140,7 +169,7 @@ class VerifyOTPView(APIView):
         if str(mobile) == "1234567890" and str(otp) == "123456":
             user, created = User.objects.get_or_create(
                 mobile="1234567890",
-                defaults={"name": "Guest User", "email": "guest@example.com"}
+                defaults={"name": "Guest User", "email": "guest@example.com", "role": "user"}
             )
 
             refresh = RefreshToken.for_user(user)

@@ -7,31 +7,19 @@ from .utils import generate_referral_code
 
 # Create your models here.
 class UserManager(BaseUserManager):
-    def create_user(self, mobile=None, email=None, password=None, **extra_fields):
-        if not mobile and not email:
-            raise ValueError("Users must have a mobile number or email")
-
-        extra_fields.setdefault("role", "user")
-        user = self.model(mobile=mobile, email=self.normalize_email(email), **extra_fields)
-
-        if password:
-            user.set_password(password)
-        else:
-            user.set_unusable_password()
-
+    def create_user(self, mobile, password=None, **extra_fields):
+        if not mobile:
+            raise ValueError('The Mobile field must be set')
+        user = self.model(mobile=mobile, **extra_fields)
+        user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, mobile=None, email=None, password=None, **extra_fields):
-        """Creates and returns a superuser with admin privileges."""
-        extra_fields.setdefault("role", "admin")
-        extra_fields.setdefault("is_staff", True)
-        extra_fields.setdefault("is_superuser", True)
-
-        if not password:
-            raise ValueError("Superuser must have a password.")
-
-        return self.create_user(mobile=mobile, email=email, password=password, **extra_fields)
+    def create_superuser(self, mobile, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('role', 'admin')
+        return self.create_user(mobile, password, **extra_fields)
     
 
 class OTPSession(models.Model):
