@@ -34,6 +34,7 @@ class OTPSession(models.Model):
     referrer = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True, related_name='referred_otp_sessions')
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField()
+    role = models.CharField(max_length=250,default='user')
     
     class Meta:
         # Optional index to improve lookup performance
