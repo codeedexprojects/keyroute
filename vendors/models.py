@@ -338,7 +338,6 @@ class SignupOTP(models.Model):
     otp_type = models.CharField(max_length=10, choices=[('mobile', 'Mobile'), ('email', 'Email')])
     created_at = models.DateTimeField(auto_now_add=True)
     is_verified = models.BooleanField(default=False)
-    role = models.CharField(max_length=10, choices=User.ROLE_CHOICES, default=User.VENDOR)
     
     def is_expired(self):
         return timezone.now() > self.created_at + timedelta(minutes=5)
