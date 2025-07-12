@@ -994,3 +994,8 @@ class AdminCreateBusSerializer(serializers.ModelSerializer):
             BusImage.objects.create(bus=bus, bus_view_image=image)
 
         return bus
+    
+
+
+
+# last updated
