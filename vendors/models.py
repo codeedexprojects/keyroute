@@ -111,6 +111,7 @@ class Bus(models.Model):
         return self.bus_name or "Unnamed Bus"
 
 
+
 class BusTravelImage(models.Model):
     bus = models.ForeignKey(Bus, on_delete=models.CASCADE, related_name='travel_images')
     image = models.ImageField(upload_to='bus_travel_images/')

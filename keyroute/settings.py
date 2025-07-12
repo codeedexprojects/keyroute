@@ -163,8 +163,6 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 
-
-
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
@@ -189,6 +187,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -202,8 +201,10 @@ DATABASES = {
         },
     }
 }
-
 # }
+# }
+
+
 # DATABASES['default']['CONN_MAX_AGE'] = 600  # Keep connections alive for 10 minutes
 # DATABASES['default']['OPTIONS'] = {
 #     'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
