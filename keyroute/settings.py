@@ -14,7 +14,14 @@ import firebase_admin
 from firebase_admin import credentials
 import os
 
-# Firebase initialization
+
+from pathlib import Path
+from datetime import timedelta
+
+
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
 if not firebase_admin._apps:
     try:
         # Replace with your actual path to the Firebase service account key
@@ -29,13 +36,6 @@ if not firebase_admin._apps:
     except Exception as e:
         print(f"Firebase initialization error: {e}")
 
-
-from pathlib import Path
-from datetime import timedelta
-
-
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
 
 import os
 from dotenv import load_dotenv

@@ -7,49 +7,47 @@ from .utils import generate_referral_code
 
 # Create your models here.
 class UserManager(BaseUserManager):
-    def create_user(self, mobile, role, password=None, **extra_fields):
+    def create_user(self, mobile, password=None, **extra_fields):
         if not mobile:
             raise ValueError('The Mobile field must be set')
-        if not role:
-            raise ValueError('The Role field must be set')
-        
-        # Create mobile_role_id
-        mobile_role_id = f"{mobile}_{role}"
-        
-        user = self.model(
-            mobile=mobile,
-            role=role,
-            mobile_role_id=mobile_role_id,
-            **extra_fields
-        )
+        user = self.model(mobile=mobile, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, mobile, role=None, password=None, **extra_fields):
+    def create_superuser(self, mobile, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('is_active', True)
-        
-        # Default role for superuser
-        if not role:
-            role = 'ADMIN'
-        
-        if extra_fields.get('is_staff') is not True:
-            raise ValueError('Superuser must have is_staff=True.')
-        if extra_fields.get('is_superuser') is not True:
-            raise ValueError('Superuser must have is_superuser=True.')
-
-        return self.create_user(mobile, role, password, **extra_fields)
-
-    def get_by_mobile_and_role(self, mobile, role):
-        """Helper method to get user by mobile and role"""
-        mobile_role_id = f"{mobile}_{role}"
-        try:
-            return self.get(mobile_role_id=mobile_role_id)
-        except self.model.DoesNotExist:
-            return None
+        extra_fields.setdefault('role', 'admin')
+        return self.create_user(mobile, password, **extra_fields)
     
+
+class OTPSession(models.Model):
+    """
+    Model to store OTP session data instead of using cache
+    """
+    mobile = models.CharField(max_length=15)
+    session_id = models.CharField(max_length=100, unique=True)
+    is_new_user = models.BooleanField(default=False)
+    name = models.CharField(max_length=150, null=True, blank=True)
+    referral_code = models.CharField(max_length=10, null=True, blank=True)
+    referrer = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True, related_name='referred_otp_sessions')
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    
+    class Meta:
+        # Optional index to improve lookup performance
+        indexes = [
+            models.Index(fields=['mobile']),
+            models.Index(fields=['session_id']),
+        ]
+    
+    def __str__(self):
+        return f"OTP Session for {self.mobile} - {self.session_id}"
+        
+    def is_expired(self):
+        """Check if the OTP session has expired"""
+        return timezone.now() > self.expires_at
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -65,8 +63,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     email = models.EmailField(null=True, blank=True)
     name = models.CharField(max_length=150)
-    mobile = models.CharField(max_length=15, null=True, blank=True)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=USER)
+    mobile = models.CharField(max_length=15, unique=True, null=True, blank=True)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='user')
     is_google_user = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
@@ -74,24 +72,18 @@ class User(AbstractBaseUser, PermissionsMixin):
     state = models.CharField(max_length=300,null=True,blank=True)
     profile_image = models.ImageField(upload_to='profile_images/', null=True, blank=True)
     referral_code = models.CharField(max_length=7, unique=True, null=True, blank=True)
-    test = models.CharField(max_length=150)
-
-
+    
     firebase_uid = models.CharField(max_length=128, unique=True, null=True, blank=True)
     fcm_token = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(default=timezone.now)
     city = models.CharField(max_length=255, null=True, blank=True)
-    is_superuser = models.BooleanField(default=False)
 
     objects = UserManager()
 
-    USERNAME_FIELD = 'mobile_role_id'
-    REQUIRED_FIELDS = ['mobile', 'role']
+    USERNAME_FIELD = "mobile"
+    REQUIRED_FIELDS = []
 
     def save(self, *args, **kwargs):
-        if self.mobile and self.role:
-            self.mobile_role_id = f"{self.mobile}_{self.role}"
-
         if not self.referral_code:
             while True:
                 code = generate_referral_code()
@@ -105,18 +97,6 @@ class User(AbstractBaseUser, PermissionsMixin):
             return self.mobile
         else:
             return "Unnamed User"
-        
-    @property
-    def is_user(self):
-        return self.role == self.USER
-    
-    @property
-    def is_vendor(self):
-        return self.role == self.VENDOR
-    
-    @property
-    def is_admin(self):
-        return self.role == self.ADMIN
 
 class Vendor(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True)
@@ -139,38 +119,6 @@ class Vendor(models.Model):
 
     def __str__(self):
         return self.full_name
-
-
-class OTPSession(models.Model):
-    """
-    Model to store OTP session data instead of using cache
-    """
-    mobile = models.CharField(max_length=15)
-    session_id = models.CharField(max_length=100, unique=True)
-    is_new_user = models.BooleanField(default=False)
-    name = models.CharField(max_length=150, null=True, blank=True)
-    referral_code = models.CharField(max_length=10, null=True, blank=True)
-    referrer = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True, related_name='referred_otp_sessions')
-    created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField()
-    role = models.CharField(max_length=10, choices=User.ROLE_CHOICES, default=User.USER)
-    
-    class Meta:
-        # Optional index to improve lookup performance
-        indexes = [
-            models.Index(fields=['mobile']),
-            models.Index(fields=['session_id']),
-        ]
-    
-    def __str__(self):
-        return f"OTP Session for {self.mobile} - {self.session_id}"
-        
-    def is_expired(self):
-        """Check if the OTP session has expired"""
-        return timezone.now() > self.expires_at
-
-    class Meta:
-        unique_together = ['mobile', 'role']
 
 
 
@@ -221,7 +169,7 @@ class ReferAndEarn(models.Model):
 
 
 class FooterSection(models.Model):
-    main_image  = models.ImageField(upload_to="footer_sections/",null=True,blank=True)
+    main_image  = models.ImageField(upload_to="footer_sections/")
     package = models.ForeignKey('vendors.Package', on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
