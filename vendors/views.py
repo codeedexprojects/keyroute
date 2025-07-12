@@ -112,9 +112,8 @@ class VendorSignupAPIView(APIView):
             try:
                 subject = "Your OTP for Vendor Registration"
                 message = f"Your OTP code is {otp_code}. It is valid for 5 minutes."
-                from_email = "praveen.codeedex@gmail.com"
+                from_email = "praveen.codeedx@gmail.com"
                 
-                from django.core.mail import send_mail
                 send_mail(subject, message, from_email, [identifier])
                 
                 return Response({
@@ -130,6 +129,7 @@ class VendorSignupAPIView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
+
 class VerifySignupOtpAPIView(APIView):
     def post(self, request):
         identifier = request.data.get('identifier')
@@ -166,9 +166,13 @@ class VerifySignupOtpAPIView(APIView):
         
         if signup_otp.otp_type == "mobile":
             try:
-                verification_response = verify_otp(identifier, otp)
-                if verification_response.get("Status") == "Success":
+                # Allow test OTP for development
+                if str(otp) == "123456":
                     otp_valid = True
+                else:
+                    verification_response = verify_otp(identifier, otp)
+                    if verification_response.get("Status") == "Success":
+                        otp_valid = True
             except Exception as e:
                 return Response(
                     {"errors": f"OTP verification failed: {str(e)}"},
@@ -234,6 +238,7 @@ class LoginAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Fixed role checking - removed .lower() as role is stored as string
         if user.role != User.VENDOR:
             return Response(
                 {"errors": "Unauthorized access. Only vendors can log in."},
@@ -258,8 +263,6 @@ class LoginAPIView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-
-# VENDOR LOGOUT
 class LogoutAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -268,6 +271,9 @@ class LogoutAPIView(APIView):
         print('logout is working')
         try:
             refresh_token = request.data.get("refresh")
+            if not refresh_token:
+                return Response({"error": "Refresh token is required"}, status=status.HTTP_400_BAD_REQUEST)
+                
             token = RefreshToken(refresh_token)
             token.blacklist()
             return Response({"message": "Successfully logged out!"}, status=status.HTTP_205_RESET_CONTENT)
@@ -275,10 +281,6 @@ class LogoutAPIView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-
-
-
-# OTP CREATION
 class SendOtpAPIView(APIView):
     def post(self, request):
         identifier = request.data.get('email_phone')
@@ -293,7 +295,7 @@ class SendOtpAPIView(APIView):
 
                 subject = "Your OTP for Password Reset"
                 message = f"Your OTP code is {otp}. It is valid for 5 minutes."
-                from_email = "praveen.codeedex@gmail.com"
+                from_email = "praveen.codeedx@gmail.com"
                 send_mail(subject, message, from_email, [identifier])
 
                 return Response({"message": "OTP sent to email!"}, status=status.HTTP_200_OK)
@@ -305,7 +307,8 @@ class SendOtpAPIView(APIView):
             try:
                 vendor = User.objects.get(mobile=identifier)
                 
-                if vendor.role.lower() == 'vendor':
+                # Fixed role checking - removed .lower() as role is stored as string
+                if vendor.role == User.VENDOR:
                     otp_response = send_otp(identifier)
 
                     if otp_response.get("Status") == "Success":
@@ -319,7 +322,6 @@ class SendOtpAPIView(APIView):
                 return Response({"error": "No vendor found with this phone number."}, status=status.HTTP_404_NOT_FOUND)
 
 
-# OTP VERIFCATION
 class VerifyOtpAPIView(APIView):
     def post(self, request):
         identifier = request.data.get('email_phone')
@@ -348,13 +350,17 @@ class VerifyOtpAPIView(APIView):
             try:
                 user = User.objects.get(mobile=identifier)
 
-                if user.role.lower() == 'vendor':
-                    verification_response = verify_otp(identifier, otp)
-
-                    if verification_response.get("Status") == "Success":
+                # Fixed role checking - removed .lower() as role is stored as string
+                if user.role == User.VENDOR:
+                    # Allow test OTP for development
+                    if str(otp) == "123456":
                         return Response({"message": "OTP verified successfully!"}, status=status.HTTP_200_OK)
                     else:
-                        return Response({"error": "Invalid or expired OTP."}, status=status.HTTP_400_BAD_REQUEST)
+                        verification_response = verify_otp(identifier, otp)
+                        if verification_response.get("Status") == "Success":
+                            return Response({"message": "OTP verified successfully!"}, status=status.HTTP_200_OK)
+                        else:
+                            return Response({"error": "Invalid or expired OTP."}, status=status.HTTP_400_BAD_REQUEST)
                 else:
                     return Response({"error": "User is not a vendor."}, status=status.HTTP_403_FORBIDDEN)
 
@@ -584,24 +590,30 @@ class AmenityCreateAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+# PACKAGE CATEGORY CREATED AND LISTED
 class PackageCategoryAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    parser_classes = [MultiPartParser, FormParser,JSONParser]
 
+   
     def get(self, request):
+       
+
         categories = PackageCategory.objects.all()
         serializer = PackageCategorySerializer(categories, many=True)
-        return Response({
-            "message": "Package categories fetched successfully!",
-            "data": serializer.data or []
-        }, status=status.HTTP_200_OK)
+
+        return Response({"message": "Package categories fetched successfully!", "data": serializer.data}, status=status.HTTP_200_OK)
     
+
+ 
+
+
 
 class PackageSubCategoryAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser]  
 
     def get_vendor(self, request):
         return Vendor.objects.filter(user=request.user).first()
@@ -612,13 +624,17 @@ class PackageSubCategoryAPIView(APIView):
         except PackageCategory.DoesNotExist:
             return None
 
+
+
+
+
     def get(self, request, pk):  
         subcategories = PackageSubCategory.objects.filter(category_id=pk)
+        if not subcategories.exists():
+            return Response({"error": "No subcategories found for this category."}, status=status.HTTP_404_NOT_FOUND)
+
         serializer = PackageSubCategorySerializer(subcategories, many=True)
-        return Response({
-            "message": "Subcategories fetched successfully!",
-            "subcategories": serializer.data or []
-        }, status=status.HTTP_200_OK)
+        return Response({"subcategories": serializer.data}, status=status.HTTP_200_OK)
 
 
 

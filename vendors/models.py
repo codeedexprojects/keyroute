@@ -111,6 +111,7 @@ class Bus(models.Model):
         return self.bus_name or "Unnamed Bus"
 
 
+
 class BusTravelImage(models.Model):
     bus = models.ForeignKey(Bus, on_delete=models.CASCADE, related_name='travel_images')
     image = models.ImageField(upload_to='bus_travel_images/')
@@ -334,10 +335,11 @@ class VendorBusyDate(models.Model):
 class SignupOTP(models.Model):
     identifier = models.CharField(max_length=100)
     otp_code = models.CharField(max_length=6)
-    signup_data = models.JSONField()  # Store the entire signup data
+    signup_data = models.JSONField()
     otp_type = models.CharField(max_length=10, choices=[('mobile', 'Mobile'), ('email', 'Email')])
     created_at = models.DateTimeField(auto_now_add=True)
     is_verified = models.BooleanField(default=False)
+    role = models.CharField(max_length=30, choices=User.ROLE_CHOICES, default=User.VENDOR)
     
     def is_expired(self):
         return timezone.now() > self.created_at + timedelta(minutes=5)

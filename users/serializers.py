@@ -97,6 +97,10 @@ class UserCreateSerializer(serializers.ModelSerializer):
         fields = ['name', 'mobile']
 
     def create(self, validated_data):
+        # Explicitly set the role if not provided
+        if 'role' not in validated_data:
+            validated_data['role'] = 'user'
+        
         user = User.objects.create(**validated_data)
         referrer = self.context.get('referrer')
         if referrer:

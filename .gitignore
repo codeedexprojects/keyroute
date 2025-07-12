@@ -4,48 +4,47 @@ __pycache__/
 *.py[cod]
 *.so
 
+# Compiled Python files
+*.pyc
+*.pyo
+*.pyd
 
-# Django migrations
+# SQLite database
 *.sqlite3
-
-# IDE and editor files
-.vscode/
-*.swp
 
 # Environment files
 .env
 *.log
 
-# Compiled Python files
-.pyc
-*.pyc
-*.pyo
-*.pyd
+# Virtual environments
+env/
+venv/
 
-# Add this if not already present
-__pycache__/
-*.pyc
-
+# IDE and editor files
+.vscode/
+*.swp
 
 # System files
 .DS_Store
 Thumbs.db
 
-env
-venv
+# Media folder
+media/
 
-keyroute/settings.py
-
+# Firebase JSON credentials
+firbase/*.json
+keyroute/keyroutevendor-firebase-adminsdk-fbsvc-40f50c4af4.json
+keyroutevendor-firebase-adminsdk-fbsvc-40f50c4af4.json
 
 *settings.py
 
+bookings/migrations/
+admin_panel/migrations/
+notifications/migrations/
+reviews/migrations/
+users/migrations/
+vendors/migrations/
+keyroute/migrations/
 
-firbase/*.json
-        
-
-media
-
-.env
-
-keyroutevendor-firebase-adminsdk-fbsvc-40f50c4af4.json
-keyroute/keyroutevendor-firebase-adminsdk-fbsvc-40f50c4af4.json
+**/migrations/*.py
+**/migrations/*.pyc

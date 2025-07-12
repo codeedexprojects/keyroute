@@ -32,8 +32,7 @@ class AdminVendorSerializer(serializers.ModelSerializer):
             'city',
             'state',
             'pincode',
-            'district',
-            'profile_image'
+            'district'
         ]
 
     def validate_mobile(self, value):
@@ -486,9 +485,11 @@ class AdminBookingSerializer(serializers.Serializer):
     name = serializers.CharField(source='user.name')
     mobile = serializers.CharField(source='user.mobile')
     date = serializers.DateField(source='start_date')
+    booking_date = serializers.DateField(source='created_at')
     category = serializers.SerializerMethodField()
     trip = serializers.SerializerMethodField()
     cost = serializers.DecimalField(source='total_amount', max_digits=10, decimal_places=2)
+    balance_amount = serializers.SerializerMethodField()  # New field
 
     def get_category(self, obj):
         return "Bus" if isinstance(obj, BusBooking) else "Package"
@@ -499,6 +500,9 @@ class AdminBookingSerializer(serializers.Serializer):
         elif isinstance(obj, PackageBooking):
             return f"{obj.package.places}"
         return ""
+
+    def get_balance_amount(self, obj):
+        return obj.balance_amount
 
 
 
@@ -801,9 +805,10 @@ class AdminUserCreateSerializer(serializers.ModelSerializer):
 
 
     def validate_email(self, value):
-        if User.objects.filter(email=value).exists():
+        if value and User.objects.filter(email=value).exists():
             raise serializers.ValidationError("Email already exists.")
         return value
+
     
 
     def create(self, validated_data):
@@ -918,6 +923,12 @@ class ReferralRewardDetailSerializer(serializers.ModelSerializer):
 
 class AdminCreateBusSerializer(serializers.ModelSerializer):
     vendor_id = serializers.IntegerField(write_only=True)
+    bus_images = serializers.ListField(
+        child=serializers.ImageField(),
+        write_only=True,
+        min_length=1,
+        help_text="At least one bus image is required"
+    )
 
     class Meta:
         model = Bus
@@ -945,7 +956,8 @@ class AdminCreateBusSerializer(serializers.ModelSerializer):
             'bus_type',
             'is_popular',
             'amenities',
-            'features'
+            'features',
+            'bus_images'
         ]
 
     def validate_vendor_id(self, value):
@@ -955,16 +967,35 @@ class AdminCreateBusSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Vendor not found.")
         return value
 
+    def validate_bus_images(self, value):
+        if not value:
+            raise serializers.ValidationError("At least one bus image is required.")
+        
+        for image in value:
+            if image.size > 5 * 1024 * 1024:
+                raise serializers.ValidationError("Image size should not exceed 5MB.")
+        
+        return value
+
     def create(self, validated_data):
         vendor_id = validated_data.pop('vendor_id')
         vendor = Vendor.objects.get(pk=vendor_id)
 
         amenities = validated_data.pop('amenities', [])
         features = validated_data.pop('features', [])
+        bus_images = validated_data.pop('bus_images', [])
 
         bus = Bus.objects.create(vendor=vendor, **validated_data)
 
         bus.amenities.set(amenities)
         bus.features.set(features)
 
+        for image in bus_images:
+            BusImage.objects.create(bus=bus, bus_view_image=image)
+
         return bus
+    
+
+
+
+# last updated
