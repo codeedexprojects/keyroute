@@ -192,10 +192,10 @@ CORS_ALLOW_CREDENTIALS = True
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'keyroute_db',  
-        'USER': 'keyroute',
-        'PASSWORD': 'admin123',
-        'HOST': 'keyroute-db.cp86aus24g28.ap-south-1.rds.amazonaws.com',
+        'NAME': 'keyroute_database',  
+        'USER': 'admin',
+        'PASSWORD': 'O84<a1CZo$W.CdLarR$(J(nQPKso',
+        'HOST': 'mysql.prodkeyrouteexpedo.com',
         'PORT': '3306',
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
