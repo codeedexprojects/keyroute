@@ -35,16 +35,3 @@ media/
 firbase/*.json
 keyroute/keyroutevendor-firebase-adminsdk-fbsvc-40f50c4af4.json
 keyroutevendor-firebase-adminsdk-fbsvc-40f50c4af4.json
-
-*settings.py
-
-bookings/migrations/
-admin_panel/migrations/
-notifications/migrations/
-reviews/migrations/
-users/migrations/
-vendors/migrations/
-keyroute/migrations/
-
-**/migrations/*.py
-**/migrations/*.pyc
