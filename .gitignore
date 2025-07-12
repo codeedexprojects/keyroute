@@ -36,10 +36,8 @@ firbase/*.json
 keyroute/keyroutevendor-firebase-adminsdk-fbsvc-40f50c4af4.json
 keyroutevendor-firebase-adminsdk-fbsvc-40f50c4af4.json
 
-# Ignore all settings.py files (in any folder)
 *settings.py
 
-# Ignore Django migrations (safe way)
 bookings/migrations/
 admin_panel/migrations/
 notifications/migrations/
@@ -48,6 +46,5 @@ users/migrations/
 vendors/migrations/
 keyroute/migrations/
 
-# (optional safety) Also ignore any migration .py files directly
 **/migrations/*.py
 **/migrations/*.pyc
