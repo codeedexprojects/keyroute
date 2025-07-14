@@ -15,7 +15,7 @@ from vendors.serializers import *
 from django.db.models import Q
 from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
 from .models import AdminCommissionSlab, AdminCommission
-from .serializers import AdminCommissionSlabSerializer, AdminCommissionSerializer
+from .serializers import AdminCommissionSlabSerializer, AdminCommissionSerializer,AdminEditBusSerializer
 from rest_framework.permissions import IsAdminUser
 from django.shortcuts import get_object_or_404
 from django.db.models import Sum
@@ -2539,4 +2539,64 @@ class AdminCreateBusAPIView(APIView):
                 "message": "Bus created successfully for vendor.",
                 "data": AdminCreateBusSerializer(bus).data
             }, status=status.HTTP_201_CREATED)
+        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+
+
+
+
+class AdminEditBusAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, bus_id):
+        try:
+            bus = Bus.objects.get(pk=bus_id)
+        except Bus.DoesNotExist:
+            return Response({"error": "Bus not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = AdminEditBusSerializer(bus, data=request.data, partial=True)
+        if serializer.is_valid():
+            bus = serializer.save()
+            return Response({
+                "message": "Bus updated successfully.",
+                "data": AdminEditBusSerializer(bus).data
+            }, status=status.HTTP_200_OK)
+        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminCreatePackageAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = AdminCreatePackageSerializer(data=request.data)
+        if serializer.is_valid():
+            package = serializer.save()
+            return Response({
+                "message": "Package created successfully.",
+                "data": AdminCreatePackageSerializer(package).data
+            }, status=status.HTTP_201_CREATED)
+        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class AdminEditPackageAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, package_id):
+        try:
+            package = Package.objects.get(pk=package_id)
+        except Package.DoesNotExist:
+            return Response({"error": "Package not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = AdminEditPackageSerializer(package, data=request.data, partial=True)
+        if serializer.is_valid():
+            package = serializer.save()
+            return Response({
+                "message": "Package updated successfully.",
+                "data": AdminEditPackageSerializer(package).data
+            }, status=status.HTTP_200_OK)
         return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)

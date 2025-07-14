@@ -535,26 +535,37 @@ class PackageCategorySerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Category name cannot be empty.")
         return value
 
-
-
 class PackageSubCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = PackageSubCategory
-        fields = ['id',  'category', 'name', 'image']
+        fields = ['id', 'category', 'name', 'image']
 
     def validate_name(self, value):
         if not value.strip():
             raise serializers.ValidationError("SubCategory name cannot be empty.")
         return value
 
-
-# def validate_days_nights(days, nights):
-#     if days < 0 or nights < 0:
-#         raise ValidationError("Days and nights must be non-negative numbers.")
-
-# def validate_places(places):
-#     if not places.strip():
-#         raise ValidationError("Places field cannot be empty.")
+    def validate(self, data):
+        category = data.get('category')
+        name = data.get('name')
+        
+        if category and name:
+            if self.instance:
+                if PackageSubCategory.objects.filter(
+                    category=category, 
+                    name=name
+                ).exclude(pk=self.instance.pk).exists():
+                    raise serializers.ValidationError({
+                        'name': f'SubCategory "{name}" already exists in this category.'
+                    })
+            else:
+                # For new instances
+                if PackageSubCategory.objects.filter(category=category, name=name).exists():
+                    raise serializers.ValidationError({
+                        'name': f'SubCategory "{name}" already exists in this category.'
+                    })
+        
+        return data
 
 
 

@@ -84,6 +84,12 @@ import logging
 from decimal import Decimal
 from django.conf import settings
 
+import math
+from decimal import Decimal
+from django.utils import timezone
+from rest_framework import serializers
+import logging
+
 class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     bus_details = serializers.SerializerMethodField(read_only=True)
@@ -127,6 +133,61 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
             'total_distance': {'read_only': True}
         }
 
+    def calculate_distance_between_coordinates(self, lat1, lon1, lat2, lon2):
+        """
+        Calculate the distance between two coordinates using the Haversine formula.
+        Returns distance in kilometers.
+        """
+        if not all([lat1, lon1, lat2, lon2]):
+            return None
+            
+        # Convert latitude and longitude from degrees to radians
+        lat1_rad = math.radians(float(lat1))
+        lon1_rad = math.radians(float(lon1))
+        lat2_rad = math.radians(float(lat2))
+        lon2_rad = math.radians(float(lon2))
+
+        # Haversine formula
+        dlat = lat2_rad - lat1_rad
+        dlon = lon2_rad - lon1_rad
+        a = math.sin(dlat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon/2)**2
+        c = 2 * math.asin(math.sqrt(a))
+        
+        # Earth's radius in kilometers
+        earth_radius = 6371
+        distance = earth_radius * c
+        
+        return distance
+
+    def validate_bus_location_radius(self, bus, pickup_lat, pickup_lon):
+        """
+        Validate that the pickup location is within 30km of the bus location.
+        """
+        if not bus.latitude or not bus.longitude:
+            raise serializers.ValidationError(
+                "Bus location is not set. Please contact support."
+            )
+        
+        distance = self.calculate_distance_between_coordinates(
+            bus.latitude, bus.longitude,
+            pickup_lat, pickup_lon
+        )
+        
+        if distance is None:
+            raise serializers.ValidationError(
+                "Unable to calculate distance. Please check coordinates."
+            )
+        
+        MAX_RADIUS_KM = 30
+        if distance > MAX_RADIUS_KM:
+            raise serializers.ValidationError(
+                f"Pickup location is {distance:.1f}km away from bus location. "
+                f"Bus service is only available within {MAX_RADIUS_KM}km radius. "
+                f"Please choose a pickup location closer to {bus.location or 'the bus location'}."
+            )
+        
+        return distance
+
     def validate_stops_data(self, value):
         """Validate stops data"""
         if not value:
@@ -150,13 +211,32 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
 
     def validate(self, data):
         user = self.context['request'].user
+        bus = data.get('bus')
+
+        # Validate bus selection
+        if not bus:
+            raise serializers.ValidationError("Bus selection is required.")
 
         try:
             bus_search = UserBusSearch.objects.get(user=user)
             if not data.get('start_date') and bus_search.pick_up_date:
                 data['start_date'] = bus_search.pick_up_date
+                
+            # Validate bus location radius
+            if bus_search.from_lat and bus_search.from_lon:
+                distance = self.validate_bus_location_radius(
+                    bus, bus_search.from_lat, bus_search.from_lon
+                )
+                logging.info(f"Bus {bus.bus_name} - Pickup location is {distance:.1f}km away (within 30km limit)")
+            else:
+                raise serializers.ValidationError(
+                    "Pickup location coordinates are required. Please search for buses first."
+                )
+                
         except UserBusSearch.DoesNotExist:
-            pass
+            raise serializers.ValidationError(
+                "Bus search data not found. Please search for buses first."
+            )
 
         # Validate dates
         start_date = data.get('start_date')
@@ -283,6 +363,17 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
         except UserBusSearch.DoesNotExist:
             logger.error(f"No bus search data found for user {user.id}")
             raise serializers.ValidationError("Bus search data not found. Please search for buses first.")
+
+        # Additional validation: Check bus location radius again during creation
+        # This is a double-check in case validation was bypassed
+        try:
+            distance = self.validate_bus_location_radius(
+                bus, bus_search.from_lat, bus_search.from_lon
+            )
+            logger.info(f"Bus booking creation - Distance validation passed: {distance:.1f}km")
+        except serializers.ValidationError as e:
+            logger.error(f"Bus location radius validation failed during creation: {str(e)}")
+            raise
 
         # Get stops from user search if not provided in request
         if not stops_data:
@@ -604,6 +695,11 @@ class SinglePackageBookingSerilizer(serializers.ModelSerializer):
         return SimpleDayPlanSerializer(day_plans, many=True).data
 
 
+import math
+from decimal import Decimal
+from rest_framework import serializers
+import logging
+
 class PackageBookingSerializer(BaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
@@ -636,6 +732,146 @@ class PackageBookingSerializer(BaseBookingSerializer):
             'advance_amount': {'write_only': False, 'required': False},
             'paid_amount': {'read_only': True},
         }
+
+    def calculate_distance_between_coordinates(self, lat1, lon1, lat2, lon2):
+        """
+        Calculate the distance between two coordinates using the Haversine formula.
+        Returns distance in kilometers.
+        """
+        if not all([lat1, lon1, lat2, lon2]):
+            return None
+            
+        # Convert latitude and longitude from degrees to radians
+        lat1_rad = math.radians(float(lat1))
+        lon1_rad = math.radians(float(lon1))
+        lat2_rad = math.radians(float(lat2))
+        lon2_rad = math.radians(float(lon2))
+
+        # Haversine formula
+        dlat = lat2_rad - lat1_rad
+        dlon = lon2_rad - lon1_rad
+        a = math.sin(dlat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon/2)**2
+        c = 2 * math.asin(math.sqrt(a))
+        
+        # Earth's radius in kilometers
+        earth_radius = 6371
+        distance = earth_radius * c
+        
+        return distance
+
+    def validate_package_bus_location_radius(self, package, pickup_lat, pickup_lon):
+        """
+        Validate that the pickup location is within 30km of any bus location for the package.
+        Since packages can have multiple buses, we check if pickup is within radius of any bus.
+        """
+        buses = package.buses.all()
+        
+        if not buses:
+            raise serializers.ValidationError(
+                "No buses assigned to this package. Please contact support."
+            )
+        
+        MAX_RADIUS_KM = 30
+        valid_buses = []
+        distances = []
+        
+        for bus in buses:
+            if not bus.latitude or not bus.longitude:
+                continue
+                
+            distance = self.calculate_distance_between_coordinates(
+                bus.latitude, bus.longitude,
+                pickup_lat, pickup_lon
+            )
+            
+            if distance is not None:
+                distances.append({
+                    'bus': bus,
+                    'distance': distance,
+                    'location': bus.location
+                })
+                
+                if distance <= MAX_RADIUS_KM:
+                    valid_buses.append({
+                        'bus': bus,
+                        'distance': distance
+                    })
+        
+        if not distances:
+            raise serializers.ValidationError(
+                "Bus locations are not properly configured for this package. Please contact support."
+            )
+        
+        if not valid_buses:
+            # Find the closest bus to show in error message
+            closest_bus = min(distances, key=lambda x: x['distance'])
+            raise serializers.ValidationError(
+                f"Pickup location is not within service area for this package. "
+                f"Closest bus is {closest_bus['distance']:.1f}km away from "
+                f"{closest_bus['location'] or 'bus location'}. "
+                f"Package service is only available within {MAX_RADIUS_KM}km radius."
+            )
+        
+        # Return the closest valid bus
+        closest_valid_bus = min(valid_buses, key=lambda x: x['distance'])
+        return closest_valid_bus
+
+    def validate(self, data):
+        """
+        Validate package booking data including bus location radius check.
+        """
+        package = data.get('package')
+        
+        if not package:
+            raise serializers.ValidationError("Package selection is required.")
+        
+        # Get pickup location from user's search or location data
+        # You might need to adjust this based on how you store pickup location for packages
+        # For now, I'll assume you have a similar search mechanism as buses
+        user = self.context['request'].user
+        
+        # If you have a PackageSearch model similar to UserBusSearch, use it
+        # Otherwise, you might need to get location from request data or another source
+        try:
+            # Try to get location from package search (adjust model name as needed)
+            # If you don't have a search model, you might get it from request data
+            pickup_lat = self.initial_data.get('pickup_lat') or data.get('pickup_lat')
+            pickup_lon = self.initial_data.get('pickup_lon') or data.get('pickup_lon')
+            
+            # Alternative: If you have a PackageSearch model
+            # package_search = UserPackageSearch.objects.get(user=user)
+            # pickup_lat = package_search.pickup_lat
+            # pickup_lon = package_search.pickup_lon
+            
+            if pickup_lat and pickup_lon:
+                try:
+                    pickup_lat = float(pickup_lat)
+                    pickup_lon = float(pickup_lon)
+                    
+                    # Validate package bus location radius
+                    closest_valid_bus = self.validate_package_bus_location_radius(
+                        package, pickup_lat, pickup_lon
+                    )
+                    
+                    logging.info(f"Package {package.id} - Pickup location is {closest_valid_bus['distance']:.1f}km "
+                               f"from bus {closest_valid_bus['bus'].bus_name} (within 30km limit)")
+                    
+                except (ValueError, TypeError):
+                    raise serializers.ValidationError("Invalid pickup location coordinates.")
+                except serializers.ValidationError:
+                    raise  # Re-raise validation errors from radius check
+            else:
+                raise serializers.ValidationError(
+                    "Pickup location is required. Please provide pickup coordinates."
+                )
+                
+        except Exception as e:
+            if isinstance(e, serializers.ValidationError):
+                raise
+            logging.error(f"Error validating package location: {str(e)}")
+            raise serializers.ValidationError("Unable to validate pickup location. Please try again.")
+        
+        return data
 
     def get_package_details(self, obj):
         return PackageSerializer(obj.package).data
@@ -685,6 +921,28 @@ class PackageBookingSerializer(BaseBookingSerializer):
             raise serializers.ValidationError("Package is required")
         
         user = self.context['request'].user
+        
+        # Additional validation: Check package bus location radius again during creation
+        # This is a double-check in case validation was bypassed
+        try:
+            pickup_lat = self.initial_data.get('pickup_lat') or validated_data.get('pickup_lat')
+            pickup_lon = self.initial_data.get('pickup_lon') or validated_data.get('pickup_lon')
+            
+            if pickup_lat and pickup_lon:
+                pickup_lat = float(pickup_lat)
+                pickup_lon = float(pickup_lon)
+                
+                closest_valid_bus = self.validate_package_bus_location_radius(
+                    package, pickup_lat, pickup_lon
+                )
+                logger.info(f"Package booking creation - Distance validation passed: "
+                          f"{closest_valid_bus['distance']:.1f}km from bus {closest_valid_bus['bus'].bus_name}")
+        except serializers.ValidationError as e:
+            logger.error(f"Package bus location radius validation failed during creation: {str(e)}")
+            raise
+        except Exception as e:
+            logger.warning(f"Could not perform distance validation during creation: {str(e)}")
+            # Continue with creation if distance validation fails (optional)
         
         # Calculate original total amount based on package price and travelers
         original_amount = package.buses.first().capacity * package.price_per_person
@@ -736,7 +994,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
         commission_percent, revenue = get_admin_commission_from_db(original_amount)
         
         logger.info(f"=== PACKAGE BOOKING CALCULATION ===")
-        logger.info(f"Package: {package.name if hasattr(package, 'name') else 'N/A'}")
+        logger.info(f"Package: {package.sub_category.name if package.sub_category else 'N/A'} - {package.places}")
         logger.info(f"Total Travelers: {total_travelers}")
         logger.info(f"Rooms Required: {rooms_required}")
         logger.info(f"Original Amount: ₹{original_amount}")
