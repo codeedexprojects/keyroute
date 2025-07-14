@@ -998,4 +998,239 @@ class AdminCreateBusSerializer(serializers.ModelSerializer):
 
 
 
-# last updated
+
+
+class AdminEditBusSerializer(serializers.ModelSerializer):
+    vendor_id = serializers.IntegerField(write_only=True, required=False)
+    bus_images = serializers.ListField(
+        child=serializers.ImageField(),
+        write_only=True,
+        required=False,
+        help_text="Upload new bus images (will replace existing images)"
+    )
+    remove_image_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False,
+        help_text="List of image IDs to remove"
+    )
+
+    class Meta:
+        model = Bus
+        fields = [
+            'vendor_id',
+            'bus_name',
+            'bus_number',
+            'capacity',
+            'vehicle_description',
+            'travels_logo',
+            'rc_certificate',
+            'license',
+            'contract_carriage_permit',
+            'passenger_insurance',
+            'vehicle_insurance',
+            'base_price',
+            'base_price_km',
+            'price_per_km',
+            'night_allowance',
+            'minimum_fare',
+            'status',
+            'location',
+            'latitude',
+            'longitude',
+            'bus_type',
+            'is_popular',
+            'amenities',
+            'features',
+            'bus_images',
+            'remove_image_ids'
+        ]
+
+    def validate_vendor_id(self, value):
+        try:
+            Vendor.objects.get(pk=value)
+        except Vendor.DoesNotExist:
+            raise serializers.ValidationError("Vendor not found.")
+        return value
+
+    def validate_bus_images(self, value):
+        if value:
+            for image in value:
+                if image.size > 5 * 1024 * 1024:
+                    raise serializers.ValidationError("Image size should not exceed 5MB.")
+        return value
+
+    def validate_remove_image_ids(self, value):
+        if value:
+            existing_ids = BusImage.objects.filter(
+                bus=self.instance,
+                id__in=value
+            ).values_list('id', flat=True)
+            
+            invalid_ids = set(value) - set(existing_ids)
+            if invalid_ids:
+                raise serializers.ValidationError(f"Invalid image IDs: {list(invalid_ids)}")
+        return value
+
+    def update(self, instance, validated_data):
+        vendor_id = validated_data.pop('vendor_id', None)
+        amenities = validated_data.pop('amenities', None)
+        features = validated_data.pop('features', None)
+        bus_images = validated_data.pop('bus_images', None)
+        remove_image_ids = validated_data.pop('remove_image_ids', None)
+
+        # Update vendor if provided
+        if vendor_id:
+            vendor = Vendor.objects.get(pk=vendor_id)
+            instance.vendor = vendor
+
+        # Update basic fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Update amenities if provided
+        if amenities is not None:
+            instance.amenities.set(amenities)
+
+        # Update features if provided
+        if features is not None:
+            instance.features.set(features)
+
+        # Remove specified images
+        if remove_image_ids:
+            BusImage.objects.filter(bus=instance, id__in=remove_image_ids).delete()
+
+        # Add new images
+        if bus_images:
+            for image in bus_images:
+                BusImage.objects.create(bus=instance, bus_view_image=image)
+
+        return instance
+
+
+class AdminCreatePackageSerializer(serializers.ModelSerializer):
+    vendor_id = serializers.IntegerField(write_only=True)
+    bus_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False,
+        help_text="List of bus IDs to associate with this package"
+    )
+
+    class Meta:
+        model = Package
+        fields = [
+            'vendor_id',
+            'sub_category',
+            'header_image',
+            'places',
+            'days',
+            'ac_available',
+            'guide_included',
+            'bus_ids',
+            'bus_location',
+            'price_per_person',
+            'extra_charge_per_km',
+            'status'
+        ]
+
+    def validate_vendor_id(self, value):
+        try:
+            Vendor.objects.get(pk=value)
+        except Vendor.DoesNotExist:
+            raise serializers.ValidationError("Vendor not found.")
+        return value
+
+    def validate_bus_ids(self, value):
+        if value:
+            existing_buses = Bus.objects.filter(id__in=value)
+            if existing_buses.count() != len(value):
+                existing_ids = list(existing_buses.values_list('id', flat=True))
+                invalid_ids = set(value) - set(existing_ids)
+                raise serializers.ValidationError(f"Invalid bus IDs: {list(invalid_ids)}")
+        return value
+
+    def validate_header_image(self, value):
+        if value and value.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError("Header image size should not exceed 5MB.")
+        return value
+
+    def create(self, validated_data):
+        vendor_id = validated_data.pop('vendor_id')
+        vendor = Vendor.objects.get(pk=vendor_id)
+        bus_ids = validated_data.pop('bus_ids', [])
+
+        package = Package.objects.create(vendor=vendor, **validated_data)
+
+        if bus_ids:
+            buses = Bus.objects.filter(id__in=bus_ids)
+            package.buses.set(buses)
+
+        return package
+
+
+class AdminEditPackageSerializer(serializers.ModelSerializer):
+    vendor_id = serializers.IntegerField(write_only=True, required=False)
+    bus_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        write_only=True,
+        required=False,
+        help_text="List of bus IDs to associate with this package"
+    )
+
+    class Meta:
+        model = Package
+        fields = [
+            'vendor_id',
+            'sub_category',
+            'header_image',
+            'places',
+            'days',
+            'ac_available',
+            'guide_included',
+            'bus_ids',
+            'bus_location',
+            'price_per_person',
+            'extra_charge_per_km',
+            'status'
+        ]
+
+    def validate_vendor_id(self, value):
+        try:
+            Vendor.objects.get(pk=value)
+        except Vendor.DoesNotExist:
+            raise serializers.ValidationError("Vendor not found.")
+        return value
+
+    def validate_bus_ids(self, value):
+        if value:
+            existing_buses = Bus.objects.filter(id__in=value)
+            if existing_buses.count() != len(value):
+                existing_ids = list(existing_buses.values_list('id', flat=True))
+                invalid_ids = set(value) - set(existing_ids)
+                raise serializers.ValidationError(f"Invalid bus IDs: {list(invalid_ids)}")
+        return value
+
+    def validate_header_image(self, value):
+        if value and value.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError("Header image size should not exceed 5MB.")
+        return value
+
+    def update(self, instance, validated_data):
+        vendor_id = validated_data.pop('vendor_id', None)
+        bus_ids = validated_data.pop('bus_ids', None)
+
+        if vendor_id:
+            vendor = Vendor.objects.get(pk=vendor_id)
+            instance.vendor = vendor
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        if bus_ids is not None:
+            buses = Bus.objects.filter(id__in=bus_ids)
+            instance.buses.set(buses)
+
+        return instance

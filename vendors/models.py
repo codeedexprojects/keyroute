@@ -143,15 +143,16 @@ class PackageCategory(models.Model):
     def __str__(self):
         return self.name
 
-
-
 class PackageSubCategory(models.Model):
     category = models.ForeignKey(PackageCategory, on_delete=models.CASCADE, related_name="subcategories")
-    name = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=100)  # Remove unique=True
     image = models.ImageField(upload_to='package_subcategories/', null=True, blank=True)
 
+    class Meta:
+        unique_together = ['category', 'name']
+
     def __str__(self):
-        return self.name
+        return f"{self.category.name} - {self.name}"
 
 
 class Package(models.Model):

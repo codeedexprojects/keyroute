@@ -206,4 +206,8 @@ urlpatterns = [
     path('api/admin/payout-requests/<int:payout_id>/', AdminPayoutRequestView.as_view(), name='admin-payout-request-detail'),
 
     path('api/admin/create-bus/', AdminCreateBusAPIView.as_view(), name='admin-create-bus'),
+    path('api/admin/<int:bus_id>/edit-bus/', AdminEditBusAPIView.as_view(), name='admin-edit-bus'),
+
+    path('api/admin/create-package/', AdminCreatePackageAPIView.as_view(), name='admin-create-package'),
+    path('api/admin/<int:package_id>/edit-package/', AdminEditPackageAPIView.as_view(), name='admin-edit-package'),
 ] 
