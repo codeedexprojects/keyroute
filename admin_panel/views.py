@@ -2600,3 +2600,49 @@ class AdminEditPackageAPIView(APIView):
                 "data": AdminEditPackageSerializer(package).data
             }, status=status.HTTP_200_OK)
         return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+
+
+class AdminDeleteBusImageAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, bus_id):
+        try:
+            bus = Bus.objects.get(pk=bus_id)
+        except Bus.DoesNotExist:
+            return Response({"error": "Bus not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = BusImageDeleteSerializer(data=request.data)
+        if serializer.is_valid():
+            image_ids = serializer.validated_data['image_ids']
+            
+            # Filter images that belong to this specific bus
+            images_to_delete = BusImage.objects.filter(
+                bus=bus,
+                id__in=image_ids
+            )
+            
+            if not images_to_delete.exists():
+                return Response({
+                    "error": "No images found for this bus with the provided IDs."
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Check if deleting these images would leave the bus with no images
+            remaining_images = BusImage.objects.filter(bus=bus).exclude(id__in=image_ids)
+            if not remaining_images.exists():
+                return Response({
+                    "error": "Cannot delete all images. At least one image must remain."
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            deleted_count = images_to_delete.count()
+            images_to_delete.delete()
+            
+            return Response({
+                "message": f"Successfully deleted {deleted_count} image(s).",
+                "deleted_image_ids": image_ids
+            }, status=status.HTTP_200_OK)
+        
+        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)

@@ -210,4 +210,6 @@ urlpatterns = [
 
     path('api/admin/create-package/', AdminCreatePackageAPIView.as_view(), name='admin-create-package'),
     path('api/admin/<int:package_id>/edit-package/', AdminEditPackageAPIView.as_view(), name='admin-edit-package'),
-] 
+
+    path('api/admin/bus/<int:bus_id>/images/delete/', AdminDeleteBusImageAPIView.as_view(), name='admin_delete_bus_images'),
+]
