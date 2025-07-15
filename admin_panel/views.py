@@ -1513,8 +1513,8 @@ class AdminVendorOverview(APIView):
             buses = Bus.objects.filter(vendor=vendor)
             packages = Package.objects.filter(vendor=vendor)
 
-            bus_bookings = BusBooking.objects.filter(bus__vendor=vendor)
-            package_bookings = PackageBooking.objects.filter(package__vendor=vendor)
+            bus_bookings = BusBooking.objects.filter(bus__vendor=vendor,trip_status='ongoing')
+            package_bookings = PackageBooking.objects.filter(package__vendor=vendor,trip_status='ongoing')
 
             total_bookings = bus_bookings.count() + package_bookings.count()
             ongoing_bookings = bus_bookings.filter(start_date__gte=today).count() + \
@@ -1558,8 +1558,8 @@ class AllBookingsAPI(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        package_bookings = PackageBooking.objects.get().all()
-        bus_bookings = BusBooking.objects.get().all()
+        package_bookings = PackageBooking.objects.exclude(trip_status='not_started')
+        bus_bookings = BusBooking.objects.exclude(trip_status='not_started')
 
         package_serializer = AdminPackageBookingSerializer(package_bookings, many=True)
         bus_serializer = AdminBusBookingSerializer(bus_bookings, many=True)
@@ -1699,8 +1699,8 @@ class SingleUserAPIView(APIView):
                 'address': user.address if hasattr(user, 'address') else "Not available"
             }
 
-            bus_bookings = BusBooking.objects.filter(user=user)
-            package_bookings = PackageBooking.objects.filter(user=user)
+            bus_bookings = BusBooking.objects.filter(user=user,trip_status='ongoing')
+            package_bookings = PackageBooking.objects.filter(user=user,trip_status='ongoing')
 
             all_bookings = list(bus_bookings) + list(package_bookings)
 
@@ -1789,8 +1789,8 @@ class RecentApprovedBookingsAPIView(APIView):
 class CombinedBookingsAPIView(APIView):
     def get(self, request, *args, **kwargs):
         # Fetch bookings
-        bus_bookings = BusBooking.objects.all()
-        package_bookings = PackageBooking.objects.all()
+        bus_bookings = BusBooking.objects.exclude(trip_status='not_started')
+        package_bookings = PackageBooking.objects.exclude(trip_status='not_started')
 
         # Annotate for distinguishing type (optional)
         for booking in bus_bookings:
@@ -1826,8 +1826,8 @@ class PaymentDetailsAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        bus_bookings = BusBooking.objects.select_related('bus__vendor').all()
-        package_bookings = PackageBooking.objects.select_related('package__vendor').all()
+        bus_bookings = BusBooking.objects.select_related('bus__vendor').exclude(trip_status='not_started')
+        package_bookings = PackageBooking.objects.select_related('package__vendor').exclude(trip_status='not_started')
 
         data = []
 
@@ -1939,8 +1939,8 @@ class RevenueGraphView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        bus_bookings = BusBooking.objects.all()
-        package_bookings = PackageBooking.objects.all()
+        bus_bookings = BusBooking.objects.exclude(trip_status='not_started')
+        package_bookings = PackageBooking.objects.exclude(trip_status='not_started')
 
         all_bookings = list(bus_bookings) + list(package_bookings)
 
