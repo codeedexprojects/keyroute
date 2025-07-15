@@ -329,8 +329,7 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
             return Decimal('0.00')
         
         if total_amount > Decimal('20000'):
-            discount = total_amount * Decimal('0.10')  # 10% discount
-            # Cap the discount at ₹1,000
+            discount = total_amount * (Decimal('1.25') / Decimal('100'))
             return min(discount, Decimal('1000'))
         
         return Decimal('0.00')
@@ -903,8 +902,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
             return Decimal('0.00')
         
         if total_amount > Decimal('20000'):
-            discount = total_amount * Decimal('0.10')  # 10% discount
-            # Cap the discount at ₹1,000
+            discount = total_amount * (Decimal('1.25') / Decimal('100'))
             return min(discount, Decimal('1000'))
         
         return Decimal('0.00')
@@ -922,8 +920,7 @@ class PackageBookingSerializer(BaseBookingSerializer):
         
         user = self.context['request'].user
         
-        # Additional validation: Check package bus location radius again during creation
-        # This is a double-check in case validation was bypassed
+
         try:
             pickup_lat = self.initial_data.get('pickup_lat') or validated_data.get('pickup_lat')
             pickup_lon = self.initial_data.get('pickup_lon') or validated_data.get('pickup_lon')

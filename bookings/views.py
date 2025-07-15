@@ -229,6 +229,7 @@ class SinglePackageListAPIView(APIView):
         except Package.DoesNotExist:
             return Response({"error": "No Pckages Found."}, status=404)
 
+
 class BusListAPIView(BusPriceCalculatorMixin, APIView):
     permission_classes = [IsAuthenticated]
 
@@ -411,6 +412,8 @@ class PackageBookingListCreateAPIView(APIView):
             'children': request.query_params.get('children'),
             'female': request.query_params.get('female'),
             'male': request.query_params.get('male'),
+            'pickup_lat': request.query_params.get('pickup_lat'),
+            'pickup_lon': request.query_params.get('pickup_lon'),
         }
         data.update(query_data)
         serializer = PackageBookingSerializer(data=data, context={'request': request})
