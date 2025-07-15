@@ -1234,3 +1234,25 @@ class AdminEditPackageSerializer(serializers.ModelSerializer):
             instance.buses.set(buses)
 
         return instance
+    
+
+
+
+class BusImageDeleteSerializer(serializers.Serializer):
+    image_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        min_length=1,
+        help_text="List of image IDs to delete"
+    )
+
+    def validate_image_ids(self, value):
+        if not value:
+            raise serializers.ValidationError("At least one image ID is required.")
+        
+        existing_ids = BusImage.objects.filter(id__in=value).values_list('id', flat=True)
+        invalid_ids = set(value) - set(existing_ids)
+        
+        if invalid_ids:
+            raise serializers.ValidationError(f"Invalid image IDs: {list(invalid_ids)}")
+        
+        return value
