@@ -316,8 +316,14 @@ class BusBookingSerializer(BaseBookingSerializer, BusPriceCalculatorMixin):
             return "Price calculation error"
 
     def is_first_user_booking(self, user):
-        """Check if this is the user's first booking"""
-        return not BusBooking.objects.filter(user=user).exists()
+        """Check if this is the user's first booking (across all booking types)"""
+        from bookings.models import BusBooking  # Import here to avoid circular imports
+        
+        # Check both bus bookings and package bookings
+        has_bus_booking = BusBooking.objects.filter(user=user,trip_status="ongoing").exists()
+        has_package_booking = PackageBooking.objects.filter(user=user,trip_status="ongoing").exists()
+        
+        return not (has_bus_booking or has_package_booking)
 
     def calculate_first_time_discount(self, total_amount, is_first_booking):
         """
@@ -887,8 +893,8 @@ class PackageBookingSerializer(BaseBookingSerializer):
         from bookings.models import BusBooking  # Import here to avoid circular imports
         
         # Check both bus bookings and package bookings
-        has_bus_booking = BusBooking.objects.filter(user=user).exists()
-        has_package_booking = PackageBooking.objects.filter(user=user).exists()
+        has_bus_booking = BusBooking.objects.filter(user=user,trip_status="ongoing").exists()
+        has_package_booking = PackageBooking.objects.filter(user=user,trip_status="ongoing").exists()
         
         return not (has_bus_booking or has_package_booking)
 

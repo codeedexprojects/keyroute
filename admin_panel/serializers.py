@@ -1109,6 +1109,47 @@ class AdminEditBusSerializer(serializers.ModelSerializer):
         return instance
 
 
+class PackageBasicSerializer(serializers.ModelSerializer):
+    buses = serializers.PrimaryKeyRelatedField(queryset=Bus.objects.all(), many=True)
+    package_images = serializers.ListField(
+        child=serializers.ImageField(), write_only=True, required=False
+    )
+    bus_location = serializers.CharField(required=False, allow_blank=True)
+    price_per_person = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    extra_charge_per_km = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+
+
+
+    class Meta:
+        model = Package
+        fields = [
+            'id',
+            'sub_category', 'header_image', 'places', 'vendor_id','days',
+            'ac_available', 'guide_included', 'buses', 'package_images','bus_location', 'price_per_person','extra_charge_per_km'
+        ]
+
+    def validate_vendor_id(self, value):
+        try:
+            Vendor.objects.get(pk=value)
+        except Vendor.DoesNotExist:
+            raise serializers.ValidationError("Vendor not found.")
+        return value
+
+    def create(self, validated_data):
+        vendor_id = validated_data.pop('vendor_id')
+        vendor = Vendor.objects.get(pk=vendor_id)
+        buses = validated_data.pop('buses')
+        images = validated_data.pop('package_images', [])
+
+        package = Package.objects.create(vendor=vendor, **validated_data)
+        package.buses.set(buses)
+
+        for img in images:
+            PackageImage.objects.create(package=package, image=img)
+
+        return package
+    
+
 class AdminCreatePackageSerializer(serializers.ModelSerializer):
     vendor_id = serializers.IntegerField(write_only=True)
     bus_ids = serializers.ListField(

@@ -2565,21 +2565,45 @@ class AdminEditBusAPIView(APIView):
                 "data": AdminEditBusSerializer(bus).data
             }, status=status.HTTP_200_OK)
         return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+    
 
-
-class AdminCreatePackageAPIView(APIView):
+class BasicPackageAPIView(APIView):
+    parser_classes = [MultiPartParser, JSONParser]
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = AdminCreatePackageSerializer(data=request.data)
-        if serializer.is_valid():
-            package = serializer.save()
-            return Response({
-                "message": "Package created successfully.",
-                "data": AdminCreatePackageSerializer(package).data
-            }, status=status.HTTP_201_CREATED)
-        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            data = request.data.dict()
+            buses_raw = request.data.getlist('buses')
+
+            if len(buses_raw) == 1:
+                try:
+                    buses_list = json.loads(buses_raw[0])
+                    data['buses'] = [int(b) for b in buses_list]
+                except:
+                    data['buses'] = [int(buses_raw[0])]
+            else:
+                data['buses'] = [int(b) for b in buses_raw]
+
+            package_images = request.FILES.getlist('package_images')
+
+            mutable_data = request.data.copy()
+            mutable_data.setlist('package_images', package_images)
+            mutable_data.setlist('buses', data['buses'])
+
+            serializer = PackageBasicSerializer(data=mutable_data)
+            if serializer.is_valid():
+                package = serializer.save()
+                return Response({
+                    "message": "Basic Package created successfully.",
+                    "package_id": package.id
+                }, status=status.HTTP_201_CREATED)
+            else:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class AdminEditPackageAPIView(APIView):

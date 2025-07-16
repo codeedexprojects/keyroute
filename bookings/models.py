@@ -28,7 +28,7 @@ class BaseBooking(models.Model):
         ('cancelled', 'Cancelled'),
     )
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     start_date = models.DateField(null=True,blank=True)
     original_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], null=True,blank=True)
     first_time_discount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)], null=True,blank=True)
@@ -93,7 +93,7 @@ class BaseBooking(models.Model):
 
 class BusBooking(BaseBooking):
     booking_id = models.PositiveIntegerField(unique=True, editable=False)
-    bus = models.ForeignKey(Bus, on_delete=models.CASCADE, related_name='bookings')
+    bus = models.ForeignKey(Bus, on_delete=models.SET_NULL, null=True, blank=True, related_name='bookings')
     from_lat = models.FloatField()
     from_lon = models.FloatField()
     to_lat = models.FloatField(null=True, blank=True)
@@ -117,7 +117,7 @@ class BusBooking(BaseBooking):
 class PackageBooking(BaseBooking):
     booking_id = models.PositiveIntegerField(unique=True, editable=False)
     rooms = models.IntegerField(default=1)
-    package = models.ForeignKey(Package, on_delete=models.CASCADE, related_name='bookings')
+    package = models.ForeignKey(Package, on_delete=models.SET_NULL, null=True, blank=True, related_name='bookings')
     
     def __str__(self):
         return f"Package Booking #{self.booking_id} - {self.package.places} ({self.created_at})"
@@ -132,7 +132,7 @@ class PaymentTransaction(models.Model):
     
     booking = models.ForeignKey(BusBooking, on_delete=models.CASCADE, related_name='transactions', null=True, blank=True)
     package_booking = models.ForeignKey(PackageBooking, on_delete=models.CASCADE, related_name='transactions', null=True, blank=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     razorpay_order_id = models.CharField(max_length=100)
     razorpay_payment_id = models.CharField(max_length=100, null=True, blank=True)
@@ -154,9 +154,9 @@ class Travelers(models.Model):
     )
     
     # Generic foreign key relationship
-    bus_booking = models.ForeignKey(BusBooking, on_delete=models.CASCADE, 
+    bus_booking = models.ForeignKey(BusBooking, on_delete=models.SET_NULL, 
                                     related_name='travelers', null=True, blank=True)
-    package_booking = models.ForeignKey(PackageBooking, on_delete=models.CASCADE, 
+    package_booking = models.ForeignKey(PackageBooking, on_delete=models.SET_NULL, 
                                        related_name='travelers', null=True, blank=True)
     
     # Personal details
@@ -245,7 +245,7 @@ class PackageDriverDetail(models.Model):
     
 
 class UserBusSearch(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="bus_search")
+    user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="bus_search")
     from_lat = models.FloatField(null=False, blank=False)
     from_lon = models.FloatField(null=False, blank=False)
     to_lat = models.FloatField(null=True, blank=True)
@@ -270,8 +270,8 @@ class PayoutHistory(models.Model):
         ('other', 'Other'),
     )
 
-    admin = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE)
+    admin = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    vendor = models.ForeignKey(Vendor, on_delete=models.SET_NULL, null=True, blank=True)
     payout_date = models.DateTimeField(auto_now_add=True)
     payout_mode = models.CharField(max_length=20, choices=PAYOUT_MODES)
     payout_reference = models.CharField(max_length=100, blank=True, null=True)
@@ -284,7 +284,7 @@ class PayoutHistory(models.Model):
         return f"Payout #{self.id} to {self.vendor.full_name}"
 
 class PayoutBooking(models.Model):
-    payout = models.ForeignKey(PayoutHistory, on_delete=models.CASCADE, related_name='bookings')
+    payout = models.ForeignKey(PayoutHistory, on_delete=models.SET_NULL, null=True, blank=True, related_name='bookings')
     booking_type = models.CharField(max_length=10, choices=[('bus', 'Bus'), ('package', 'Package')])
     booking_id = models.PositiveIntegerField()
     amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -313,7 +313,7 @@ class WalletTransaction(models.Model):
         ('package', 'Package Booking'),
     ]
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wallet_transactions')
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='wallet_transactions')
     booking_id = models.CharField(max_length=100)
     booking_type = models.CharField(max_length=20, choices=BOOKING_TYPES)
     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)

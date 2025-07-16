@@ -49,8 +49,8 @@ class ReferralRewardTransaction(models.Model):
         ('cancelled', 'Cancelled'),
     )
     
-    referrer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='rewards')
-    referred_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='used_referrals')
+    referrer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='rewards')
+    referred_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='used_referrals')
     booking_type = models.CharField(max_length=10, choices=BOOKING_TYPES)
     booking_id = models.PositiveIntegerField()
     reward_amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
