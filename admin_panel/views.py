@@ -28,7 +28,7 @@ from django.db.models import Count
 from itertools import chain
 from operator import attrgetter
 from django.db.models.functions import TruncMonth
-
+from rest_framework.pagination import PageNumberPagination
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from xhtml2pdf import pisa
@@ -254,6 +254,45 @@ class AdminCreateVendorAPIView(APIView):
             "message": "List of all vendors",
             "data": serializer.data
         }, status=status.HTTP_200_OK)
+    
+
+
+
+
+
+
+
+class VendorPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100 
+
+
+class VendorListingPagination(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        vendors = Vendor.objects.all().order_by('-created_at')
+        
+        paginator = VendorPagination()
+        
+        paginated_vendors = paginator.paginate_queryset(vendors, request)
+        
+        serializer = VendorFullSerializer(paginated_vendors, many=True)
+        
+        return paginator.get_paginated_response({
+            "message": "List of all vendors",
+            "data": serializer.data
+        })
+
+
+
+
+
+
+
+
 
 
 # VENDOR DETAILS

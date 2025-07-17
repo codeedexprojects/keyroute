@@ -33,6 +33,8 @@ urlpatterns = [
     path('api/admin/create-vendor/', AdminCreateVendorAPIView.as_view(), name='admin-create-vendor'),
     path('api/admin/vendors/list/', AdminCreateVendorAPIView.as_view(), name='admin-create-vendor'),
 
+    path('api/admin/vendors/pagination/', VendorListingPagination.as_view(), name='admin-pagination'),
+
     # VENDOR SINGLE DATA
     path('api/admin/vendors/<int:vendor_id>/', AdminVendorDetailAPIView.as_view(), name='admin-vendor-detail'),
 
