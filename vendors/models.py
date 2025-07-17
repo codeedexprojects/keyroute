@@ -361,7 +361,7 @@ class SignupOTP(models.Model):
 
 
 class VendorWallet(models.Model):
-    vendor = models.OneToOneField(Vendor, on_delete=models.SET_NULL, null=True, blank=True, related_name='wallet')
+    vendor = models.OneToOneField(Vendor, on_delete=models.CASCADE, null=True, blank=True, related_name='wallet')
     balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
