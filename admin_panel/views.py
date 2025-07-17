@@ -2592,7 +2592,7 @@ class BasicPackageAPIView(APIView):
             mutable_data.setlist('package_images', package_images)
             mutable_data.setlist('buses', data['buses'])
 
-            serializer = PackageBasicSerializer(data=mutable_data)
+            serializer = AdminPackageBasicSerializer(data=mutable_data)
             if serializer.is_valid():
                 package = serializer.save()
                 return Response({

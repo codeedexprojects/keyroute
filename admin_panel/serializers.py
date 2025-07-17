@@ -482,14 +482,28 @@ class SightListSerializer(serializers.ModelSerializer):
 
 class AdminBookingSerializer(serializers.Serializer):
     id = serializers.IntegerField()
+    
+    # User details
     name = serializers.CharField(source='user.name')
     mobile = serializers.CharField(source='user.mobile')
+    email = serializers.EmailField(source='user.email', read_only=True)
+    city = serializers.CharField(source='user.city', read_only=True)
+    district = serializers.CharField(source='user.district', read_only=True)
+    state = serializers.CharField(source='user.state', read_only=True)
+
+    # Booking info
     date = serializers.DateField(source='start_date')
     booking_date = serializers.DateField(source='created_at')
     category = serializers.SerializerMethodField()
     trip = serializers.SerializerMethodField()
     cost = serializers.DecimalField(source='total_amount', max_digits=10, decimal_places=2)
-    balance_amount = serializers.SerializerMethodField()  # New field
+    balance_amount = serializers.SerializerMethodField()
+
+    # Vendor info
+    vendor_name = serializers.SerializerMethodField()
+    vendor_phone = serializers.SerializerMethodField()
+    vendor_email = serializers.SerializerMethodField()
+    vendor_city = serializers.SerializerMethodField()
 
     def get_category(self, obj):
         return "Bus" if isinstance(obj, BusBooking) else "Package"
@@ -503,6 +517,30 @@ class AdminBookingSerializer(serializers.Serializer):
 
     def get_balance_amount(self, obj):
         return obj.balance_amount
+
+    def get_vendor_name(self, obj):
+        vendor = self._get_vendor(obj)
+        return vendor.full_name if vendor else None
+
+    def get_vendor_phone(self, obj):
+        vendor = self._get_vendor(obj)
+        return vendor.phone_no if vendor else None
+
+    def get_vendor_email(self, obj):
+        vendor = self._get_vendor(obj)
+        return vendor.email_address if vendor else None
+
+    def get_vendor_city(self, obj):
+        vendor = self._get_vendor(obj)
+        return vendor.city if vendor else None
+
+    def _get_vendor(self, obj):
+        if isinstance(obj, BusBooking) and obj.bus and obj.bus.vendor:
+            return obj.bus.vendor
+        elif isinstance(obj, PackageBooking) and obj.package and obj.package.vendor:
+            return obj.package.vendor
+        return None
+
 
 
 
@@ -538,39 +576,112 @@ class AdminBaseBookingSerializer(serializers.ModelSerializer):
 class AdminBusBookingSerializer(AdminBaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     bus_details = serializers.SerializerMethodField(read_only=True)
-    
+
+    # User contact details
+    user_name = serializers.CharField(source='user.name', read_only=True)
+    user_mobile = serializers.CharField(source='user.mobile', read_only=True)
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    user_city = serializers.CharField(source='user.city', read_only=True)
+    user_district = serializers.CharField(source='user.district', read_only=True)
+    user_state = serializers.CharField(source='user.state', read_only=True)
+
+    # Vendor contact details
+    vendor_name = serializers.SerializerMethodField()
+    vendor_phone = serializers.SerializerMethodField()
+    vendor_email = serializers.SerializerMethodField()
+    vendor_city = serializers.SerializerMethodField()
+
     class Meta:
         model = BusBooking
         fields = AdminBaseBookingSerializer.Meta.fields + [
-            'bus', 'bus_details', 'travelers', 'driver_detail'
+            'bus', 'bus_details', 'travelers', 'driver_detail',
+
+            # User contact
+            'user_name', 'user_mobile', 'user_email', 'user_city', 'user_district', 'user_state',
+
+            # Vendor contact
+            'vendor_name', 'vendor_phone', 'vendor_email', 'vendor_city',
         ]
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
             'advance_amount': {'write_only': False, 'required': False},
         }
-    
+
     def get_bus_details(self, obj):
         from vendors.serializers import BusSerializer
         return BusSerializer(obj.bus).data
 
+    # Vendor methods
+    def get_vendor_name(self, obj):
+        return obj.bus.vendor.full_name if obj.bus and obj.bus.vendor else None
+
+    def get_vendor_phone(self, obj):
+        return obj.bus.vendor.phone_no if obj.bus and obj.bus.vendor else None
+
+    def get_vendor_email(self, obj):
+        return obj.bus.vendor.email_address if obj.bus and obj.bus.vendor else None
+
+    def get_vendor_city(self, obj):
+        return obj.bus.vendor.city if obj.bus and obj.bus.vendor else None
+
+
 class AdminPackageBookingSerializer(AdminBaseBookingSerializer):
     travelers = TravelerSerializer(many=True, required=False, read_only=True)
     package_details = serializers.SerializerMethodField(read_only=True)
-    
+    bus_count = serializers.SerializerMethodField(read_only=True)
+
+    # User contact details
+    user_name = serializers.CharField(source='user.name', read_only=True)
+    user_mobile = serializers.CharField(source='user.mobile', read_only=True)
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    user_city = serializers.CharField(source='user.city', read_only=True)
+    user_district = serializers.CharField(source='user.district', read_only=True)
+    user_state = serializers.CharField(source='user.state', read_only=True)
+
+    # Vendor contact details
+    vendor_name = serializers.SerializerMethodField()
+    vendor_phone = serializers.SerializerMethodField()
+    vendor_email = serializers.SerializerMethodField()
+    vendor_city = serializers.SerializerMethodField()
+
     class Meta:
         model = PackageBooking
         fields = AdminBaseBookingSerializer.Meta.fields + [
-            'package', 'package_details', 'travelers', 'driver_detail'
+            'package', 'package_details', 'travelers', 'driver_detail',
+
+            # User contact
+            'user_name', 'user_mobile', 'user_email', 'user_city', 'user_district', 'user_state',
+
+            # Vendor contact
+            'vendor_name', 'vendor_phone', 'vendor_email', 'vendor_city','bus_count'
         ]
         read_only_fields = AdminBaseBookingSerializer.Meta.read_only_fields
         extra_kwargs = {
             'user': {'write_only': True, 'required': False},
             'advance_amount': {'write_only': False, 'required': False},
         }
-    
+
     def get_package_details(self, obj):
         from vendors.serializers import PackageSerializer
         return PackageSerializer(obj.package).data
+    
+    def get_bus_count(self, obj):
+        if obj.package and hasattr(obj.package, 'buses'):
+            return obj.package.buses.count()
+        return 0
+
+    # Vendor methods
+    def get_vendor_name(self, obj):
+        return obj.package.vendor.full_name if obj.package and obj.package.vendor else None
+
+    def get_vendor_phone(self, obj):
+        return obj.package.vendor.phone_no if obj.package and obj.package.vendor else None
+
+    def get_vendor_email(self, obj):
+        return obj.package.vendor.email_address if obj.package and obj.package.vendor else None
+
+    def get_vendor_city(self, obj):
+        return obj.package.vendor.city if obj.package and obj.package.vendor else None
 
 
 class AdminBusReviewSerializer(serializers.ModelSerializer):
@@ -648,15 +759,27 @@ class BookingDisplaySerializer(serializers.Serializer):
     total_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
     from_location = serializers.CharField()
     to_location = serializers.CharField()
+
     booking_type = serializers.SerializerMethodField()
-    user = serializers.StringRelatedField()
     total_members = serializers.SerializerMethodField()
     default_member_name = serializers.SerializerMethodField()
 
+    # User contact details
+    user_name = serializers.CharField(source='user.name', read_only=True)
+    user_mobile = serializers.CharField(source='user.mobile', read_only=True)
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    user_city = serializers.CharField(source='user.city', read_only=True)
+    user_district = serializers.CharField(source='user.district', read_only=True)
+    user_state = serializers.CharField(source='user.state', read_only=True)
+
+    # Vendor contact details
+    vendor_name = serializers.SerializerMethodField()
+    vendor_phone = serializers.SerializerMethodField()
+    vendor_email = serializers.SerializerMethodField()
+    vendor_city = serializers.SerializerMethodField()
+
     def get_booking_type(self, obj):
         return 'Bus' if hasattr(obj, 'bus') else 'Package'
-    
-
 
     def get_total_members(self, obj):
         return obj.male + obj.female + obj.children
@@ -666,6 +789,29 @@ class BookingDisplaySerializer(serializers.Serializer):
         if traveler:
             return f"{traveler.first_name} {traveler.last_name or ''}".strip()
         return f"Traveler {obj.id}"
+
+    def get_vendor_name(self, obj):
+        vendor = self._get_vendor(obj)
+        return vendor.full_name if vendor else None
+
+    def get_vendor_phone(self, obj):
+        vendor = self._get_vendor(obj)
+        return vendor.phone_no if vendor else None
+
+    def get_vendor_email(self, obj):
+        vendor = self._get_vendor(obj)
+        return vendor.email_address if vendor else None
+
+    def get_vendor_city(self, obj):
+        vendor = self._get_vendor(obj)
+        return vendor.city if vendor else None
+
+    def _get_vendor(self, obj):
+        if hasattr(obj, 'bus') and obj.bus and obj.bus.vendor:
+            return obj.bus.vendor
+        elif hasattr(obj, 'package') and obj.package and obj.package.vendor:
+            return obj.package.vendor
+        return None
 
 
 from rest_framework import serializers
@@ -695,19 +841,85 @@ class BusBookingSerializer(serializers.ModelSerializer):
     driver_detail = BusDriverDetailSerializer(read_only=True)
     balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
+    # User contact fields
+    user_name = serializers.CharField(source='user.name', read_only=True)
+    user_mobile = serializers.CharField(source='user.mobile', read_only=True)
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    user_city = serializers.CharField(source='user.city', read_only=True)
+    user_district = serializers.CharField(source='user.district', read_only=True)
+    user_state = serializers.CharField(source='user.state', read_only=True)
+
+    # Vendor contact fields
+    vendor_name = serializers.SerializerMethodField()
+    vendor_phone = serializers.SerializerMethodField()
+    vendor_email = serializers.SerializerMethodField()
+    vendor_city = serializers.SerializerMethodField()
+
     class Meta:
         model = BusBooking
-        fields = '__all__'
+        fields = ['__all__'] + [
+            'user_name', 'user_mobile', 'user_email', 'user_city', 'user_district', 'user_state',
+            'vendor_name', 'vendor_phone', 'vendor_email', 'vendor_city'
+        ]
+
+    # Vendor helpers
+    def get_vendor_name(self, obj):
+        return obj.bus.vendor.full_name if obj.bus and obj.bus.vendor else None
+
+    def get_vendor_phone(self, obj):
+        return obj.bus.vendor.phone_no if obj.bus and obj.bus.vendor else None
+
+    def get_vendor_email(self, obj):
+        return obj.bus.vendor.email_address if obj.bus and obj.bus.vendor else None
+
+    def get_vendor_city(self, obj):
+        return obj.bus.vendor.city if obj.bus and obj.bus.vendor else None
 
 # PackageBooking Serializer
 class PackageBookingSerializer(serializers.ModelSerializer):
     travelers = TravelerSerializer(many=True, read_only=True)
     driver_detail = PackageDriverDetailSerializer(read_only=True)
     balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    bus_count = serializers.SerializerMethodField(read_only=True)
+
+    # User contact fields
+    user_name = serializers.CharField(source='user.name', read_only=True)
+    user_mobile = serializers.CharField(source='user.mobile', read_only=True)
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    user_city = serializers.CharField(source='user.city', read_only=True)
+    user_district = serializers.CharField(source='user.district', read_only=True)
+    user_state = serializers.CharField(source='user.state', read_only=True)
+
+    # Vendor contact fields
+    vendor_name = serializers.SerializerMethodField()
+    vendor_phone = serializers.SerializerMethodField()
+    vendor_email = serializers.SerializerMethodField()
+    vendor_city = serializers.SerializerMethodField()
 
     class Meta:
         model = PackageBooking
-        fields = '__all__'
+        fields = ['__all__'] + [
+            'user_name', 'user_mobile', 'user_email', 'user_city', 'user_district', 'user_state',
+            'vendor_name', 'vendor_phone', 'vendor_email', 'vendor_city','bus_count'
+        ]
+
+    # Vendor helpers
+    def get_vendor_name(self, obj):
+        return obj.package.vendor.full_name if obj.package and obj.package.vendor else None
+    
+    def get_bus_count(self, obj):
+        if obj.package and hasattr(obj.package, 'buses'):
+            return obj.package.buses.count()
+        return 0
+
+    def get_vendor_phone(self, obj):
+        return obj.package.vendor.phone_no if obj.package and obj.package.vendor else None
+
+    def get_vendor_email(self, obj):
+        return obj.package.vendor.email_address if obj.package and obj.package.vendor else None
+
+    def get_vendor_city(self, obj):
+        return obj.package.vendor.city if obj.package and obj.package.vendor else None
 
 
 
@@ -769,11 +981,29 @@ class BusTravelImageSerializerADMINBUSDETAILS(serializers.ModelSerializer):
         fields = ['id', 'image']
 
 
+class VendorSerializerADMINBUSDETAILS(serializers.ModelSerializer):
+    class Meta:
+        model = Vendor
+        fields = [
+            'full_name',
+            'email_address',
+            'phone_no',
+            'travels_name',
+            'location',
+            'landmark',
+            'address',
+            'city',
+            'state',
+            'pincode',
+            'district'
+        ]
+
+
 class BusAdminSerializerADMINBUSDETAILS(serializers.ModelSerializer):
+    vendor = VendorSerializerADMINBUSDETAILS(read_only=True)
     amenities = AmenitySerializerADMINBUSDETAILS(many=True, read_only=True)
     features = BusFeatureSerializerADMINBUSDETAILS(many=True, read_only=True)
     images = BusImageSerializerADMINBUSDETAILS(many=True, read_only=True)
-    # travel_images = BusTravelImageSerializer(many=True, read_only=True)
     average_rating = serializers.FloatField(read_only=True)
     total_reviews = serializers.IntegerField(read_only=True)
 
@@ -1109,48 +1339,7 @@ class AdminEditBusSerializer(serializers.ModelSerializer):
         return instance
 
 
-class PackageBasicSerializer(serializers.ModelSerializer):
-    buses = serializers.PrimaryKeyRelatedField(queryset=Bus.objects.all(), many=True)
-    package_images = serializers.ListField(
-        child=serializers.ImageField(), write_only=True, required=False
-    )
-    bus_location = serializers.CharField(required=False, allow_blank=True)
-    price_per_person = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
-    extra_charge_per_km = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
-
-
-
-    class Meta:
-        model = Package
-        fields = [
-            'id',
-            'sub_category', 'header_image', 'places', 'vendor_id','days',
-            'ac_available', 'guide_included', 'buses', 'package_images','bus_location', 'price_per_person','extra_charge_per_km'
-        ]
-
-    def validate_vendor_id(self, value):
-        try:
-            Vendor.objects.get(pk=value)
-        except Vendor.DoesNotExist:
-            raise serializers.ValidationError("Vendor not found.")
-        return value
-
-    def create(self, validated_data):
-        vendor_id = validated_data.pop('vendor_id')
-        vendor = Vendor.objects.get(pk=vendor_id)
-        buses = validated_data.pop('buses')
-        images = validated_data.pop('package_images', [])
-
-        package = Package.objects.create(vendor=vendor, **validated_data)
-        package.buses.set(buses)
-
-        for img in images:
-            PackageImage.objects.create(package=package, image=img)
-
-        return package
-    
-
-class AdminCreatePackageSerializer(serializers.ModelSerializer):
+class AdminPackageBasicSerializer(serializers.ModelSerializer):
     vendor_id = serializers.IntegerField(write_only=True)
     bus_ids = serializers.ListField(
         child=serializers.IntegerField(),
@@ -1158,10 +1347,24 @@ class AdminCreatePackageSerializer(serializers.ModelSerializer):
         required=False,
         help_text="List of bus IDs to associate with this package"
     )
+    buses = serializers.PrimaryKeyRelatedField(
+        queryset=Bus.objects.all(),
+        many=True
+    )
+    package_images = serializers.ListField(
+        child=serializers.ImageField(),
+        write_only=True
+    )
+
+    # Optional Fields
+    bus_location = serializers.CharField(required=False, allow_blank=True)
+    price_per_person = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
+    extra_charge_per_km = serializers.DecimalField(max_digits=10, decimal_places=2, required=False)
 
     class Meta:
         model = Package
         fields = [
+            'id',
             'vendor_id',
             'sub_category',
             'header_image',
@@ -1170,16 +1373,16 @@ class AdminCreatePackageSerializer(serializers.ModelSerializer):
             'ac_available',
             'guide_included',
             'bus_ids',
+            'buses',
+            'package_images',
             'bus_location',
             'price_per_person',
             'extra_charge_per_km',
-            'status'
+            'status',
         ]
 
     def validate_vendor_id(self, value):
-        try:
-            Vendor.objects.get(pk=value)
-        except Vendor.DoesNotExist:
+        if not Vendor.objects.filter(pk=value).exists():
             raise serializers.ValidationError("Vendor not found.")
         return value
 
@@ -1200,13 +1403,21 @@ class AdminCreatePackageSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         vendor_id = validated_data.pop('vendor_id')
         vendor = Vendor.objects.get(pk=vendor_id)
+
         bus_ids = validated_data.pop('bus_ids', [])
+        buses = validated_data.pop('buses', [])
+        images = validated_data.pop('package_images', [])
 
         package = Package.objects.create(vendor=vendor, **validated_data)
 
         if bus_ids:
-            buses = Bus.objects.filter(id__in=bus_ids)
+            bus_objs = Bus.objects.filter(id__in=bus_ids)
+            package.buses.set(bus_objs)
+        elif buses:
             package.buses.set(buses)
+
+        for img in images:
+            PackageImage.objects.create(package=package, image=img)
 
         return package
 
