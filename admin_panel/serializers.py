@@ -857,10 +857,7 @@ class BusBookingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = BusBooking
-        fields = ['__all__'] + [
-            'user_name', 'user_mobile', 'user_email', 'user_city', 'user_district', 'user_state',
-            'vendor_name', 'vendor_phone', 'balance_amount','vendor_email', 'vendor_city','driver_detail','travelers'
-        ]
+        fields = '__all__'
 
     # Vendor helpers
     def get_vendor_name(self, obj):
@@ -898,10 +895,7 @@ class PackageBookingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PackageBooking
-        fields = ['__all__'] + [
-            'user_name', 'user_mobile', 'user_email', 'user_city', 'user_district', 'user_state',
-            'vendor_name', 'vendor_phone', 'balance_amount','vendor_email', 'vendor_city','bus_count','driver_detail','travelers'
-        ]
+        fields = '__all__'
 
     # Vendor helpers
     def get_vendor_name(self, obj):
