@@ -859,7 +859,7 @@ class BusBookingSerializer(serializers.ModelSerializer):
         model = BusBooking
         fields = ['__all__'] + [
             'user_name', 'user_mobile', 'user_email', 'user_city', 'user_district', 'user_state',
-            'vendor_name', 'vendor_phone', 'vendor_email', 'vendor_city'
+            'vendor_name', 'vendor_phone', 'balance_amount','vendor_email', 'vendor_city'
         ]
 
     # Vendor helpers
@@ -900,7 +900,7 @@ class PackageBookingSerializer(serializers.ModelSerializer):
         model = PackageBooking
         fields = ['__all__'] + [
             'user_name', 'user_mobile', 'user_email', 'user_city', 'user_district', 'user_state',
-            'vendor_name', 'vendor_phone', 'vendor_email', 'vendor_city','bus_count'
+            'vendor_name', 'vendor_phone', 'balance_amount','vendor_email', 'vendor_city','bus_count'
         ]
 
     # Vendor helpers
