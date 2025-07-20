@@ -216,4 +216,5 @@ urlpatterns = [
     path('api/admin/bus/<int:bus_id>/images/delete/', AdminDeleteBusImageAPIView.as_view(), name='admin_delete_bus_images'),
     
     path('api/admin/packages/<package_id>/add-day/', AdminAddDayPlanAPIView.as_view(), name='add-days'),
+    path('api/admin/packages/<package_id>/delete/', DeletePackage.as_view(), name='add-days'),
 ]
