@@ -2851,16 +2851,3 @@ class AdminAddDayPlanAPIView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
-        
-
-
-
-
-class DeletePackage(APIView):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def delete(self, request, id):
-        package = get_object_or_404(Package, id=id)
-        package.delete()
-        return Response({"message": "Package deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
