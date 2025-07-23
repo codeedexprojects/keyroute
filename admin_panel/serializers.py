@@ -274,10 +274,44 @@ class DayPlanSerializer(serializers.ModelSerializer):
         fields = ['id', 'day_number', 'description', 'places', 'stay', 'meals', 'activities']
 
 
+class PackageCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackageCategory
+        fields = ['id', 'name', 'image']
+
+
+
+class PackageSubCategorySerializer(serializers.ModelSerializer):
+    category = PackageCategorySerializer(read_only=True)
+
+    class Meta:
+        model = PackageSubCategory
+        fields = ['id', 'name', 'image', 'category']
+
+
+class BusSerializer(serializers.ModelSerializer):
+    amenities = serializers.StringRelatedField(many=True)
+    features = serializers.StringRelatedField(many=True)
+
+    class Meta:
+        model = Bus
+        fields = [
+            'id', 'bus_name', 'bus_number', 'capacity', 'vehicle_description',
+            'travels_logo', 'rc_certificate', 'license', 'contract_carriage_permit',
+            'passenger_insurance', 'vehicle_insurance', 'base_price', 'base_price_km',
+            'price_per_km', 'night_allowance', 'minimum_fare', 'status', 'location',
+            'latitude', 'longitude', 'bus_type', 'is_popular', 'average_rating',
+            'total_reviews', 'amenities', 'features'
+        ]
+
+
+
 class AdminPackageDetailSerializer(serializers.ModelSerializer):
     sub_category = PackageSubCategorySerializer(read_only=True)
     day_plans = DayPlanSerializer(many=True, read_only=True)
     travels_name = serializers.SerializerMethodField()
+    buses = BusSerializer(many=True, read_only=True)
+    bus_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
@@ -286,22 +320,29 @@ class AdminPackageDetailSerializer(serializers.ModelSerializer):
             'sub_category',
             'extra_charge_per_km',
             'price_per_person',
-            'travels_name', 
+            'travels_name',
             'places',
             'days',
             'ac_available',
             'guide_included',
             'header_image',
             'day_plans',
+            'buses',
+            'bus_count',
             'created_at',
             'updated_at'
         ]
 
-
     def get_travels_name(self, obj):
-      
         travels_names = obj.buses.select_related('vendor').values_list('vendor__travels_name', flat=True).distinct()
         return list(travels_names)
+
+    def get_bus_count(self, obj):
+        return obj.buses.count()
+
+    
+
+
 
 # -------------------------------- END---------------
 
@@ -859,7 +900,6 @@ class BusBookingSerializer(serializers.ModelSerializer):
         model = BusBooking
         fields = '__all__'
 
-    # Vendor helpers
     def get_vendor_name(self, obj):
         return obj.bus.vendor.full_name if obj.bus and obj.bus.vendor else None
 
@@ -877,7 +917,7 @@ class PackageBookingSerializer(serializers.ModelSerializer):
     travelers = TravelerSerializer(many=True, read_only=True)
     driver_detail = PackageDriverDetailSerializer(read_only=True)
     balance_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-    bus_count = serializers.SerializerMethodField(read_only=True)
+    bus_count = serializers.SerializerMethodField()
 
     # User contact fields
     user_name = serializers.CharField(source='user.name', read_only=True)
@@ -897,14 +937,13 @@ class PackageBookingSerializer(serializers.ModelSerializer):
         model = PackageBooking
         fields = '__all__'
 
-    # Vendor helpers
-    def get_vendor_name(self, obj):
-        return obj.package.vendor.full_name if obj.package and obj.package.vendor else None
-    
     def get_bus_count(self, obj):
         if obj.package and hasattr(obj.package, 'buses'):
             return obj.package.buses.count()
         return 0
+
+    def get_vendor_name(self, obj):
+        return obj.package.vendor.full_name if obj.package and obj.package.vendor else None
 
     def get_vendor_phone(self, obj):
         return obj.package.vendor.phone_no if obj.package and obj.package.vendor else None
