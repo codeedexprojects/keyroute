@@ -2755,7 +2755,7 @@ class AdminAddDayPlanAPIView(APIView):
 
     def post(self, request, package_id):
         try:
-            vendor_id=place_data.get("vendor_id", ""),
+            vendor_id=data.get("vendor_id", ""),
             package = Package.objects.filter(id=package_id, vendor__user=vendor_id).first()
             if not package:
                 return Response({"error": "Package not found or access denied"}, status=404)
@@ -2889,7 +2889,7 @@ class AdminUpdateDayPlanAPIView(APIView):
                     ActivityImage.objects.create(activity=related_obj, image=img)
 
     def patch(self, request, package_id, day_number):
-        vendor_id=place_data.get("vendor_id", ""),
+        vendor_id=data.get("vendor_id", ""),
         try:
             # Step 1: Find the day plan
             day_plan = DayPlan.objects.filter(
