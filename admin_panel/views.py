@@ -2856,11 +2856,114 @@ class AdminAddDayPlanAPIView(APIView):
 
 
 
-class DeletePackage(APIView):
+
+
+
+
+
+
+
+
+
+
+
+
+class AdminUpdateDayPlanAPIView(APIView):
+    parser_classes = [MultiPartParser, JSONParser]
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def delete(self, request, id):
-        package = get_object_or_404(Package, id=id)
-        package.delete()
-        return Response({"message": "Package deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+    def _upload_images(self, files, prefix, related_obj_index, related_obj):
+        for img_index in range(4):  # allow up to 4 images per object
+            key = f"{prefix}_{related_obj_index}_{img_index}"
+            img = files.get(key)
+            if img:
+                if isinstance(related_obj, Place):
+                    PlaceImage.objects.create(place=related_obj, image=img)
+                elif isinstance(related_obj, Stay):
+                    StayImage.objects.create(stay=related_obj, image=img)
+                elif isinstance(related_obj, Meal):
+                    MealImage.objects.create(meal=related_obj, image=img)
+                elif isinstance(related_obj, Activity):
+                    ActivityImage.objects.create(activity=related_obj, image=img)
+
+    def patch(self, request, package_id, day_number):
+        try:
+            # Step 1: Find the day plan
+            day_plan = DayPlan.objects.filter(
+                package__id=package_id,
+                package__vendor__user=request.user,
+                day_number=day_number
+            ).first()
+
+            if not day_plan:
+                return Response({"error": "Day plan not found"}, status=404)
+
+            data = request.data
+            files = request.FILES
+
+            # Step 2: Update day plan description
+            day_plan.description = data.get("description", day_plan.description)
+            day_plan.save()
+
+            # Step 3: Update places
+            places = json.loads(data.get("places", "[]"))
+            Place.objects.filter(day_plan=day_plan).delete()  # remove old
+            for idx, place_data in enumerate(places):
+                place = Place.objects.create(
+                    day_plan=day_plan,
+                    name=place_data.get("name", ""),
+                    description=place_data.get("description", "")
+                )
+                self._upload_images(files, "place_image", idx, place)
+
+            # Step 4: Update stay
+            Stay.objects.filter(day_plan=day_plan).delete()
+            stay_list = json.loads(data.get("stay", "[]"))
+            if stay_list:
+                stay_data = stay_list[0]
+                stay = Stay.objects.create(
+                    day_plan=day_plan,
+                    hotel_name=stay_data.get("hotel_name", ""),
+                    description=stay_data.get("description", ""),
+                    location=stay_data.get("location", ""),
+                    is_ac=stay_data.get("is_ac", False),
+                    has_breakfast=stay_data.get("has_breakfast", False)
+                )
+                self._upload_images(files, "stay_image", 0, stay)
+
+            # Step 5: Update meal
+            Meal.objects.filter(day_plan=day_plan).delete()
+            meal_list = json.loads(data.get("meal", "[]"))
+            if meal_list:
+                meal_data = meal_list[0]
+                meal_time = datetime.strptime(meal_data.get("time", ""), "%H:%M").time() if meal_data.get("time") else None
+                meal = Meal.objects.create(
+                    day_plan=day_plan,
+                    type=meal_data.get("type", "breakfast"),
+                    description=meal_data.get("description", ""),
+                    restaurant_name=meal_data.get("restaurant_name", ""),
+                    location=meal_data.get("location", ""),
+                    time=meal_time
+                )
+                self._upload_images(files, "meal_image", 0, meal)
+
+            # Step 6: Update activity
+            Activity.objects.filter(day_plan=day_plan).delete()
+            activity_list = json.loads(data.get("activity", "[]"))
+            if activity_list:
+                activity_data = activity_list[0]
+                activity_time = datetime.strptime(activity_data.get("time", ""), "%H:%M").time() if activity_data.get("time") else None
+                activity = Activity.objects.create(
+                    day_plan=day_plan,
+                    name=activity_data.get("name", ""),
+                    description=activity_data.get("description", ""),
+                    location=activity_data.get("location", ""),
+                    time=activity_time
+                )
+                self._upload_images(files, "activity_image", 0, activity)
+
+            return Response({"message": "Day plan updated successfully."}, status=200)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
