@@ -835,18 +835,11 @@ class PackageBookingSerializer(BaseBookingSerializer):
         # For now, I'll assume you have a similar search mechanism as buses
         user = self.context['request'].user
         
-        # If you have a PackageSearch model similar to UserBusSearch, use it
-        # Otherwise, you might need to get location from request data or another source
         try:
-            # Try to get location from package search (adjust model name as needed)
-            # If you don't have a search model, you might get it from request data
+
             pickup_lat = self.initial_data.get('pickup_lat') or data.get('pickup_lat')
             pickup_lon = self.initial_data.get('pickup_lon') or data.get('pickup_lon')
             
-            # Alternative: If you have a PackageSearch model
-            # package_search = UserPackageSearch.objects.get(user=user)
-            # pickup_lat = package_search.pickup_lat
-            # pickup_lon = package_search.pickup_lon
             
             if pickup_lat and pickup_lon:
                 try:

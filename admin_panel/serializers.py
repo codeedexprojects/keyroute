@@ -307,39 +307,65 @@ class BusSerializer(serializers.ModelSerializer):
 
 
 class AdminPackageDetailSerializer(serializers.ModelSerializer):
-    sub_category = PackageSubCategorySerializer(read_only=True)
-    day_plans = DayPlanSerializer(many=True, read_only=True)
+    sub_category_name = serializers.CharField(source='sub_category.name', read_only=True)
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)
     travels_name = serializers.SerializerMethodField()
-    buses = BusSerializer(many=True, read_only=True)
     bus_count = serializers.SerializerMethodField()
+    package_images = PackageImageSerializer(many=True, read_only=True)
+    day_plans = DayPlanSerializer(many=True, read_only=True)
+    buses = BusSerializer(many=True, read_only=True)
+
+    price_per_person = serializers.SerializerMethodField()
+    extra_charge_per_km = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    total_reviews = serializers.SerializerMethodField()
 
     class Meta:
         model = Package
         fields = [
             'id',
-            'sub_category',
-            'extra_charge_per_km',
-            'price_per_person',
-            'travels_name',
+            'sub_category_name',
+            'vendor_name',
+            'package_images',
+            'header_image',
             'places',
             'days',
             'ac_available',
             'guide_included',
-            'header_image',
+            'price_per_person',
+            'extra_charge_per_km',
             'day_plans',
             'buses',
             'bus_count',
+            'travels_name',
+            'average_rating',
+            'total_reviews',
             'created_at',
             'updated_at'
         ]
 
     def get_travels_name(self, obj):
-        travels_names = obj.buses.select_related('vendor').values_list('vendor__travels_name', flat=True).distinct()
-        return list(travels_names)
+        return list(
+            obj.buses.select_related('vendor')
+                .values_list('vendor__travels_name', flat=True)
+                .distinct()
+        )
 
     def get_bus_count(self, obj):
         return obj.buses.count()
 
+    def get_price_per_person(self, obj):
+        return int(obj.price_per_person)
+
+    def get_extra_charge_per_km(self, obj):
+        return int(obj.extra_charge_per_km)
+
+    def get_average_rating(self, obj):
+        avg = obj.package_reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(avg, 1) if avg else 0.0
+
+    def get_total_reviews(self, obj):
+        return obj.package_reviews.count()
     
 
 
