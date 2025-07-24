@@ -308,6 +308,9 @@ class BusSerializer(serializers.ModelSerializer):
 
 class AdminPackageDetailSerializer(serializers.ModelSerializer):
     sub_category_name = serializers.CharField(source='sub_category.name', read_only=True)
+    sub_category_id = serializers.CharField(source='sub_category.id', read_only=True)
+    category_name = serializers.SerializerMethodField()
+    category_id = serializers.SerializerMethodField()
     vendor_name = serializers.CharField(source='vendor.name', read_only=True)
     travels_name = serializers.SerializerMethodField()
     bus_count = serializers.SerializerMethodField()
@@ -326,6 +329,9 @@ class AdminPackageDetailSerializer(serializers.ModelSerializer):
             'id',
             'sub_category_name',
             'vendor_name',
+            'sub_category_id',
+            'category_name',
+            'category_id',
             'package_images',
             'header_image',
             'places',
@@ -353,6 +359,12 @@ class AdminPackageDetailSerializer(serializers.ModelSerializer):
 
     def get_bus_count(self, obj):
         return obj.buses.count()
+    
+    def get_category_name(self, obj):
+        return obj.sub_category.category.name if obj.sub_category and obj.sub_category.category else None
+    
+    def get_category_id(self, obj):
+        return obj.sub_category.category.name if obj.sub_category and obj.sub_category.category else None
 
     def get_price_per_person(self, obj):
         return int(obj.price_per_person)
