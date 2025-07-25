@@ -32,6 +32,7 @@ from rest_framework.pagination import PageNumberPagination
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 from xhtml2pdf import pisa
+from django.db.models import Q, Count
 
 import io
 
@@ -275,17 +276,169 @@ class VendorListingPagination(APIView):
     def get(self, request):
         vendors = Vendor.objects.all().order_by('-created_at')
         
-        paginator = VendorPagination()
+        # Apply filters and search
+        vendors = self.apply_filters_and_search(vendors, request)
         
+        paginator = VendorPagination()
         paginated_vendors = paginator.paginate_queryset(vendors, request)
         
         serializer = VendorFullSerializer(paginated_vendors, many=True)
         
         return paginator.get_paginated_response({
             "message": "List of all vendors",
-            "data": serializer.data
+            "data": serializer.data,
+            "filters_applied": self.get_applied_filters(request)
         })
-
+    
+    def apply_filters_and_search(self, queryset, request):
+        """Apply search and filter functionality"""
+        
+        # Search functionality
+        search = request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(
+                Q(travels_name__icontains=search) |
+                Q(full_name__icontains=search) |
+                Q(email_address__icontains=search) |
+                Q(user__mobile__icontains=search) |
+                Q(location__icontains=search) |
+                Q(city__icontains=search) |
+                Q(address__icontains=search)
+            )
+        
+        # Location filters
+        state = request.query_params.get('state', None)
+        if state:
+            queryset = queryset.filter(user__state__iexact=state)
+            
+        district = request.query_params.get('district', None)
+        if district:
+            queryset = queryset.filter(user__district__iexact=district)
+            
+        city = request.query_params.get('city', None)
+        if city:
+            queryset = queryset.filter(city__iexact=city)
+            
+        pincode = request.query_params.get('pincode', None)
+        if pincode:
+            queryset = queryset.filter(pincode=pincode)
+        
+        # Bus count filters
+        min_buses = request.query_params.get('min_buses', None)
+        if min_buses:
+            try:
+                min_buses = int(min_buses)
+                queryset = queryset.annotate(
+                    bus_count=Count('bus_set')
+                ).filter(bus_count__gte=min_buses)
+            except ValueError:
+                pass
+                
+        max_buses = request.query_params.get('max_buses', None)
+        if max_buses:
+            try:
+                max_buses = int(max_buses)
+                queryset = queryset.annotate(
+                    bus_count=Count('bus_set')
+                ).filter(bus_count__lte=max_buses)
+            except ValueError:
+                pass
+        
+        # Package count filters
+        min_packages = request.query_params.get('min_packages', None)
+        if min_packages:
+            try:
+                min_packages = int(min_packages)
+                queryset = queryset.annotate(
+                    package_count=Count('package_set')
+                ).filter(package_count__gte=min_packages)
+            except ValueError:
+                pass
+                
+        max_packages = request.query_params.get('max_packages', None)
+        if max_packages:
+            try:
+                max_packages = int(max_packages)
+                queryset = queryset.annotate(
+                    package_count=Count('package_set')
+                ).filter(package_count__lte=max_packages)
+            except ValueError:
+                pass
+        
+        # Filter by vendors with available packages only
+        has_packages = request.query_params.get('has_packages', None)
+        if has_packages and has_packages.lower() == 'true':
+            queryset = queryset.filter(package_set__isnull=False).distinct()
+            
+        # Filter by vendors with buses only
+        has_buses = request.query_params.get('has_buses', None)
+        if has_buses and has_buses.lower() == 'true':
+            queryset = queryset.filter(bus_set__isnull=False).distinct()
+        
+        # Filter by package availability status
+        package_status = request.query_params.get('package_status', None)
+        if package_status:
+            queryset = queryset.filter(package_set__status=package_status).distinct()
+        
+        # Date range filters (for creation date)
+        created_after = request.query_params.get('created_after', None)
+        if created_after:
+            try:
+                from datetime import datetime
+                date_obj = datetime.strptime(created_after, '%Y-%m-%d').date()
+                queryset = queryset.filter(created_at__date__gte=date_obj)
+            except ValueError:
+                pass
+                
+        created_before = request.query_params.get('created_before', None)
+        if created_before:
+            try:
+                from datetime import datetime
+                date_obj = datetime.strptime(created_before, '%Y-%m-%d').date()
+                queryset = queryset.filter(created_at__date__lte=date_obj)
+            except ValueError:
+                pass
+        
+        # Sorting options
+        sort_by = request.query_params.get('sort_by', None)
+        if sort_by:
+            if sort_by == 'name':
+                queryset = queryset.order_by('travels_name')
+            elif sort_by == 'name_desc':
+                queryset = queryset.order_by('-travels_name')
+            elif sort_by == 'location':
+                queryset = queryset.order_by('city', 'location')
+            elif sort_by == 'created_asc':
+                queryset = queryset.order_by('created_at')
+            elif sort_by == 'bus_count':
+                queryset = queryset.annotate(
+                    bus_count=Count('bus_set')
+                ).order_by('-bus_count')
+            elif sort_by == 'package_count':
+                queryset = queryset.annotate(
+                    package_count=Count('package_set')
+                ).order_by('-package_count')
+            # Default sorting by created_at desc is already applied
+        
+        return queryset
+    
+    def get_applied_filters(self, request):
+        """Return information about applied filters for debugging/frontend"""
+        applied_filters = {}
+        
+        filter_params = [
+            'search', 'state', 'district', 'city', 'pincode',
+            'min_buses', 'max_buses', 'min_packages', 'max_packages',
+            'has_packages', 'has_buses', 'package_status',
+            'created_after', 'created_before', 'sort_by'
+        ]
+        
+        for param in filter_params:
+            value = request.query_params.get(param)
+            if value:
+                applied_filters[param] = value
+                
+        return applied_filters
 
 
 
