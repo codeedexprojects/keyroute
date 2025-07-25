@@ -215,7 +215,14 @@ urlpatterns = [
 
     path('api/admin/bus/<int:bus_id>/images/delete/', AdminDeleteBusImageAPIView.as_view(), name='admin_delete_bus_images'),
     
-    path('api/admin/packages/<package_id>/add-day/', AdminAddDayPlanAPIView.as_view(), name='add-days'),
-
-    path('api/admin/packages/<package_id>/edit-day/', AdminAddDayPlanAPIView.as_view(), name='add-days'),
+    path('api/admin/packages/<int:package_id>/add-day/', AdminAddDayPlanAPIView.as_view(), name='add-day-plan'),
+    path('api/admin/packages/<int:package_id>/day/<int:day_number>/edit/', AdminUpdateDayPlanAPIView.as_view(), name='edit-day-plan'),
+    path('api/admin/packages/<int:package_id>/day/<int:day_number>/', AdminAddDayPlanAPIView.as_view(), name='get-day-plan'),
+    
+    # Individual Image Management
+    path('api/admin/images/<str:image_type>/<int:image_id>/', ImageManagementAPIView.as_view(), name='manage-single-image'),
+    path('api/admin/images/<str:image_type>/<int:object_id>/add/', ImageManagementAPIView.as_view(), name='add-images'),
+    
+    # Bulk Image Management
+    path('api/admin/images/<str:image_type>/<int:object_id>/bulk/', BulkImageManagementAPIView.as_view(), name='bulk-image-operations'),
 ]
