@@ -940,10 +940,14 @@ class BusBookingSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_vendor_name(self, obj):
-        return obj.bus.vendor.full_name if obj.bus and obj.bus.vendor else None
+        if obj.bus and obj.bus.vendor:
+            return obj.bus.vendor.full_name
+        return None
 
     def get_vendor_phone(self, obj):
-        return obj.bus.vendor.phone_no if obj.bus and obj.bus.vendor else None
+        if obj.bus and obj.bus.vendor:
+            return obj.bus.vendor.phone_no
+        return None
 
     def get_vendor_email(self, obj):
         return obj.bus.vendor.email_address if obj.bus and obj.bus.vendor else None
