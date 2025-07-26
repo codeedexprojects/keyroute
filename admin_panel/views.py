@@ -2894,7 +2894,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
 
 # Import your models - FIXED: Added missing imports
-from .models import ( DayPlan, Place, Stay, Meal, Activity, 
+from vendors.models import ( DayPlan, Place, Stay, Meal, Activity, 
     PlaceImage, StayImage, MealImage, ActivityImage
 )
 from .serializers import DayPlanSerializer
