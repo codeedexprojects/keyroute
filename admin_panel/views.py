@@ -2892,9 +2892,13 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, JSONParser
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.permissions import IsAuthenticated
-# Add your model imports here
-# from .models import Package, DayPlan, Place, Stay, Meal, Activity, PlaceImage, StayImage, MealImage, ActivityImage
-# from .serializers import DayPlanSerializer
+
+# Import your models - FIXED: Added missing imports
+from .models import (
+    Package, DayPlan, Place, Stay, Meal, Activity, 
+    PlaceImage, StayImage, MealImage, ActivityImage
+)
+from .serializers import DayPlanSerializer
 
 
 class AdminAddDayPlanAPIView(APIView):
@@ -2920,13 +2924,12 @@ class AdminAddDayPlanAPIView(APIView):
 
     def post(self, request, package_id):
         try:
-            # Fix: Remove trailing comma from vendor_id
             vendor_id = request.data.get("vendor_id", "")
             
-            # Fix: Use correct field lookup for vendor user
+            # FIXED: Correct field lookup for package
             package = Package.objects.filter(
                 id=package_id, 
-                vendor__user_id=vendor_id  # Assuming vendor has user_id field
+                vendor__user__id=vendor_id  # Assuming vendor.user.id is the correct path
             ).first()
             
             if not package:
@@ -2963,14 +2966,14 @@ class AdminAddDayPlanAPIView(APIView):
                 self._upload_images(files, "place_image", idx, place)
 
             # --------- HANDLE STAY ---------
-            stay_data_raw = data.get("stay", "[]")
+            # FIXED: Handle OneToOneField relationship correctly
+            stay_data_raw = data.get("stay", "{}")
             if isinstance(stay_data_raw, str):
-                stay_list = json.loads(stay_data_raw)
+                stay_data = json.loads(stay_data_raw) if stay_data_raw != "{}" else {}
             else:
-                stay_list = stay_data_raw
+                stay_data = stay_data_raw
                 
-            if stay_list:
-                stay_data = stay_list[0]
+            if stay_data:  # Check if stay_data is not empty
                 stay = Stay.objects.create(
                     day_plan=day_plan,
                     hotel_name=stay_data.get("hotel_name", ""),
@@ -2988,15 +2991,12 @@ class AdminAddDayPlanAPIView(APIView):
             else:
                 meal_list = meal_data_raw
                 
-            if meal_list:
-                meal_data = meal_list[0]
-                # Fix: Import datetime at top and use datetime.strptime
+            for idx, meal_data in enumerate(meal_list):  # FIXED: Handle multiple meals
                 meal_time = None
                 if meal_data.get("time"):
                     try:
                         meal_time = datetime.strptime(meal_data.get("time"), "%H:%M").time()
                     except ValueError:
-                        # Handle invalid time format gracefully
                         meal_time = None
                         
                 meal = Meal.objects.create(
@@ -3007,7 +3007,7 @@ class AdminAddDayPlanAPIView(APIView):
                     location=meal_data.get("location", ""),
                     time=meal_time
                 )
-                self._upload_images(files, "meal_image", 0, meal)
+                self._upload_images(files, "meal_image", idx, meal)
 
             # --------- HANDLE ACTIVITY ---------
             activity_data_raw = data.get("activity", "[]")
@@ -3016,15 +3016,12 @@ class AdminAddDayPlanAPIView(APIView):
             else:
                 activity_list = activity_data_raw
                 
-            if activity_list:
-                activity_data = activity_list[0]
-                # Fix: Import datetime at top and use datetime.strptime
+            for idx, activity_data in enumerate(activity_list):  # FIXED: Handle multiple activities
                 activity_time = None
                 if activity_data.get("time"):
                     try:
                         activity_time = datetime.strptime(activity_data.get("time"), "%H:%M").time()
                     except ValueError:
-                        # Handle invalid time format gracefully
                         activity_time = None
                         
                 activity = Activity.objects.create(
@@ -3034,7 +3031,7 @@ class AdminAddDayPlanAPIView(APIView):
                     location=activity_data.get("location", ""),
                     time=activity_time
                 )
-                self._upload_images(files, "activity_image", 0, activity)
+                self._upload_images(files, "activity_image", idx, activity)
 
             return Response({
                 "message": "Day plan added successfully.",
@@ -3088,23 +3085,30 @@ class AdminUpdateDayPlanAPIView(APIView):
     def _delete_existing_images(self, related_obj):
         """Delete existing images for the related object"""
         if isinstance(related_obj, Place):
-            PlaceImage.objects.filter(place=related_obj).delete()
+            images = PlaceImage.objects.filter(place=related_obj)
         elif isinstance(related_obj, Stay):
-            StayImage.objects.filter(stay=related_obj).delete()
+            images = StayImage.objects.filter(stay=related_obj)
         elif isinstance(related_obj, Meal):
-            MealImage.objects.filter(meal=related_obj).delete()
+            images = MealImage.objects.filter(meal=related_obj)
         elif isinstance(related_obj, Activity):
-            ActivityImage.objects.filter(activity=related_obj).delete()
+            images = ActivityImage.objects.filter(activity=related_obj)
+        else:
+            return
+            
+        # Delete image files from storage before deleting records
+        for image in images:
+            if image.image:
+                image.image.delete(save=False)
+        images.delete()
 
     def patch(self, request, package_id, day_number):
         try:
-            # Fix: Remove trailing comma from vendor_id
             vendor_id = request.data.get("vendor_id", "")
             
-            # Step 1: Find the day plan
+            # FIXED: Correct field lookup
             day_plan = DayPlan.objects.filter(
                 package__id=package_id,
-                package__vendor__user_id=vendor_id,  # Fix: Use correct field lookup
+                package__vendor__user__id=vendor_id,
                 day_number=day_number
             ).first()
 
@@ -3114,12 +3118,12 @@ class AdminUpdateDayPlanAPIView(APIView):
             data = request.data
             files = request.FILES
 
-            # Step 2: Update day plan description
+            # Update day plan description
             if "description" in data:
                 day_plan.description = data.get("description", day_plan.description)
                 day_plan.save()
 
-            # Step 3: Update places
+            # Update places
             if "places" in data:
                 places_data = data.get("places", "[]")
                 if isinstance(places_data, str):
@@ -3142,23 +3146,24 @@ class AdminUpdateDayPlanAPIView(APIView):
                     )
                     self._upload_images(files, "place_image", idx, place)
 
-            # Step 4: Update stay
+            # Update stay - FIXED: Handle OneToOneField correctly
             if "stay" in data:
-                stay_data_raw = data.get("stay", "[]")
+                stay_data_raw = data.get("stay", "{}")
                 if isinstance(stay_data_raw, str):
-                    stay_list = json.loads(stay_data_raw)
+                    stay_data = json.loads(stay_data_raw) if stay_data_raw != "{}" else {}
                 else:
-                    stay_list = stay_data_raw
+                    stay_data = stay_data_raw
                     
                 # Delete existing stay and images
-                existing_stays = Stay.objects.filter(day_plan=day_plan)
-                for stay in existing_stays:
-                    self._delete_existing_images(stay)
-                existing_stays.delete()
+                try:
+                    existing_stay = day_plan.stay  # OneToOneField access
+                    self._delete_existing_images(existing_stay)
+                    existing_stay.delete()
+                except Stay.DoesNotExist:
+                    pass  # No existing stay
                 
                 # Create new stay
-                if stay_list:
-                    stay_data = stay_list[0]
+                if stay_data:  # Only create if data provided
                     stay = Stay.objects.create(
                         day_plan=day_plan,
                         hotel_name=stay_data.get("hotel_name", ""),
@@ -3169,7 +3174,7 @@ class AdminUpdateDayPlanAPIView(APIView):
                     )
                     self._upload_images(files, "stay_image", 0, stay)
 
-            # Step 5: Update meal
+            # Update meals
             if "meal" in data:
                 meal_data_raw = data.get("meal", "[]")
                 if isinstance(meal_data_raw, str):
@@ -3177,16 +3182,14 @@ class AdminUpdateDayPlanAPIView(APIView):
                 else:
                     meal_list = meal_data_raw
                     
-                # Delete existing meal and images
+                # Delete existing meals and images
                 existing_meals = Meal.objects.filter(day_plan=day_plan)
                 for meal in existing_meals:
                     self._delete_existing_images(meal)
                 existing_meals.delete()
                 
-                # Create new meal
-                if meal_list:
-                    meal_data = meal_list[0]
-                    # Fix: Import datetime at top and use datetime.strptime
+                # Create new meals
+                for idx, meal_data in enumerate(meal_list):
                     meal_time = None
                     if meal_data.get("time"):
                         try:
@@ -3202,9 +3205,9 @@ class AdminUpdateDayPlanAPIView(APIView):
                         location=meal_data.get("location", ""),
                         time=meal_time
                     )
-                    self._upload_images(files, "meal_image", 0, meal)
+                    self._upload_images(files, "meal_image", idx, meal)
 
-            # Step 6: Update activity
+            # Update activities
             if "activity" in data:
                 activity_data_raw = data.get("activity", "[]")
                 if isinstance(activity_data_raw, str):
@@ -3212,16 +3215,14 @@ class AdminUpdateDayPlanAPIView(APIView):
                 else:
                     activity_list = activity_data_raw
                     
-                # Delete existing activity and images
+                # Delete existing activities and images
                 existing_activities = Activity.objects.filter(day_plan=day_plan)
                 for activity in existing_activities:
                     self._delete_existing_images(activity)
                 existing_activities.delete()
                 
-                # Create new activity
-                if activity_list:
-                    activity_data = activity_list[0]
-                    # Fix: Import datetime at top and use datetime.strptime
+                # Create new activities
+                for idx, activity_data in enumerate(activity_list):
                     activity_time = None
                     if activity_data.get("time"):
                         try:
@@ -3236,7 +3237,7 @@ class AdminUpdateDayPlanAPIView(APIView):
                         location=activity_data.get("location", ""),
                         time=activity_time
                     )
-                    self._upload_images(files, "activity_image", 0, activity)
+                    self._upload_images(files, "activity_image", idx, activity)
 
             return Response({"message": "Day plan updated successfully."}, status=200)
 
@@ -3246,7 +3247,7 @@ class AdminUpdateDayPlanAPIView(APIView):
             return Response({"error": str(e)}, status=500)
 
 
-# Additional API View for Image Management
+# FIXED: Image Management API View
 class ImageManagementAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -3254,20 +3255,33 @@ class ImageManagementAPIView(APIView):
     def delete(self, request, image_type, image_id):
         """Delete a specific image"""
         try:
+            # FIXED: Correct field lookups for all image types
             if image_type == 'place':
-                image = PlaceImage.objects.get(id=image_id, place__day_plan__package__vendor__user=request.user)
+                image = PlaceImage.objects.get(
+                    id=image_id, 
+                    place__day_plan__package__vendor__user=request.user
+                )
             elif image_type == 'stay':
-                image = StayImage.objects.get(id=image_id, stay__day_plan__package__vendor__user=request.user)
+                image = StayImage.objects.get(
+                    id=image_id, 
+                    stay__day_plan__package__vendor__user=request.user
+                )
             elif image_type == 'meal':
-                image = MealImage.objects.get(id=image_id, meal__day_plan__package__vendor__user=request.user)
+                image = MealImage.objects.get(
+                    id=image_id, 
+                    meal__day_plan__package__vendor__user=request.user
+                )
             elif image_type == 'activity':
-                image = ActivityImage.objects.get(id=image_id, activity__day_plan__package__vendor__user=request.user)
+                image = ActivityImage.objects.get(
+                    id=image_id, 
+                    activity__day_plan__package__vendor__user=request.user
+                )
             else:
                 return Response({"error": "Invalid image type"}, status=400)
             
             # Delete the file from storage
             if image.image:
-                image.image.delete()
+                image.image.delete(save=False)
             image.delete()
             
             return Response({"message": "Image deleted successfully"}, status=200)
@@ -3286,15 +3300,27 @@ class ImageManagementAPIView(APIView):
             if not new_image:
                 return Response({"error": "No image file provided"}, status=400)
             
-            # Find the existing image
+            # FIXED: Correct field lookups
             if image_type == 'place':
-                image = PlaceImage.objects.get(id=image_id, place__day_plan__package__vendor__user=request.user)
+                image = PlaceImage.objects.get(
+                    id=image_id, 
+                    place__day_plan__package__vendor__user=request.user
+                )
             elif image_type == 'stay':
-                image = StayImage.objects.get(id=image_id, stay__day_plan__package__vendor__user=request.user)
+                image = StayImage.objects.get(
+                    id=image_id, 
+                    stay__day_plan__package__vendor__user=request.user
+                )
             elif image_type == 'meal':
-                image = MealImage.objects.get(id=image_id, meal__day_plan__package__vendor__user=request.user)
+                image = MealImage.objects.get(
+                    id=image_id, 
+                    meal__day_plan__package__vendor__user=request.user
+                )
             elif image_type == 'activity':
-                image = ActivityImage.objects.get(id=image_id, activity__day_plan__package__vendor__user=request.user)
+                image = ActivityImage.objects.get(
+                    id=image_id, 
+                    activity__day_plan__package__vendor__user=request.user
+                )
             else:
                 return Response({"error": "Invalid image type"}, status=400)
             
@@ -3325,20 +3351,33 @@ class ImageManagementAPIView(APIView):
         try:
             files = request.FILES
             
+            # FIXED: Correct field lookups and object retrieval
             if image_type == 'place':
-                obj = Place.objects.get(id=object_id, day_plan__package__vendor__user=request.user)
+                obj = Place.objects.get(
+                    id=object_id, 
+                    day_plan__package__vendor__user=request.user
+                )
                 ImageModel = PlaceImage
                 field_name = 'place'
             elif image_type == 'stay':
-                obj = Stay.objects.get(id=object_id, day_plan__package__vendor__user=request.user)
+                obj = Stay.objects.get(
+                    id=object_id, 
+                    day_plan__package__vendor__user=request.user
+                )
                 ImageModel = StayImage
                 field_name = 'stay'
             elif image_type == 'meal':
-                obj = Meal.objects.get(id=object_id, day_plan__package__vendor__user=request.user)
+                obj = Meal.objects.get(
+                    id=object_id, 
+                    day_plan__package__vendor__user=request.user
+                )
                 ImageModel = MealImage
                 field_name = 'meal'
             elif image_type == 'activity':
-                obj = Activity.objects.get(id=object_id, day_plan__package__vendor__user=request.user)
+                obj = Activity.objects.get(
+                    id=object_id, 
+                    day_plan__package__vendor__user=request.user
+                )
                 ImageModel = ActivityImage
                 field_name = 'activity'
             else:
@@ -3373,7 +3412,7 @@ class ImageManagementAPIView(APIView):
             return Response({"error": str(e)}, status=500)
 
 
-# Bulk Image Management View
+# FIXED: Bulk Image Management View
 class BulkImageManagementAPIView(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -3383,20 +3422,33 @@ class BulkImageManagementAPIView(APIView):
         try:
             files = request.FILES
             
+            # FIXED: Correct field lookups
             if image_type == 'place':
-                obj = Place.objects.get(id=object_id, day_plan__package__vendor__user=request.user)
+                obj = Place.objects.get(
+                    id=object_id, 
+                    day_plan__package__vendor__user=request.user
+                )
                 ImageModel = PlaceImage
                 field_name = 'place'
             elif image_type == 'stay':
-                obj = Stay.objects.get(id=object_id, day_plan__package__vendor__user=request.user)
+                obj = Stay.objects.get(
+                    id=object_id, 
+                    day_plan__package__vendor__user=request.user
+                )
                 ImageModel = StayImage
                 field_name = 'stay'
             elif image_type == 'meal':
-                obj = Meal.objects.get(id=object_id, day_plan__package__vendor__user=request.user)
+                obj = Meal.objects.get(
+                    id=object_id, 
+                    day_plan__package__vendor__user=request.user
+                )
                 ImageModel = MealImage
                 field_name = 'meal'
             elif image_type == 'activity':
-                obj = Activity.objects.get(id=object_id, day_plan__package__vendor__user=request.user)
+                obj = Activity.objects.get(
+                    id=object_id, 
+                    day_plan__package__vendor__user=request.user
+                )
                 ImageModel = ActivityImage
                 field_name = 'activity'
             else:
@@ -3438,20 +3490,33 @@ class BulkImageManagementAPIView(APIView):
             # Expecting JSON with image IDs in desired order
             image_ids = request.data.get('image_order', [])
             
+            # FIXED: Correct field lookups
             if image_type == 'place':
-                obj = Place.objects.get(id=object_id, day_plan__package__vendor__user=request.user)
+                obj = Place.objects.get(
+                    id=object_id, 
+                    day_plan__package__vendor__user=request.user
+                )
                 ImageModel = PlaceImage
                 field_name = 'place'
             elif image_type == 'stay':
-                obj = Stay.objects.get(id=object_id, day_plan__package__vendor__user=request.user)
+                obj = Stay.objects.get(
+                    id=object_id, 
+                    day_plan__package__vendor__user=request.user
+                )
                 ImageModel = StayImage
                 field_name = 'stay'
             elif image_type == 'meal':
-                obj = Meal.objects.get(id=object_id, day_plan__package__vendor__user=request.user)
+                obj = Meal.objects.get(
+                    id=object_id, 
+                    day_plan__package__vendor__user=request.user
+                )
                 ImageModel = MealImage
                 field_name = 'meal'
             elif image_type == 'activity':
-                obj = Activity.objects.get(id=object_id, day_plan__package__vendor__user=request.user)
+                obj = Activity.objects.get(
+                    id=object_id, 
+                    day_plan__package__vendor__user=request.user
+                )
                 ImageModel = ActivityImage
                 field_name = 'activity'
             else:
