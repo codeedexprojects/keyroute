@@ -219,7 +219,7 @@ class ActivitySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Activity
-        fields = ['id', 'name', 'description', 'images']
+        fields = ['id', 'name', 'description', 'images','location','time']
 
 
 class MealImageSerializer(serializers.ModelSerializer):
@@ -233,7 +233,7 @@ class MealSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Meal
-        fields = ['id', 'type', 'description', 'images']
+        fields = ['id', 'type', 'description', 'images','restaurant_name','location','time']
 
 
 class StayImageSerializer(serializers.ModelSerializer):
@@ -247,7 +247,7 @@ class StaySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Stay
-        fields = ['id', 'hotel_name', 'description', 'images']
+        fields = ['id', 'hotel_name', 'description', 'images','has_breakfast','is_ac','location']
 
 
 class PlaceImageSerializer(serializers.ModelSerializer):
@@ -264,7 +264,7 @@ class PlaceSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'description', 'images']
 
 
-class DayPlanSerializer(serializers.ModelSerializer):
+class AdminDayPlanSerializer(serializers.ModelSerializer):
     places = PlaceSerializer(many=True, read_only=True)
     stay = StaySerializer(read_only=True)
     meals = MealSerializer(many=True, read_only=True)
@@ -316,7 +316,7 @@ class AdminPackageDetailSerializer(serializers.ModelSerializer):
     travels_name = serializers.SerializerMethodField()
     bus_count = serializers.SerializerMethodField()
     package_images = PackageImageSerializer(many=True, read_only=True)
-    day_plans = DayPlanSerializer(many=True, read_only=True)
+    day_plans = AdminDayPlanSerializer(many=True, read_only=True)
     buses = BusSerializer(many=True, read_only=True)
 
     price_per_person = serializers.SerializerMethodField()
