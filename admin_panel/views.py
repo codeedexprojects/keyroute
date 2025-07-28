@@ -2962,9 +2962,12 @@ class AdminAddDayPlanAPIView(APIView):
             except json.JSONDecodeError as e:
                 return Response({"error": f"Invalid JSON in 'places': {str(e)}"}, status=400)
 
+            if not isinstance(places, list):
+                return Response({"error": "Places must be a list"}, status=400)
+
             for idx, place_data in enumerate(places):
                 if not isinstance(place_data, dict):
-                    return Response({"error": f"Invalid place at index {idx}. Expected object."}, status=400)
+                    return Response({"error": f"Invalid place at index {idx}. Expected object, got {type(place_data)}"}, status=400)
 
                 place = Place.objects.create(
                     day_plan=day_plan,
@@ -2980,12 +2983,15 @@ class AdminAddDayPlanAPIView(APIView):
                     stay_data = json.loads(stay_raw) if stay_raw.strip() else {}
                 elif isinstance(stay_raw, dict):
                     stay_data = stay_raw
+                elif isinstance(stay_raw, list) and len(stay_raw) > 0:
+                    # Handle case where stay is sent as a list with one item
+                    stay_data = stay_raw[0] if isinstance(stay_raw[0], dict) else {}
                 else:
                     stay_data = {}
             except json.JSONDecodeError as e:
                 return Response({"error": f"Invalid JSON in 'stay': {str(e)}"}, status=400)
 
-            if stay_data:
+            if stay_data and isinstance(stay_data, dict):
                 stay = Stay.objects.create(
                     day_plan=day_plan,
                     hotel_name=stay_data.get("hotel_name", ""),
@@ -2996,7 +3002,7 @@ class AdminAddDayPlanAPIView(APIView):
                 )
                 self._upload_images(files, "stay_image", 0, stay)
 
-            # --------- HANDLE MEAL ---------
+            # --------- HANDLE MEALS ---------
             meal_raw = data.get("meal", "[]")
             try:
                 if isinstance(meal_raw, str):
@@ -3008,9 +3014,12 @@ class AdminAddDayPlanAPIView(APIView):
             except json.JSONDecodeError as e:
                 return Response({"error": f"Invalid JSON in 'meal': {str(e)}"}, status=400)
 
+            if not isinstance(meal_list, list):
+                return Response({"error": "Meals must be a list"}, status=400)
+
             for idx, meal_data in enumerate(meal_list):
                 if not isinstance(meal_data, dict):
-                    return Response({"error": f"Invalid meal at index {idx}. Expected object."}, status=400)
+                    return Response({"error": f"Invalid meal at index {idx}. Expected object, got {type(meal_data)}"}, status=400)
 
                 meal_time = None
                 if meal_data.get("time"):
@@ -3029,7 +3038,7 @@ class AdminAddDayPlanAPIView(APIView):
                 )
                 self._upload_images(files, "meal_image", idx, meal)
 
-            # --------- HANDLE ACTIVITY ---------
+            # --------- HANDLE ACTIVITIES ---------
             activity_raw = data.get("activity", "[]")
             try:
                 if isinstance(activity_raw, str):
@@ -3041,9 +3050,12 @@ class AdminAddDayPlanAPIView(APIView):
             except json.JSONDecodeError as e:
                 return Response({"error": f"Invalid JSON in 'activity': {str(e)}"}, status=400)
 
+            if not isinstance(activity_list, list):
+                return Response({"error": "Activities must be a list"}, status=400)
+
             for idx, activity_data in enumerate(activity_list):
                 if not isinstance(activity_data, dict):
-                    return Response({"error": f"Invalid activity at index {idx}. Expected object."}, status=400)
+                    return Response({"error": f"Invalid activity at index {idx}. Expected object, got {type(activity_data)}"}, status=400)
 
                 activity_time = None
                 if activity_data.get("time"):
@@ -3070,6 +3082,10 @@ class AdminAddDayPlanAPIView(APIView):
         except json.JSONDecodeError as e:
             return Response({"error": f"Invalid JSON: {str(e)}"}, status=400)
         except Exception as e:
+            # Add more detailed error logging for debugging
+            import traceback
+            print(f"Error in AdminAddDayPlanAPIView: {str(e)}")
+            print(f"Traceback: {traceback.format_exc()}")
             return Response({"error": str(e)}, status=500)
 
     def get(self, request, package_id, day_number):
