@@ -2926,10 +2926,10 @@ class AdminAddDayPlanAPIView(APIView):
         try:
             vendor_id = request.data.get("vendor_id", "")
             
-            # FIXED: Correct field lookup for package
+            # Fetch package based on package_id and vendor's user ID
             package = Package.objects.filter(
                 id=package_id, 
-                vendor__user__id=vendor_id  # Assuming vendor.user.id is the correct path
+                vendor__user__id=vendor_id
             ).first()
             
             if not package:
@@ -2951,13 +2951,21 @@ class AdminAddDayPlanAPIView(APIView):
             )
 
             # --------- HANDLE PLACES ---------
-            places_data = data.get("places", "[]")
-            if isinstance(places_data, str):
-                places = json.loads(places_data)
-            else:
-                places = places_data
-                
+            places_raw = data.get("places", "[]")
+            try:
+                if isinstance(places_raw, str):
+                    places = json.loads(places_raw)
+                elif isinstance(places_raw, list):
+                    places = places_raw
+                else:
+                    places = []
+            except json.JSONDecodeError as e:
+                return Response({"error": f"Invalid JSON in 'places': {str(e)}"}, status=400)
+
             for idx, place_data in enumerate(places):
+                if not isinstance(place_data, dict):
+                    return Response({"error": f"Invalid place at index {idx}. Expected object."}, status=400)
+
                 place = Place.objects.create(
                     day_plan=day_plan,
                     name=place_data.get("name", ""),
@@ -2966,14 +2974,18 @@ class AdminAddDayPlanAPIView(APIView):
                 self._upload_images(files, "place_image", idx, place)
 
             # --------- HANDLE STAY ---------
-            # FIXED: Handle OneToOneField relationship correctly
-            stay_data_raw = data.get("stay", "{}")
-            if isinstance(stay_data_raw, str):
-                stay_data = json.loads(stay_data_raw) if stay_data_raw != "{}" else {}
-            else:
-                stay_data = stay_data_raw
-                
-            if stay_data:  # Check if stay_data is not empty
+            stay_raw = data.get("stay", "{}")
+            try:
+                if isinstance(stay_raw, str):
+                    stay_data = json.loads(stay_raw) if stay_raw.strip() else {}
+                elif isinstance(stay_raw, dict):
+                    stay_data = stay_raw
+                else:
+                    stay_data = {}
+            except json.JSONDecodeError as e:
+                return Response({"error": f"Invalid JSON in 'stay': {str(e)}"}, status=400)
+
+            if stay_data:
                 stay = Stay.objects.create(
                     day_plan=day_plan,
                     hotel_name=stay_data.get("hotel_name", ""),
@@ -2985,20 +2997,28 @@ class AdminAddDayPlanAPIView(APIView):
                 self._upload_images(files, "stay_image", 0, stay)
 
             # --------- HANDLE MEAL ---------
-            meal_data_raw = data.get("meal", "[]")
-            if isinstance(meal_data_raw, str):
-                meal_list = json.loads(meal_data_raw)
-            else:
-                meal_list = meal_data_raw
-                
-            for idx, meal_data in enumerate(meal_list):  # FIXED: Handle multiple meals
+            meal_raw = data.get("meal", "[]")
+            try:
+                if isinstance(meal_raw, str):
+                    meal_list = json.loads(meal_raw)
+                elif isinstance(meal_raw, list):
+                    meal_list = meal_raw
+                else:
+                    meal_list = []
+            except json.JSONDecodeError as e:
+                return Response({"error": f"Invalid JSON in 'meal': {str(e)}"}, status=400)
+
+            for idx, meal_data in enumerate(meal_list):
+                if not isinstance(meal_data, dict):
+                    return Response({"error": f"Invalid meal at index {idx}. Expected object."}, status=400)
+
                 meal_time = None
                 if meal_data.get("time"):
                     try:
                         meal_time = datetime.strptime(meal_data.get("time"), "%H:%M").time()
                     except ValueError:
                         meal_time = None
-                        
+
                 meal = Meal.objects.create(
                     day_plan=day_plan,
                     type=meal_data.get("type", "breakfast"),
@@ -3010,20 +3030,28 @@ class AdminAddDayPlanAPIView(APIView):
                 self._upload_images(files, "meal_image", idx, meal)
 
             # --------- HANDLE ACTIVITY ---------
-            activity_data_raw = data.get("activity", "[]")
-            if isinstance(activity_data_raw, str):
-                activity_list = json.loads(activity_data_raw)
-            else:
-                activity_list = activity_data_raw
-                
-            for idx, activity_data in enumerate(activity_list):  # FIXED: Handle multiple activities
+            activity_raw = data.get("activity", "[]")
+            try:
+                if isinstance(activity_raw, str):
+                    activity_list = json.loads(activity_raw)
+                elif isinstance(activity_raw, list):
+                    activity_list = activity_raw
+                else:
+                    activity_list = []
+            except json.JSONDecodeError as e:
+                return Response({"error": f"Invalid JSON in 'activity': {str(e)}"}, status=400)
+
+            for idx, activity_data in enumerate(activity_list):
+                if not isinstance(activity_data, dict):
+                    return Response({"error": f"Invalid activity at index {idx}. Expected object."}, status=400)
+
                 activity_time = None
                 if activity_data.get("time"):
                     try:
                         activity_time = datetime.strptime(activity_data.get("time"), "%H:%M").time()
                     except ValueError:
                         activity_time = None
-                        
+
                 activity = Activity.objects.create(
                     day_plan=day_plan,
                     name=activity_data.get("name", ""),
@@ -3040,7 +3068,7 @@ class AdminAddDayPlanAPIView(APIView):
             }, status=201)
 
         except json.JSONDecodeError as e:
-            return Response({"error": f"Invalid JSON data: {str(e)}"}, status=400)
+            return Response({"error": f"Invalid JSON: {str(e)}"}, status=400)
         except Exception as e:
             return Response({"error": str(e)}, status=500)
 
@@ -3324,26 +3352,27 @@ class ImageManagementAPIView(APIView):
     def delete(self, request, image_type, image_id):
         """Delete a specific image"""
         try:
+            vendor_id = request.data.get("vendor_id")
             # FIXED: Correct field lookups for all image types
             if image_type == 'place':
                 image = PlaceImage.objects.get(
                     id=image_id, 
-                    place__day_plan__package__vendor__user=request.user
+                    place__day_plan__package__vendor__user=vendor_id
                 )
             elif image_type == 'stay':
                 image = StayImage.objects.get(
                     id=image_id, 
-                    stay__day_plan__package__vendor__user=request.user
+                    stay__day_plan__package__vendor__user=vendor_id
                 )
             elif image_type == 'meal':
                 image = MealImage.objects.get(
                     id=image_id, 
-                    meal__day_plan__package__vendor__user=request.user
+                    meal__day_plan__package__vendor__user=vendor_id
                 )
             elif image_type == 'activity':
                 image = ActivityImage.objects.get(
                     id=image_id, 
-                    activity__day_plan__package__vendor__user=request.user
+                    activity__day_plan__package__vendor__user=vendor_id
                 )
             else:
                 return Response({"error": "Invalid image type"}, status=400)
@@ -3366,6 +3395,7 @@ class ImageManagementAPIView(APIView):
         try:
             # Get the new image file
             new_image = request.FILES.get('image')
+            vendor_id = request.data.get("vendor_id")
             if not new_image:
                 return Response({"error": "No image file provided"}, status=400)
             
@@ -3373,22 +3403,22 @@ class ImageManagementAPIView(APIView):
             if image_type == 'place':
                 image = PlaceImage.objects.get(
                     id=image_id, 
-                    place__day_plan__package__vendor__user=request.user
+                    place__day_plan__package__vendor__user=vendor_id
                 )
             elif image_type == 'stay':
                 image = StayImage.objects.get(
                     id=image_id, 
-                    stay__day_plan__package__vendor__user=request.user
+                    stay__day_plan__package__vendor__user=vendor_id
                 )
             elif image_type == 'meal':
                 image = MealImage.objects.get(
                     id=image_id, 
-                    meal__day_plan__package__vendor__user=request.user
+                    meal__day_plan__package__vendor__user=vendor_id
                 )
             elif image_type == 'activity':
                 image = ActivityImage.objects.get(
                     id=image_id, 
-                    activity__day_plan__package__vendor__user=request.user
+                    activity__day_plan__package__vendor__user=vendor_id
                 )
             else:
                 return Response({"error": "Invalid image type"}, status=400)
@@ -3419,33 +3449,34 @@ class ImageManagementAPIView(APIView):
         """Add new images to existing objects"""
         try:
             files = request.FILES
+            vendor_id = request.data.get("vendor_id")
             
             # FIXED: Correct field lookups and object retrieval
             if image_type == 'place':
                 obj = Place.objects.get(
                     id=object_id, 
-                    day_plan__package__vendor__user=request.user
+                    day_plan__package__vendor__user=vendor_id
                 )
                 ImageModel = PlaceImage
                 field_name = 'place'
             elif image_type == 'stay':
                 obj = Stay.objects.get(
                     id=object_id, 
-                    day_plan__package__vendor__user=request.user
+                    day_plan__package__vendor__user=vendor_id
                 )
                 ImageModel = StayImage
                 field_name = 'stay'
             elif image_type == 'meal':
                 obj = Meal.objects.get(
                     id=object_id, 
-                    day_plan__package__vendor__user=request.user
+                    day_plan__package__vendor__user=vendor_id
                 )
                 ImageModel = MealImage
                 field_name = 'meal'
             elif image_type == 'activity':
                 obj = Activity.objects.get(
                     id=object_id, 
-                    day_plan__package__vendor__user=request.user
+                    day_plan__package__vendor__user=vendor_id
                 )
                 ImageModel = ActivityImage
                 field_name = 'activity'
