@@ -2962,12 +2962,9 @@ class AdminAddDayPlanAPIView(APIView):
             except json.JSONDecodeError as e:
                 return Response({"error": f"Invalid JSON in 'places': {str(e)}"}, status=400)
 
-            if not isinstance(places, list):
-                return Response({"error": "Places must be a list"}, status=400)
-
             for idx, place_data in enumerate(places):
                 if not isinstance(place_data, dict):
-                    return Response({"error": f"Invalid place at index {idx}. Expected object, got {type(place_data)}"}, status=400)
+                    return Response({"error": f"Invalid place at index {idx}. Expected object."}, status=400)
 
                 place = Place.objects.create(
                     day_plan=day_plan,
@@ -2976,37 +2973,36 @@ class AdminAddDayPlanAPIView(APIView):
                 )
                 self._upload_images(files, "place_image", idx, place)
 
-            # --------- HANDLE STAY ---------
-            stay_raw = data.get("stay", "{}")
+            # --------- HANDLE STAY (Single Item like Vendor) ---------
+            stay_raw = data.get("stay", "[]")
             try:
                 if isinstance(stay_raw, str):
-                    stay_data = json.loads(stay_raw) if stay_raw.strip() else {}
-                elif isinstance(stay_raw, dict):
-                    stay_data = stay_raw
-                elif isinstance(stay_raw, list) and len(stay_raw) > 0:
-                    # Handle case where stay is sent as a list with one item
-                    stay_data = stay_raw[0] if isinstance(stay_raw[0], dict) else {}
+                    stay_list = json.loads(stay_raw) if stay_raw.strip() else []
+                elif isinstance(stay_raw, list):
+                    stay_list = stay_raw
                 else:
-                    stay_data = {}
+                    stay_list = []
             except json.JSONDecodeError as e:
                 return Response({"error": f"Invalid JSON in 'stay': {str(e)}"}, status=400)
 
-            if stay_data and isinstance(stay_data, dict):
-                stay = Stay.objects.create(
-                    day_plan=day_plan,
-                    hotel_name=stay_data.get("hotel_name", ""),
-                    description=stay_data.get("description", ""),
-                    location=stay_data.get("location", ""),
-                    is_ac=stay_data.get("is_ac", False),
-                    has_breakfast=stay_data.get("has_breakfast", False)
-                )
-                self._upload_images(files, "stay_image", 0, stay)
+            if stay_list and len(stay_list) > 0:
+                stay_data = stay_list[0]  # Take first item like vendor
+                if isinstance(stay_data, dict):
+                    stay = Stay.objects.create(
+                        day_plan=day_plan,
+                        hotel_name=stay_data.get("hotel_name", ""),
+                        description=stay_data.get("description", ""),
+                        location=stay_data.get("location", ""),
+                        is_ac=stay_data.get("is_ac", False),
+                        has_breakfast=stay_data.get("has_breakfast", False)
+                    )
+                    self._upload_images(files, "stay_image", 0, stay)
 
-            # --------- HANDLE MEALS ---------
+            # --------- HANDLE MEAL (Single Item like Vendor) ---------
             meal_raw = data.get("meal", "[]")
             try:
                 if isinstance(meal_raw, str):
-                    meal_list = json.loads(meal_raw)
+                    meal_list = json.loads(meal_raw) if meal_raw.strip() else []
                 elif isinstance(meal_raw, list):
                     meal_list = meal_raw
                 else:
@@ -3014,35 +3010,31 @@ class AdminAddDayPlanAPIView(APIView):
             except json.JSONDecodeError as e:
                 return Response({"error": f"Invalid JSON in 'meal': {str(e)}"}, status=400)
 
-            if not isinstance(meal_list, list):
-                return Response({"error": "Meals must be a list"}, status=400)
+            if meal_list and len(meal_list) > 0:
+                meal_data = meal_list[0]  # Take first item like vendor
+                if isinstance(meal_data, dict):
+                    meal_time = None
+                    if meal_data.get("time"):
+                        try:
+                            meal_time = datetime.strptime(meal_data.get("time"), "%H:%M").time()
+                        except ValueError:
+                            meal_time = None
 
-            for idx, meal_data in enumerate(meal_list):
-                if not isinstance(meal_data, dict):
-                    return Response({"error": f"Invalid meal at index {idx}. Expected object, got {type(meal_data)}"}, status=400)
+                    meal = Meal.objects.create(
+                        day_plan=day_plan,
+                        type=meal_data.get("type", "breakfast"),
+                        description=meal_data.get("description", ""),
+                        restaurant_name=meal_data.get("restaurant_name", ""),
+                        location=meal_data.get("location", ""),
+                        time=meal_time
+                    )
+                    self._upload_images(files, "meal_image", 0, meal)
 
-                meal_time = None
-                if meal_data.get("time"):
-                    try:
-                        meal_time = datetime.strptime(meal_data.get("time"), "%H:%M").time()
-                    except ValueError:
-                        meal_time = None
-
-                meal = Meal.objects.create(
-                    day_plan=day_plan,
-                    type=meal_data.get("type", "breakfast"),
-                    description=meal_data.get("description", ""),
-                    restaurant_name=meal_data.get("restaurant_name", ""),
-                    location=meal_data.get("location", ""),
-                    time=meal_time
-                )
-                self._upload_images(files, "meal_image", idx, meal)
-
-            # --------- HANDLE ACTIVITIES ---------
+            # --------- HANDLE ACTIVITY (Single Item like Vendor) ---------
             activity_raw = data.get("activity", "[]")
             try:
                 if isinstance(activity_raw, str):
-                    activity_list = json.loads(activity_raw)
+                    activity_list = json.loads(activity_raw) if activity_raw.strip() else []
                 elif isinstance(activity_raw, list):
                     activity_list = activity_raw
                 else:
@@ -3050,28 +3042,24 @@ class AdminAddDayPlanAPIView(APIView):
             except json.JSONDecodeError as e:
                 return Response({"error": f"Invalid JSON in 'activity': {str(e)}"}, status=400)
 
-            if not isinstance(activity_list, list):
-                return Response({"error": "Activities must be a list"}, status=400)
+            if activity_list and len(activity_list) > 0:
+                activity_data = activity_list[0]  # Take first item like vendor
+                if isinstance(activity_data, dict):
+                    activity_time = None
+                    if activity_data.get("time"):
+                        try:
+                            activity_time = datetime.strptime(activity_data.get("time"), "%H:%M").time()
+                        except ValueError:
+                            activity_time = None
 
-            for idx, activity_data in enumerate(activity_list):
-                if not isinstance(activity_data, dict):
-                    return Response({"error": f"Invalid activity at index {idx}. Expected object, got {type(activity_data)}"}, status=400)
-
-                activity_time = None
-                if activity_data.get("time"):
-                    try:
-                        activity_time = datetime.strptime(activity_data.get("time"), "%H:%M").time()
-                    except ValueError:
-                        activity_time = None
-
-                activity = Activity.objects.create(
-                    day_plan=day_plan,
-                    name=activity_data.get("name", ""),
-                    description=activity_data.get("description", ""),
-                    location=activity_data.get("location", ""),
-                    time=activity_time
-                )
-                self._upload_images(files, "activity_image", idx, activity)
+                    activity = Activity.objects.create(
+                        day_plan=day_plan,
+                        name=activity_data.get("name", ""),
+                        description=activity_data.get("description", ""),
+                        location=activity_data.get("location", ""),
+                        time=activity_time
+                    )
+                    self._upload_images(files, "activity_image", 0, activity)
 
             return Response({
                 "message": "Day plan added successfully.",
@@ -3082,7 +3070,6 @@ class AdminAddDayPlanAPIView(APIView):
         except json.JSONDecodeError as e:
             return Response({"error": f"Invalid JSON: {str(e)}"}, status=400)
         except Exception as e:
-            # Add more detailed error logging for debugging
             import traceback
             print(f"Error in AdminAddDayPlanAPIView: {str(e)}")
             print(f"Traceback: {traceback.format_exc()}")
