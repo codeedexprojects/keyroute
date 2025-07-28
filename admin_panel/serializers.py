@@ -989,7 +989,7 @@ class PackageBookingSerializer(serializers.ModelSerializer):
         return obj.package.vendor.full_name if obj.package and obj.package.vendor else None
 
     def get_vendor_phone(self, obj):
-        return obj.package.vendor.phone_no if obj.package and obj.package.vendor else None
+        return obj.package.vendor.phone_no
 
     def get_vendor_email(self, obj):
         return obj.package.vendor.email_address if obj.package and obj.package.vendor else None
