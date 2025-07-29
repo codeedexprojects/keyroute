@@ -345,6 +345,7 @@ class AdminPackageDetailSerializer(serializers.ModelSerializer):
             'category_name',
             'category_id',
             'package_images',
+            'bus_location',
             'header_image',
             'places',
             'days',
@@ -376,7 +377,7 @@ class AdminPackageDetailSerializer(serializers.ModelSerializer):
         return obj.sub_category.category.name if obj.sub_category and obj.sub_category.category else None
     
     def get_category_id(self, obj):
-        return obj.sub_category.category.name if obj.sub_category and obj.sub_category.category else None
+        return obj.sub_category.category.id if obj.sub_category and obj.sub_category.category else None
 
     def get_price_per_person(self, obj):
         return int(obj.price_per_person)

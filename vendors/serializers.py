@@ -572,7 +572,7 @@ class PackageSubCategorySerializer(serializers.ModelSerializer):
 class PackageImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = PackageImage
-        fields = ['image']
+        fields = ['image','id']
 
 
 
