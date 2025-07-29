@@ -15,7 +15,7 @@ from vendors.serializers import *
 from django.db.models import Q
 from rest_framework.parsers import MultiPartParser, FormParser,JSONParser
 from .models import AdminCommissionSlab, AdminCommission
-from .serializers import AdminCommissionSlabSerializer, AdminCommissionSerializer,AdminEditBusSerializer
+from .serializers import AdminCommissionSlabSerializer, AdminCommissionSerializer,AdminEditBusSerializer,PaginationBusAdminSerializerADMINBUSDETAILS
 from rest_framework.permissions import IsAdminUser
 from django.shortcuts import get_object_or_404
 from django.db.models import Sum
@@ -281,6 +281,9 @@ class VendorListingPagination(APIView):
         # Apply filters and search
         vendors = self.apply_filters_and_search(vendors, request)
         
+        # Get dashboard statistics
+        dashboard_stats = self.get_dashboard_stats()
+        
         paginator = VendorPagination()
         paginated_vendors = paginator.paginate_queryset(vendors, request)
         
@@ -289,8 +292,38 @@ class VendorListingPagination(APIView):
         return paginator.get_paginated_response({
             "message": "List of all vendors",
             "data": serializer.data,
+            "dashboard_stats": dashboard_stats,
             "filters_applied": self.get_applied_filters(request)
         })
+    
+    def get_dashboard_stats(self):
+        """Get dashboard statistics"""
+        # Total vendors count
+        total_vendors = Vendor.objects.count()
+        
+        # Active vendors (vendors with at least one bus or package)
+        active_vendors = Vendor.objects.filter(
+            Q(vendor_bus__isnull=False) | Q(vendor_package__isnull=False)
+        ).distinct().count()
+        
+        # Total packages count
+        total_packages = Package.objects.count()
+        
+        # Total buses count
+        total_buses = Bus.objects.count()
+        
+        # Total bookings count (both bus and package bookings)
+        total_bus_bookings = BusBooking.objects.count()
+        total_package_bookings = PackageBooking.objects.count()
+        total_bookings = total_bus_bookings + total_package_bookings
+        
+        return {
+            "total_vendors": total_vendors,
+            "active_vendors": active_vendors,
+            "total_packages": total_packages,
+            "total_buses": total_buses,
+            "total_bookings": total_bookings
+        }
     
     def apply_filters_and_search(self, queryset, request):
         """Apply search and filter functionality"""
@@ -3647,3 +3680,105 @@ class BulkImageManagementAPIView(APIView):
             return Response({"error": "Object not found"}, status=404)
         except Exception as e:
             return Response({"error": str(e)}, status=500)
+        
+
+
+
+
+
+
+
+class BusAdminPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+class BusPaginationAdminAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    pagination_class = BusAdminPagination
+
+    def get(self, request):
+        if not request.user.is_superuser:
+            return Response({'detail': 'Permission denied. Superuser access only.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        # Get all buses initially
+        buses = Bus.objects.select_related('vendor__user').prefetch_related(
+            'amenities', 'features', 'images'
+        )
+
+        # Apply search functionality
+        search_query = request.query_params.get('search', '')
+        if search_query:
+            buses = buses.filter(
+                Q(bus_name__icontains=search_query) |
+                Q(bus_number__icontains=search_query) |
+                Q(location__icontains=search_query) |
+                Q(vendor__travels_name__icontains=search_query) |
+                Q(vendor__full_name__icontains=search_query)
+            )
+
+        # Apply filters
+        bus_name_filter = request.query_params.get('bus_name', '')
+        if bus_name_filter:
+            buses = buses.filter(bus_name__icontains=bus_name_filter)
+
+        vehicle_number_filter = request.query_params.get('vehicle_number', '')
+        if vehicle_number_filter:
+            buses = buses.filter(bus_number__icontains=vehicle_number_filter)
+
+        location_filter = request.query_params.get('location', '')
+        if location_filter:
+            buses = buses.filter(location__icontains=location_filter)
+
+        bus_type_filter = request.query_params.get('bus_type', '')
+        if bus_type_filter:
+            buses = buses.filter(bus_type__icontains=bus_type_filter)
+
+        capacity_filter = request.query_params.get('capacity', '')
+        if capacity_filter:
+            try:
+                capacity_value = int(capacity_filter)
+                buses = buses.filter(capacity=capacity_value)
+            except ValueError:
+                pass
+
+        status_filter = request.query_params.get('status', '')
+        if status_filter:
+            buses = buses.filter(status=status_filter)
+
+        # Apply sorting
+        sort_by = request.query_params.get('sort_by', 'id')
+        sort_order = request.query_params.get('sort_order', 'asc')
+
+        if sort_by == 'newest':
+            buses = buses.order_by('-id')
+        elif sort_by == 'joining_date':
+            buses = buses.order_by('-vendor__created_at' if sort_order == 'desc' else 'vendor__created_at')
+        elif sort_by == 'bus_name':
+            buses = buses.order_by('-bus_name' if sort_order == 'desc' else 'bus_name')
+        elif sort_by == 'location':
+            buses = buses.order_by('-location' if sort_order == 'desc' else 'location')
+        elif sort_by == 'capacity':
+            buses = buses.order_by('-capacity' if sort_order == 'desc' else 'capacity')
+        elif sort_by == 'status':
+            buses = buses.order_by('-status' if sort_order == 'desc' else 'status')
+        else:
+            # Default sorting by id
+            buses = buses.order_by('-id' if sort_order == 'desc' else 'id')
+
+        # Apply pagination
+        paginator = self.pagination_class()
+        paginated_buses = paginator.paginate_queryset(buses, request)
+
+        # Serialize data
+        serializer = PaginationBusAdminSerializerADMINBUSDETAILS(
+            paginated_buses, 
+            many=True, 
+            context={'request': request}
+        )
+
+        # Return paginated response
+        return paginator.get_paginated_response(serializer.data)
