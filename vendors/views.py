@@ -31,6 +31,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from datetime import datetime, timedelta
 from admin_panel.utils import send_otp, verify_otp, is_valid_email
 from bookings.serializers import BusBookingStopSerializer
+import logging
 
 
 # Create your views here.
@@ -4292,7 +4293,7 @@ class VendorTransactionHistoryAPIView(APIView):
 
 
 
-
+logger = logging.getLogger(__name__)
 
 
 
@@ -4302,8 +4303,20 @@ class DeleteVendorAccountView(APIView):
 
     def delete(self, request):
         user = request.user
-        user.delete()
-        return Response({"message": "Vendor account deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+        try:
+            username = user.username
+            user.delete()
+            logger.info(f"User '{username}' deleted successfully.")
+            return Response(
+                {"message": "Vendor account deleted successfully."},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            logger.error(f"Error deleting user '{user.username}': {str(e)}")
+            return Response(
+                {"error": "An error occurred while deleting the vendor account."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 
