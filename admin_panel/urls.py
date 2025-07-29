@@ -146,6 +146,8 @@ urlpatterns = [
 
 
     path('api/admin/buses/', BusAdminAPIView.as_view(), name='admin-bus-api'),
+
+    path('api/admin/buses/pagination/', BusAdminAPIView.as_view(), name='admin-bus-api'),
     # SINGLE BUS 
     # path('api/admin/bus/<int:bus_id>/', AdminBusDetailAPIView.as_view()),
     path('api/admin/bus/<int:bus_id>/', SingleBusDetailAPIView.as_view(), name='bus-detail'),
