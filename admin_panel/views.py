@@ -275,7 +275,7 @@ class VendorListingPagination(APIView):
     
     def get(self, request):
         vendors = Vendor.objects.select_related('user').prefetch_related(
-            'bus_set', 'package'
+            'bus_set', 'package_set'
         ).all().order_by('-created_at')
         
         # Apply filters and search
@@ -353,7 +353,7 @@ class VendorListingPagination(APIView):
         max_packages = request.query_params.get('max_packages', None)
         
         if min_packages or max_packages:
-            queryset = queryset.annotate(package_count=Count('package', distinct=True))
+            queryset = queryset.annotate(package_count=Count('package_set', distinct=True))
             
             if min_packages:
                 try:
@@ -372,7 +372,7 @@ class VendorListingPagination(APIView):
         # Filter by vendors with available packages only - Fixed field reference
         has_packages = request.query_params.get('has_packages', None)
         if has_packages and has_packages.lower() == 'true':
-            queryset = queryset.filter(package__isnull=False).distinct()
+            queryset = queryset.filter(package_set__isnull=False).distinct()
             
         # Filter by vendors with buses only
         has_buses = request.query_params.get('has_buses', None)
@@ -382,7 +382,7 @@ class VendorListingPagination(APIView):
         # Filter by package availability status - Fixed field reference
         package_status = request.query_params.get('package_status', None)
         if package_status:
-            queryset = queryset.filter(package__status=package_status).distinct()
+            queryset = queryset.filter(package_set__status=package_status).distinct()
         
         # Date range filters (for creation date)
         created_after = request.query_params.get('created_after', None)
@@ -420,7 +420,7 @@ class VendorListingPagination(APIView):
             elif sort_by == 'package_count':
                 # Check if package_count annotation already exists
                 if not any('package_count' in str(annotation) for annotation in queryset.query.annotations.keys()):
-                    queryset = queryset.annotate(package_count=Count('package', distinct=True))
+                    queryset = queryset.annotate(package_count=Count('package_set', distinct=True))
                 queryset = queryset.order_by('-package_count')
             # Default sorting by created_at desc is already applied in the initial queryset
         
