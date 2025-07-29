@@ -513,7 +513,7 @@ class AdminVendorBusListAPIView(APIView):
         except Vendor.DoesNotExist:
             return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        buses = vendor.bus_set.all()
+        buses = vendor.vendor_bus.all()
         serializer = BusSerializer(buses, many=True)
         return Response({
             "message": "Bus list retrieved successfully",
@@ -2065,7 +2065,7 @@ class PaymentDetailsAPIView(APIView):
             data.append({
                 'id': booking.booking_id,
                 'booking_type': 'Bus Booking',
-                'vendor_name': booking.bus.vendor.full_name,
+                'vendor_name': booking.bus.all()[0].vendor.full_name if booking.bus.exists() else None,
                 'bus_or_package': booking.bus.bus_name,
                 'total_amount': booking.total_amount,
                 'advance_amount': booking.advance_amount,
