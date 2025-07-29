@@ -275,7 +275,7 @@ class VendorListingPagination(APIView):
     
     def get(self, request):
         vendors = Vendor.objects.select_related('user').prefetch_related(
-            'bus', 'package'
+            'bus_set', 'package'
         ).all().order_by('-created_at')
         
         # Apply filters and search
@@ -332,7 +332,7 @@ class VendorListingPagination(APIView):
         max_buses = request.query_params.get('max_buses', None)
         
         if min_buses or max_buses:
-            queryset = queryset.annotate(bus_count=Count('bus', distinct=True))
+            queryset = queryset.annotate(bus_count=Count('bus_set', distinct=True))
             
             if min_buses:
                 try:
@@ -377,7 +377,7 @@ class VendorListingPagination(APIView):
         # Filter by vendors with buses only
         has_buses = request.query_params.get('has_buses', None)
         if has_buses and has_buses.lower() == 'true':
-            queryset = queryset.filter(bus__isnull=False).distinct()
+            queryset = queryset.filter(bus_set__isnull=False).distinct()
         
         # Filter by package availability status - Fixed field reference
         package_status = request.query_params.get('package_status', None)
@@ -415,7 +415,7 @@ class VendorListingPagination(APIView):
             elif sort_by == 'bus_count':
                 # Check if bus_count annotation already exists
                 if not any('bus_count' in str(annotation) for annotation in queryset.query.annotations.keys()):
-                    queryset = queryset.annotate(bus_count=Count('bus', distinct=True))
+                    queryset = queryset.annotate(bus_count=Count('bus_set', distinct=True))
                 queryset = queryset.order_by('-bus_count')
             elif sort_by == 'package_count':
                 # Check if package_count annotation already exists
