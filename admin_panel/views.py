@@ -2852,9 +2852,7 @@ class AdminEditPackageAPIView(APIView):
                 "message": "Package updated successfully.",
                 "data": AdminEditPackageSerializer(package).data
             }, status=status.HTTP_200_OK)
-        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-    
-
+        return 
 
 
 
@@ -2926,7 +2924,7 @@ class AdminDeletePackageImageAPIView(APIView):
         if serializer.is_valid():
             image_ids = serializer.validated_data['image_ids']
             
-            # Filter images that belong to this specific bus
+            # Filter images that belong to this specific package
             images_to_delete = PackageImage.objects.filter(
                 package=package,
                 id__in=image_ids
