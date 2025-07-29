@@ -1682,10 +1682,46 @@ class AdminEditPackageSerializer(serializers.ModelSerializer):
 
         # Add new package images
         if package_images:
+            print(f"Adding {len(package_images)} package images")  # Debug log
             for image in package_images:
-                PackageImage.objects.create(package=instance, image=image)
+                package_image = PackageImage.objects.create(package=instance, image=image)
+                print(f"Created package image: {package_image.id}")  # Debug log
 
         return instance
+
+
+# Separate serializer for response to include image URLs
+class PackageResponseSerializer(serializers.ModelSerializer):
+    package_images = serializers.SerializerMethodField()
+    sub_category = serializers.StringRelatedField()
+    vendor = serializers.StringRelatedField()
+    
+    class Meta:
+        model = Package
+        fields = [
+            'id',
+            'vendor',
+            'sub_category', 
+            'header_image',
+            'places',
+            'days',
+            'ac_available',
+            'guide_included',
+            'bus_location',
+            'price_per_person',
+            'extra_charge_per_km',
+            'status',
+            'package_images',
+            'created_at',
+            'updated_at'
+        ]
+    
+    def get_package_images(self, obj):
+        request = self.context.get('request')
+        images = obj.package_images.all()
+        if request:
+            return [request.build_absolute_uri(img.image.url) for img in images]
+        return [img.image.url for img in images]
     
 
 
