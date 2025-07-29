@@ -2065,7 +2065,7 @@ class PaymentDetailsAPIView(APIView):
             data.append({
                 'id': booking.booking_id,
                 'booking_type': 'Bus Booking',
-                'vendor_name': booking.bus.all()[0].vendor.full_name if booking.bus.exists() else None,
+                'vendor_name': booking.bus.all()[0].vendor.full_name,
                 'bus_or_package': booking.bus.bus_name,
                 'total_amount': booking.total_amount,
                 'advance_amount': booking.advance_amount,
