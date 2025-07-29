@@ -1571,17 +1571,25 @@ class AdminPackageBasicSerializer(serializers.ModelSerializer):
 
 class AdminEditPackageSerializer(serializers.ModelSerializer):
     vendor_id = serializers.IntegerField(write_only=True, required=False)
+    sub_category_id = serializers.IntegerField(write_only=True, required=False)
     bus_ids = serializers.ListField(
         child=serializers.IntegerField(),
         write_only=True,
         required=False,
         help_text="List of bus IDs to associate with this package"
     )
+    package_images = serializers.ListField(
+        child=serializers.ImageField(),
+        write_only=True,
+        required=False,
+        help_text="Upload new package images (will be added to existing images)"
+    )
 
     class Meta:
         model = Package
         fields = [
             'vendor_id',
+            'sub_category_id',
             'sub_category',
             'header_image',
             'places',
@@ -1592,7 +1600,8 @@ class AdminEditPackageSerializer(serializers.ModelSerializer):
             'bus_location',
             'price_per_person',
             'extra_charge_per_km',
-            'status'
+            'status',
+            'package_images'
         ]
 
     def validate_vendor_id(self, value):
@@ -1600,6 +1609,13 @@ class AdminEditPackageSerializer(serializers.ModelSerializer):
             Vendor.objects.get(pk=value)
         except Vendor.DoesNotExist:
             raise serializers.ValidationError("Vendor not found.")
+        return value
+
+    def validate_sub_category_id(self, value):
+        try:
+            PackageSubCategory.objects.get(pk=value)
+        except PackageSubCategory.DoesNotExist:
+            raise serializers.ValidationError("Package subcategory not found.")
         return value
 
     def validate_bus_ids(self, value):
@@ -1616,21 +1632,58 @@ class AdminEditPackageSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Header image size should not exceed 5MB.")
         return value
 
+    def validate_days(self, value):
+        if value is not None and value <= 0:
+            raise serializers.ValidationError("Days must be a positive integer.")
+        return value
+
+    def validate_price_per_person(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError("Price per person cannot be negative.")
+        return value
+
+    def validate_extra_charge_per_km(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError("Extra charge per km cannot be negative.")
+        return value
+
+    def validate_package_images(self, value):
+        if value:
+            for image in value:
+                if image.size > 5 * 1024 * 1024:
+                    raise serializers.ValidationError("Package image size should not exceed 5MB.")
+        return value
+
     def update(self, instance, validated_data):
         vendor_id = validated_data.pop('vendor_id', None)
+        sub_category_id = validated_data.pop('sub_category_id', None)
         bus_ids = validated_data.pop('bus_ids', None)
+        package_images = validated_data.pop('package_images', None)
 
+        # Update vendor if provided
         if vendor_id:
             vendor = Vendor.objects.get(pk=vendor_id)
             instance.vendor = vendor
 
+        # Update sub_category if provided
+        if sub_category_id:
+            sub_category = PackageSubCategory.objects.get(pk=sub_category_id)
+            instance.sub_category = sub_category
+
+        # Update basic fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
+        # Update bus associations if provided
         if bus_ids is not None:
             buses = Bus.objects.filter(id__in=bus_ids)
             instance.buses.set(buses)
+
+        # Add new package images
+        if package_images:
+            for image in package_images:
+                PackageImage.objects.create(package=instance, image=image)
 
         return instance
     
