@@ -4304,7 +4304,7 @@ class DeleteVendorAccountView(APIView):
     def delete(self, request):
         user = request.user
         try:
-            username = user.username
+            username = user.name
             user.delete()
             logger.info(f"User '{username}' deleted successfully.")
             return Response(
