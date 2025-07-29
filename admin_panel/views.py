@@ -350,7 +350,7 @@ class VendorListingPagination(APIView):
             try:
                 min_packages = int(min_packages)
                 queryset = queryset.annotate(
-                    package_count=Count('package_set')
+                    package_count=Count('package')
                 ).filter(package_count__gte=min_packages)
             except ValueError:
                 pass
@@ -360,7 +360,7 @@ class VendorListingPagination(APIView):
             try:
                 max_packages = int(max_packages)
                 queryset = queryset.annotate(
-                    package_count=Count('package_set')
+                    package_count=Count('package')
                 ).filter(package_count__lte=max_packages)
             except ValueError:
                 pass
@@ -368,7 +368,7 @@ class VendorListingPagination(APIView):
         # Filter by vendors with available packages only
         has_packages = request.query_params.get('has_packages', None)
         if has_packages and has_packages.lower() == 'true':
-            queryset = queryset.filter(package_set__isnull=False).distinct()
+            queryset = queryset.filter(package__isnull=False).distinct()
             
         # Filter by vendors with buses only
         has_buses = request.query_params.get('has_buses', None)
@@ -378,7 +378,7 @@ class VendorListingPagination(APIView):
         # Filter by package availability status
         package_status = request.query_params.get('package_status', None)
         if package_status:
-            queryset = queryset.filter(package_set__status=package_status).distinct()
+            queryset = queryset.filter(package__status=package_status).distinct()
         
         # Date range filters (for creation date)
         created_after = request.query_params.get('created_after', None)
@@ -416,7 +416,7 @@ class VendorListingPagination(APIView):
                 ).order_by('-bus_count')
             elif sort_by == 'package_count':
                 queryset = queryset.annotate(
-                    package_count=Count('package_set')
+                    package_count=Count('package')
                 ).order_by('-package_count')
             # Default sorting by created_at desc is already applied
         
@@ -517,7 +517,7 @@ class AdminVendorPackageListAPIView(APIView):
         except Vendor.DoesNotExist:
             return Response({"error": "Vendor not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        packages = vendor.package_set.all()
+        packages = vendor.package.all()
         serializer = AdminPackageListSerializer(packages, many=True)
         return Response({
             "message": "Package list retrieved successfully",
