@@ -350,8 +350,8 @@ class VendorListingPagination(APIView):
             try:
                 min_packages = int(min_packages)
                 queryset = queryset.annotate(
-                    package_count=Count('package')
-                ).filter(package_count__gte=min_packages)
+                    package=Count('package')
+                ).filter(package__gte=min_packages)
             except ValueError:
                 pass
                 
@@ -360,8 +360,8 @@ class VendorListingPagination(APIView):
             try:
                 max_packages = int(max_packages)
                 queryset = queryset.annotate(
-                    package_count=Count('package')
-                ).filter(package_count__lte=max_packages)
+                    package=Count('package')
+                ).filter(package__lte=max_packages)
             except ValueError:
                 pass
         
@@ -416,8 +416,8 @@ class VendorListingPagination(APIView):
                 ).order_by('-bus_count')
             elif sort_by == 'package_count':
                 queryset = queryset.annotate(
-                    package_count=Count('package')
-                ).order_by('-package_count')
+                    package=Count('package')
+                ).order_by('-package')
             # Default sorting by created_at desc is already applied
         
         return queryset
