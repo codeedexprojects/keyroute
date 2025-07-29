@@ -2899,6 +2899,60 @@ class AdminDeleteBusImageAPIView(APIView):
             }, status=status.HTTP_200_OK)
         
         return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
+
+
+
+
+
+
+
+
+
+
+class AdminDeletePackageImageAPIView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, package_id):
+        try:
+            package = Package.objects.get(pk=package_id)
+        except Package.DoesNotExist:
+            return Response({"error": "package not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PackageImageDeleteSerializer(data=request.data)
+        if serializer.is_valid():
+            image_ids = serializer.validated_data['image_ids']
+            
+            # Filter images that belong to this specific bus
+            images_to_delete = PackageImage.objects.filter(
+                package=package,
+                id__in=image_ids
+            )
+            
+            if not images_to_delete.exists():
+                return Response({
+                    "error": "No images found for this package with the provided IDs."
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Check if deleting these images would leave the bus with no images
+            remaining_images = PackageImage.objects.filter(package=package).exclude(id__in=image_ids)
+            if not remaining_images.exists():
+                return Response({
+                    "error": "Cannot delete all images. At least one image must remain."
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            deleted_count = images_to_delete.count()
+            images_to_delete.delete()
+            
+            return Response({
+                "message": f"Successfully deleted {deleted_count} image(s).",
+                "deleted_image_ids": image_ids
+            }, status=status.HTTP_200_OK)
+        
+        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
 

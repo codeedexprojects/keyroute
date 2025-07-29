@@ -174,7 +174,7 @@ class Package(models.Model):
     days = models.PositiveIntegerField(default=0)
     ac_available = models.BooleanField(default=True, verbose_name="AC Available")
     guide_included = models.BooleanField(default=False, verbose_name="Includes Guide")
-    buses = models.ManyToManyField(Bus)
+    buses = models.ManyToManyField(Bus,related_name='packages')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     bus_location = models.CharField(max_length=255, blank=True, null=True)
