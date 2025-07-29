@@ -57,7 +57,7 @@ class Bus(models.Model):
         ('booked', 'Booked'),
         ('maintenance', 'Under Maintenance'),
     )
-    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE)
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE,related_name="vendor_bus")
 
     bus_name = models.CharField(max_length=255, null=True, blank=True)
     bus_number = models.CharField(max_length=20, unique=True, null=True, blank=True)
@@ -164,7 +164,7 @@ class Package(models.Model):
     )
 
 
-    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE)
+    vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE,related_name="vendor_package")
     sub_category = models.ForeignKey(PackageSubCategory, on_delete=models.CASCADE, related_name="packages")
     header_image = models.ImageField(
         upload_to='packages/header/',
