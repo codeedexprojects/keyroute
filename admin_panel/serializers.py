@@ -93,7 +93,7 @@ class VendorFullSerializer(serializers.ModelSerializer):
     district = serializers.CharField(source='user.district')
 
     buses = BusSerializer(source='vendor_bus', many=True, read_only=True)
-    packages = PackageSerializer(source='package_set', many=True, read_only=True)
+    packages = PackageSerializer(source='vendor_package', many=True, read_only=True)
     busy_dates = VendorBusyDateSerializer(many=True, read_only=True)
 
     bus_count = serializers.SerializerMethodField()
@@ -127,14 +127,14 @@ class VendorFullSerializer(serializers.ModelSerializer):
         return obj.vendor_bus.count()
 
     def get_package_count(self, obj):
-        return obj.package_set.count()
+        return obj.vendor_package.count()
 
     def get_ongoing_buses(self, obj):
         ongoing_buses = obj.vendor_bus.all()[:2]
         return BusSerializer(ongoing_buses, many=True).data
 
     def get_available_packages(self, obj):
-        available_packages = obj.package_set.filter(status='available')
+        available_packages = obj.vendor_package.filter(status='available')
         data = []
         for package in available_packages:
             data.append({
