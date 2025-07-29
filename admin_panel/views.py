@@ -2848,11 +2848,12 @@ class AdminEditPackageAPIView(APIView):
         serializer = AdminEditPackageSerializer(package, data=request.data, partial=True)
         if serializer.is_valid():
             package = serializer.save()
+            # Use a separate serializer for response to include image data
             return Response({
                 "message": "Package updated successfully.",
-                "data": AdminEditPackageSerializer(package).data
+                "data": serializer.data
             }, status=status.HTTP_200_OK)
-        return 
+        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
